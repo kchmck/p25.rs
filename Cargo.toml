@@ -2,3 +2,7 @@
 name = "p25"
 version = "0.1.0"
 authors = ["Mick Koch <mick@kochm.co>"]
+
+[lib]
+name = "p25"
+path = "src/p25/lib.rs"
