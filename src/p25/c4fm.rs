@@ -55,13 +55,46 @@ impl<T: Iterator<Item = dibits::Dibit>> Iterator for C4FMImpulse<T> {
     }
 }
 
+/// Generates the alternating series of dibits used for the C4FM deviation test. The
+/// resulting filtered waveform approximates a 1200Hz sine wave.
+pub struct C4FMDeviationDibits {
+    /// Used to alternate dibits.
+    idx: usize,
+}
+
+impl C4FMDeviationDibits {
+    /// Construct a new `C4FMDeviationDibits`.
+    pub fn new() -> C4FMDeviationDibits {
+        C4FMDeviationDibits {
+            idx: 0,
+        }
+    }
+}
+
+impl Iterator for C4FMDeviationDibits {
+    type Item = dibits::Dibit;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let idx = self.idx;
+
+        self.idx += 1;
+        self.idx %= 4;
+
+        Some(if idx < 2 {
+            dibits::Dibit(0b01)
+        } else {
+            dibits::Dibit(0b11)
+        })
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use super::*;
+    use super::super::dibits;
+
     #[test]
     fn test_impulses() {
-        use super::*;
-        use super::super::dibits;
-
         const BITS: &'static [u8] = &[
             0b00011011,
         ];
@@ -78,5 +111,19 @@ mod test {
         assert!(imp.next().unwrap() == -1800.0);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().is_none());
+    }
+
+    #[test]
+    fn test_deviation() {
+        let mut d = C4FMDeviationDibits::new();
+
+        assert!(d.next().unwrap().0 == 0b01);
+        assert!(d.next().unwrap().0 == 0b01);
+        assert!(d.next().unwrap().0 == 0b11);
+        assert!(d.next().unwrap().0 == 0b11);
+        assert!(d.next().unwrap().0 == 0b01);
+        assert!(d.next().unwrap().0 == 0b01);
+        assert!(d.next().unwrap().0 == 0b11);
+        assert!(d.next().unwrap().0 == 0b11);
     }
 }
