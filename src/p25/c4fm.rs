@@ -1,10 +1,10 @@
-use super::dibits;
+use super::bits;
 
 /// P25 baud rate is 4800 symbols/sec = 9600 bits/sec.
 const BAUD: usize = 4800;
 
 /// Yields a series of scaled impulses vs time corresponding to given dibits.
-pub struct C4FMImpulse<T: Iterator<Item = dibits::Dibit>> {
+pub struct C4FMImpulse<T: Iterator<Item = bits::Dibit>> {
     /// The dibit source to iterate over.
     src: T,
     /// Number of samples per impulse/symbol period.
@@ -13,7 +13,7 @@ pub struct C4FMImpulse<T: Iterator<Item = dibits::Dibit>> {
     sample: usize,
 }
 
-impl<T: Iterator<Item = dibits::Dibit>> C4FMImpulse<T> {
+impl<T: Iterator<Item = bits::Dibit>> C4FMImpulse<T> {
     /// Construct a new `C4FMImpulse<T>` from the given source and sample rate.
     pub fn new(src: T, sample_rate: usize) -> C4FMImpulse<T> {
         // Fractional samples aren't supported.
@@ -27,7 +27,7 @@ impl<T: Iterator<Item = dibits::Dibit>> C4FMImpulse<T> {
     }
 }
 
-impl<T: Iterator<Item = dibits::Dibit>> Iterator for C4FMImpulse<T> {
+impl<T: Iterator<Item = bits::Dibit>> Iterator for C4FMImpulse<T> {
     type Item = f64;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -43,10 +43,10 @@ impl<T: Iterator<Item = dibits::Dibit>> Iterator for C4FMImpulse<T> {
         // Map the current dibit to a scaled impulse.
         if let Some(dibit) = self.src.next() {
             match dibit {
-                dibits::Dibit(0b01) => Some(1800.0),
-                dibits::Dibit(0b00) => Some(600.0),
-                dibits::Dibit(0b10) => Some(-600.0),
-                dibits::Dibit(0b11) => Some(-1800.0),
+                bits::Dibit(0b01) => Some(1800.0),
+                bits::Dibit(0b00) => Some(600.0),
+                bits::Dibit(0b10) => Some(-600.0),
+                bits::Dibit(0b11) => Some(-1800.0),
                 _ => panic!("invalid dibit encountered"),
             }
         } else {
@@ -72,7 +72,7 @@ impl C4FMDeviationDibits {
 }
 
 impl Iterator for C4FMDeviationDibits {
-    type Item = dibits::Dibit;
+    type Item = bits::Dibit;
 
     fn next(&mut self) -> Option<Self::Item> {
         let idx = self.idx;
@@ -81,9 +81,9 @@ impl Iterator for C4FMDeviationDibits {
         self.idx %= 4;
 
         Some(if idx < 2 {
-            dibits::Dibit(0b01)
+            bits::Dibit(0b01)
         } else {
-            dibits::Dibit(0b11)
+            bits::Dibit(0b11)
         })
     }
 }
@@ -91,7 +91,7 @@ impl Iterator for C4FMDeviationDibits {
 #[cfg(test)]
 mod test {
     use super::*;
-    use super::super::dibits;
+    use super::super::bits;
 
     #[test]
     fn test_impulses() {
@@ -99,7 +99,7 @@ mod test {
             0b00011011,
         ];
 
-        let d = dibits::Dibits::new(BITS.iter().cloned());
+        let d = bits::iter_dibits(BITS.iter().cloned());
         let mut imp = C4FMImpulse::new(d, 9600);
 
         assert!(imp.next().unwrap() == 600.0);
