@@ -1,4 +1,4 @@
-pub mod c4fm;
-pub mod fir;
-pub mod filters;
 pub mod bits;
+pub mod c4fm;
+pub mod filters;
+pub mod fir;
