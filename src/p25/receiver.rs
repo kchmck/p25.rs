@@ -1,5 +1,3 @@
-use std;
-
 use bits;
 use sync;
 use system::{SystemParams, P25Params};
@@ -14,14 +12,12 @@ enum ReceiveState<S: SystemParams> {
 }
 
 pub struct Receiver<S: SystemParams = P25Params> {
-    system: std::marker::PhantomData<S>,
     state: ReceiveState<S>,
 }
 
 impl<S: SystemParams = P25Params> Receiver<S> {
     pub fn new() -> Receiver<S> {
         Receiver {
-            system: std::marker::PhantomData,
             state: Syncing(sync::SyncDetector::new()),
         }
     }

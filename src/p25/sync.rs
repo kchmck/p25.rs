@@ -25,7 +25,6 @@ enum SyncState<S: SystemParams> {
 }
 
 pub struct SyncDetector<S: SystemParams = P25Params> {
-    system: std::marker::PhantomData<S>,
     state: SyncState<S>,
     timing: Timing<S>,
     sums: Sums,
@@ -35,7 +34,6 @@ pub struct SyncDetector<S: SystemParams = P25Params> {
 impl<S: SystemParams> SyncDetector<S> {
     pub fn new() -> SyncDetector<S> {
         SyncDetector {
-            system: std::marker::PhantomData,
             state: Error(Uninitialized),
             timing: Timing::new(),
             sums: Sums::new(),
