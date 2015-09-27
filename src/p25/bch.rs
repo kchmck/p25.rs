@@ -550,7 +550,7 @@ impl BCHDecoder {
 
 struct ErrorLocations {
     terms: Vec<Codeword>,
-    pow: usize,
+    pow: std::ops::Range<usize>,
 }
 
 impl ErrorLocations {
@@ -560,7 +560,7 @@ impl ErrorLocations {
             terms: coefs.enumerate().map(|(p, c)| {
                 c / Codeword::for_power(p)
             }).collect(),
-            pow: 0,
+            pow: 0..POWERS.len(),
         }
     }
 
@@ -581,9 +581,11 @@ impl Iterator for ErrorLocations {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while self.pow < POWERS.len() {
-            let pow = self.pow;
-            self.pow += 1;
+        loop {
+            let pow = match self.pow.next() {
+                Some(pow) => pow,
+                None => return None,
+            };
 
             self.update_terms();
 
@@ -591,8 +593,6 @@ impl Iterator for ErrorLocations {
                 return Some(Codeword::for_power(pow).invert().power().unwrap());
             }
         }
-
-        None
     }
 }
 
