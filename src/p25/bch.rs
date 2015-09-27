@@ -77,7 +77,7 @@ pub fn encode(word: u16) -> u64 {
 }
 
 pub fn decode(word: u64) -> Option<(u64, usize)> {
-    let poly = BCHDecoder::new(syndromes(word)).decode();
+    let poly = BCHDecoder::new(Syndromes::new(word)).decode();
 
     let errors = match poly.degree() {
         Some(deg) => deg,
@@ -100,17 +100,35 @@ pub fn decode(word: u64) -> Option<(u64, usize)> {
     }
 }
 
-// word has r_{n-1} as MSB and r_0 as LSB
-fn syndromes(word: u64) -> Vec<Codeword> {
-    (1..DISTANCE).map(|t| {
-        (0..WORD_SIZE).fold(Codeword::default(), |s, b| {
-            if word >> b & 1 == 0 {
-                s
-            } else {
-                s + Codeword::for_power(b * t)
-            }
-        })
-    }).collect()
+struct Syndromes {
+    pow: std::ops::Range<usize>,
+    word: u64,
+}
+
+impl Syndromes {
+    pub fn new(word: u64) -> Syndromes {
+        Syndromes {
+            pow: 1..DISTANCE,
+            word: word,
+        }
+    }
+}
+
+impl Iterator for Syndromes {
+    type Item = Codeword;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.pow.next() {
+            Some(pow) => Some((0..WORD_SIZE).fold(Codeword::default(), |s, b| {
+                if self.word >> b & 1 == 0 {
+                    s
+                } else {
+                    s + Codeword::for_power(b * pow)
+                }
+            })),
+            None => None,
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -329,25 +347,24 @@ struct BCHDecoder {
     p_saved: Polynomial,
     q_cur: Polynomial,
     q_saved: Polynomial,
-    deg_cur: usize,
     deg_saved: usize,
+    deg_cur: usize,
 }
 
 impl BCHDecoder {
-    pub fn new(syndromes: Vec<Codeword>) -> BCHDecoder {
+    pub fn new<T: Iterator<Item = Codeword>>(syndromes: T) -> BCHDecoder {
+        let q = Polynomial::new(std::iter::once(Codeword::for_power(0))
+                                    .chain(syndromes.into_iter()));
+        let p = Polynomial::new((0..SYNDROMES+1).map(|_| Codeword::default())
+                                    .chain(std::iter::once(Codeword::for_power(0))));
+
         BCHDecoder {
-            q_saved: Polynomial::new(
-                    std::iter::once(Codeword::for_power(0))
-                        .chain(syndromes.iter().cloned())),
-            q_cur: Polynomial::new(syndromes.iter().cloned()),
-            p_saved: Polynomial::new(
-                    (0..SYNDROMES+1).map(|_| Codeword::default())
-                        .chain(std::iter::once(Codeword::for_power(0)))),
-            p_cur: Polynomial::new(
-                    (0..SYNDROMES).map(|_| Codeword::default())
-                        .chain(std::iter::once(Codeword::for_power(0)))),
-            deg_cur: 1,
+            q_saved: q,
+            q_cur: q.shift(),
+            p_saved: p,
+            p_cur: p.shift(),
             deg_saved: 0,
+            deg_cur: 1,
         }
     }
 
@@ -582,7 +599,7 @@ const POWERS: &'static [usize] = &[
 
 #[cfg(test)]
 mod test {
-    use super::{encode, syndromes, Codeword, Polynomial, decode};
+    use super::{encode, Syndromes, Codeword, Polynomial, decode};
 
     #[test]
     fn test_for_power() {
@@ -644,8 +661,8 @@ mod test {
     fn test_syndromes() {
         let w = encode(0b1111111100000000)>>1;
 
-        assert!(syndromes(w).iter().all(|s| s.zero()));
-        assert!(!syndromes(w ^ 1<<60).iter().all(|s| s.zero()));
+        assert!(Syndromes::new(w).all(|s| s.zero()));
+        assert!(!Syndromes::new(w ^ 1<<60).all(|s| s.zero()));
     }
 
     #[test]
