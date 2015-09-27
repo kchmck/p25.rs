@@ -1,5 +1,8 @@
 use std;
 
+const WORD_SIZE: usize = 63;
+const DISTANCE: usize = 23;
+
 const GEN: &'static [u16] = &[
     0b1000000000000000,
     0b0100000000000000,
@@ -87,6 +90,9 @@ pub fn decode(word: u64) -> Option<(u64, usize)> {
         (word ^ 1 << loc, s + 1)
     });
 
+    // "If the Chien Search fails to find v roots of a error locator polynomial of degree
+    // v, then the error pattern is an uncorrectable error pattern" -- Lecture 17:
+    // Berlekamp-Massey Algorithm for Binary BCH Codes
     if count == errors {
         Some((word, errors))
     } else {
@@ -96,8 +102,8 @@ pub fn decode(word: u64) -> Option<(u64, usize)> {
 
 // word has r_{n-1} as MSB and r_0 as LSB
 fn syndromes(word: u64) -> Vec<Codeword> {
-    (1..23).map(|t| {
-        (0..63).fold(Codeword::default(), |s, b| {
+    (1..DISTANCE).map(|t| {
+        (0..WORD_SIZE).fold(Codeword::default(), |s, b| {
             if word >> b & 1 == 0 {
                 s
             } else {
@@ -287,6 +293,8 @@ impl std::fmt::Display for Polynomial {
             }
         }
 
+        try!(write!(fmt, "0"));
+
         Ok(())
     }
 }
@@ -317,75 +325,75 @@ impl std::ops::Mul<Codeword> for Polynomial {
 }
 
 struct BCHDecoder {
-    q: Vec<Polynomial>,
-    p: Vec<Polynomial>,
-    d: Vec<usize>,
-    z: Vec<usize>,
+    p_cur: Polynomial,
+    p_saved: Polynomial,
+    q_cur: Polynomial,
+    q_saved: Polynomial,
+    deg_cur: usize,
+    deg_saved: usize,
 }
 
 impl BCHDecoder {
     pub fn new(syndromes: Vec<Codeword>) -> BCHDecoder {
         BCHDecoder {
-            q: vec![
-                Polynomial::new(std::iter::once(Codeword::for_power(0))
-                                    .chain(syndromes.iter().cloned())),
-                Polynomial::new(syndromes.iter().cloned()),
-            ],
-            p: vec![
-                Polynomial::new(
+            q_saved: Polynomial::new(
+                    std::iter::once(Codeword::for_power(0))
+                        .chain(syndromes.iter().cloned())),
+            q_cur: Polynomial::new(syndromes.iter().cloned()),
+            p_saved: Polynomial::new(
                     (0..SYNDROMES+1).map(|_| Codeword::default())
                         .chain(std::iter::once(Codeword::for_power(0)))),
-                Polynomial::new(
+            p_cur: Polynomial::new(
                     (0..SYNDROMES).map(|_| Codeword::default())
                         .chain(std::iter::once(Codeword::for_power(0)))),
-            ],
-            d: vec![0, 1],
-            z: vec![0],
+            deg_cur: 1,
+            deg_saved: 0,
         }
     }
 
     pub fn decode(mut self) -> Polynomial {
-        for i in 2..SYNDROMES+2 {
-            self.step(i);
+        for _ in 0..SYNDROMES {
+            self.step();
         }
 
-        self.p.pop().unwrap()
+        self.p_cur
     }
 
-    fn step(&mut self, i: usize) {
-        let (q, p, d, z) = if self.q[i-1].constant().zero() {
-            self.reduce(i)
+    fn step(&mut self) {
+        let (save, q, p, d) = if self.q_cur.constant().zero() {
+            self.reduce()
         } else {
-            self.transform(i)
+            self.transform()
         };
 
-        self.q.push(q);
-        self.p.push(p);
-        self.d.push(d);
-        self.z.push(z);
+        if save {
+            self.q_saved = self.q_cur;
+            self.p_saved = self.p_cur;
+            self.deg_saved = self.deg_cur;
+        }
+
+        self.q_cur = q;
+        self.p_cur = p;
+        self.deg_cur = d;
     }
 
-    fn reduce(&mut self, i: usize) -> (Polynomial, Polynomial, usize, usize) {
+    fn reduce(&mut self) -> (bool, Polynomial, Polynomial, usize) {
         (
-            self.q[i-1].shift(),
-            self.p[i-1].shift(),
-            2 + self.d[i-1],
-            self.z[i-2],
+            false,
+            self.q_cur.shift(),
+            self.p_cur.shift(),
+            2 + self.deg_cur,
         )
     }
 
-    fn transform(&mut self, i: usize) -> (Polynomial, Polynomial, usize, usize) {
-        let mult = self.q[i-1].constant() / self.q[self.z[i-2]].constant();
+    fn transform(&mut self) -> (bool, Polynomial, Polynomial, usize) {
+        let mult = self.q_cur.constant() / self.q_saved.constant();
 
         (
-            (self.q[i-1] + self.q[self.z[i-2]] * mult).shift(),
-            (self.p[i-1] + self.p[self.z[i-2]] * mult).shift(),
-            2 + std::cmp::min(self.d[i-1], self.d[self.z[i-2]]),
-            if self.d[i-1] >= self.d[self.z[i-2]] {
-                i - 1
-            } else {
-                self.z[i - 2]
-            },
+            self.deg_cur >= self.deg_saved,
+            (self.q_cur + self.q_saved * mult).shift(),
+            (self.p_cur + self.p_saved * mult).shift(),
+            2 + std::cmp::min(self.deg_cur, self.deg_saved),
         )
    }
 }
@@ -700,8 +708,14 @@ mod test {
 
     #[test]
     fn test_decode() {
-        let w = encode(0b1111111100000000)>>1 ^ 0b110110011110111;
-        println!("{:?}", decode(w));
-        panic!();
+        let w = encode(0b1111111100000000)>>1 ^ 0b11010011<<30;
+        let d = decode(w);
+
+        println!("{:?}", d);
+
+        match d {
+            Some((9187424089929167924, 5)) => {},
+            _ => panic!(),
+        }
     }
 }
