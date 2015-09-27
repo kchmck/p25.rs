@@ -73,33 +73,31 @@ pub fn encode(word: u16) -> u64 {
     })
 }
 
-pub fn decode(mut word: u64) -> Option<(u64, usize)> {
-    let syns = syndromes(word);
+pub fn decode(word: u64) -> Option<(u64, usize)> {
+    let poly = BCHDecoder::new(syndromes(word)).decode();
 
-    // 2t+1 = 23 => t = 11
-    for err in (1..12).rev() {
-        let matrix = match SyndromeMatrix::new(&syns, err).invert() {
-            Some(m) => m,
-            None => continue,
-        };
+    let errors = match poly.degree() {
+        Some(deg) => deg,
+        None => return None,
+    };
 
-        let coefs = ErrorCoefs::new(matrix, err).solve(&syns);
-        let locs = ErrorLocations::new(coefs.iter().cloned().rev());
+    let locs = ErrorLocations::new(poly.coefs().iter().cloned());
 
-        for loc in locs.take(err) {
-            word ^= 1 << loc.power().unwrap();
-        }
+    let (word, count) = locs.take(errors).fold((word, 0), |(word, s), loc| {
+        (word ^ 1 << loc, s + 1)
+    });
 
-        return Some((word, err));
+    if count == errors {
+        Some((word, errors))
+    } else {
+        None
     }
-
-    Some((word, 0))
 }
 
 // word has r_{n-1} as MSB and r_0 as LSB
 fn syndromes(word: u64) -> Vec<Codeword> {
     (1..23).map(|t| {
-        (0..63).fold(Codeword::new(0), |s, b| {
+        (0..63).fold(Codeword::default(), |s, b| {
             if word >> b & 1 == 0 {
                 s
             } else {
@@ -107,159 +105,6 @@ fn syndromes(word: u64) -> Vec<Codeword> {
             }
         })
     }).collect()
-}
-
-struct SyndromeMatrix {
-    cells: Vec<Vec<Codeword>>,
-    rows: usize,
-    cols: usize,
-}
-
-impl SyndromeMatrix {
-    pub fn new(syndromes: &[Codeword], dim: usize) -> SyndromeMatrix {
-        assert!(syndromes.len() >= dim * 2 - 2);
-
-        SyndromeMatrix {
-            cells: Self::build(syndromes, dim),
-            rows: dim,
-            cols: dim * 2,
-        }
-    }
-
-    fn build(syndromes: &[Codeword], dim: usize) -> Vec<Vec<Codeword>> {
-        (0..dim).map(|row| {
-            (0..dim).map(|col| {
-                syndromes[row + col]
-            }).chain((0..dim).map(|col| {
-                if col == row {
-                    Codeword::for_power(0)
-                } else {
-                    Codeword::new(0)
-                }
-            })).collect()
-        }).collect()
-    }
-
-    pub fn invert(mut self) -> Option<Vec<Vec<Codeword>>> {
-        let rows = self.rows;
-        let cols = self.cols;
-
-        for pos in 0..rows {
-            let max = (pos..rows).fold(pos, |max, next| {
-                if self.cells[next][pos] > self.cells[max][pos] {
-                    next
-                } else {
-                    max
-                }
-            });
-
-            if self.cells[max][pos].zero() {
-                return None;
-            }
-
-            self.cells.swap(pos, max);
-            self.reduce((pos+1)..rows, pos);
-        }
-
-        for pos in (0..rows).rev() {
-            self.reduce(0..pos, pos);
-            let div = self.cells[pos][pos];
-
-            for col in 0..cols {
-                self.cells[pos][col] = self.cells[pos][col] / div;
-            }
-        }
-
-        Some(self.cells)
-    }
-
-    fn reduce(&mut self, rows: std::ops::Range<usize>, target: usize) {
-        for row in rows {
-            let ratio = self.cells[row][target] / self.cells[target][target];
-
-            for col in target..self.cols {
-                self.cells[row][col] = self.cells[row][col] -
-                    self.cells[target][col] * ratio;
-            }
-        }
-    }
-}
-
-#[derive(Debug)]
-struct ErrorCoefs {
-    cells: Vec<Vec<Codeword>>,
-    dim: usize,
-}
-
-impl ErrorCoefs {
-    fn new(cells: Vec<Vec<Codeword>>, dim: usize) -> Self {
-        ErrorCoefs {
-            cells: cells,
-            dim: dim,
-        }
-    }
-
-    pub fn solve(self, syndromes: &[Codeword]) -> Vec<Codeword> {
-        let rhs = &syndromes[self.dim..];
-
-        self.cells.iter().map(|row| {
-            row.iter()
-                .skip(self.dim)
-                .zip(rhs)
-                .fold(Codeword::new(0), |s, (&a, &b)| {
-                    s + a * b
-                })
-        }).collect()
-    }
-}
-
-struct ErrorLocations {
-    terms: Vec<Codeword>,
-    pow: usize,
-}
-
-impl ErrorLocations {
-    // Λ(x) = coefs[0]*x + coefs[1]*x^2 + ...
-    pub fn new<T: Iterator<Item = Codeword>>(coefs: T) -> ErrorLocations {
-        ErrorLocations {
-            terms: coefs.enumerate().map(|(p, c)| {
-                c / Codeword::for_power(p + 1)
-            }).collect(),
-            pow: 0,
-        }
-    }
-
-    fn update_terms(&mut self) {
-        for (j, term) in self.terms.iter_mut().enumerate() {
-            *term = *term * Codeword::for_power(j + 1);
-        }
-    }
-
-    fn eval(&self) -> Codeword {
-        self.terms.iter().fold(Codeword::for_power(0), |s, &x| {
-            s + x
-
-        })
-    }
-}
-
-impl Iterator for ErrorLocations {
-    type Item = Codeword;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        while self.pow < POWERS.len() {
-            let pow = self.pow;
-            self.pow += 1;
-
-            self.update_terms();
-
-            if self.eval().zero() {
-                return Some(Codeword::for_power(0) / Codeword::for_power(pow));
-            }
-        }
-
-        None
-    }
 }
 
 #[derive(Copy, Clone)]
@@ -286,8 +131,21 @@ impl Codeword {
         }
     }
 
-    fn for_power(power: usize) -> Codeword {
+    pub fn for_power(power: usize) -> Codeword {
         Codeword::new(CODEWORDS[power % POWERS.len()])
+    }
+
+    pub fn invert(self) -> Codeword {
+        match self.power() {
+            Some(p) => Codeword::for_power(POWERS.len() - p),
+            None => panic!("divide by zero"),
+        }
+    }
+}
+
+impl Default for Codeword {
+    fn default() -> Self {
+        Codeword::new(0)
     }
 }
 
@@ -297,7 +155,7 @@ impl std::ops::Mul for Codeword {
     fn mul(self, rhs: Codeword) -> Self::Output {
         match (self.power(), rhs.power()) {
             (Some(p), Some(q)) => Codeword::for_power(p + q),
-            _ => Codeword::new(0),
+            _ => Codeword::default(),
         }
     }
 }
@@ -309,7 +167,7 @@ impl std::ops::Div for Codeword {
         match (self.power(), rhs.power()) {
             // min(power) = -62 => 63+min(power) > 0
             (Some(p), Some(q)) => Codeword::for_power(p + POWERS.len() - q),
-            (None, Some(_)) => Codeword::new(0),
+            (None, Some(_)) => Codeword::default(),
             (_, None) => panic!("divide by zero"),
         }
     }
@@ -355,6 +213,228 @@ impl std::cmp::PartialOrd for Codeword {
 impl std::cmp::Ord for Codeword {
     fn cmp(&self, rhs: &Self) -> std::cmp::Ordering {
         self.partial_cmp(rhs).unwrap()
+    }
+}
+
+// 2t+1 = 23 => t = 11
+const ERRORS: usize = 11;
+const SYNDROMES: usize = 2 * ERRORS;
+
+#[derive(Copy, Clone)]
+struct Polynomial {
+    /// Coefficients of the polynomial.
+    coefs: [Codeword; SYNDROMES + 2],
+    /// Index into `coefs` of the degree-0 coefficient.
+    start: usize,
+}
+
+impl Polynomial {
+    pub fn new<T: Iterator<Item = Codeword>>(coefs: T) -> Polynomial {
+        let mut c = [Codeword::default(); SYNDROMES + 2];
+
+        for (i, coef) in coefs.enumerate() {
+            c[i] = c[i] + coef;
+        }
+
+        Polynomial {
+            coefs: c,
+            start: 0,
+        }
+    }
+
+    pub fn constant(&self) -> Codeword {
+        self.coefs[self.start]
+    }
+
+    pub fn coefs(&self) -> &[Codeword] {
+        &self.coefs[self.start..]
+    }
+
+    pub fn degree(&self) -> Option<usize> {
+        for (deg, coef) in self.coefs.iter().enumerate().rev() {
+            if !coef.zero() {
+                return Some(deg - self.start);
+            }
+        }
+
+        None
+    }
+
+    pub fn shift(mut self) -> Polynomial {
+        self.coefs[self.start] = Codeword::default();
+        self.start += 1;
+        self
+    }
+
+    fn get(&self, idx: usize) -> Codeword {
+        match self.coefs.get(idx) {
+            Some(&c) => c,
+            None => Codeword::default(),
+        }
+    }
+
+    pub fn coef(&self, deg: usize) -> Codeword {
+        self.get(self.start + deg)
+    }
+}
+
+impl std::fmt::Display for Polynomial {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        for (i, coef) in self.coefs().iter().enumerate() {
+            match coef.power() {
+                Some(p) => try!(write!(fmt, "a^{}*x^{} + ", p, i)),
+                None => {},
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl std::ops::Add for Polynomial {
+    type Output = Polynomial;
+
+    fn add(mut self, rhs: Polynomial) -> Self::Output {
+        for i in 0..self.coefs.len() {
+            self.coefs[i] = self.coef(i) + rhs.coef(i);
+        }
+
+        self.start = 0;
+        self
+    }
+}
+
+impl std::ops::Mul<Codeword> for Polynomial {
+    type Output = Polynomial;
+
+    fn mul(mut self, rhs: Codeword) -> Self::Output {
+        for coef in self.coefs.iter_mut() {
+            *coef = *coef * rhs;
+        }
+
+        self
+    }
+}
+
+struct BCHDecoder {
+    q: Vec<Polynomial>,
+    p: Vec<Polynomial>,
+    d: Vec<usize>,
+    z: Vec<usize>,
+}
+
+impl BCHDecoder {
+    pub fn new(syndromes: Vec<Codeword>) -> BCHDecoder {
+        BCHDecoder {
+            q: vec![
+                Polynomial::new(std::iter::once(Codeword::for_power(0))
+                                    .chain(syndromes.iter().cloned())),
+                Polynomial::new(syndromes.iter().cloned()),
+            ],
+            p: vec![
+                Polynomial::new(
+                    (0..SYNDROMES+1).map(|_| Codeword::default())
+                        .chain(std::iter::once(Codeword::for_power(0)))),
+                Polynomial::new(
+                    (0..SYNDROMES).map(|_| Codeword::default())
+                        .chain(std::iter::once(Codeword::for_power(0)))),
+            ],
+            d: vec![0, 1],
+            z: vec![0],
+        }
+    }
+
+    pub fn decode(mut self) -> Polynomial {
+        for i in 2..SYNDROMES+2 {
+            self.step(i);
+        }
+
+        self.p.pop().unwrap()
+    }
+
+    fn step(&mut self, i: usize) {
+        let (q, p, d, z) = if self.q[i-1].constant().zero() {
+            self.reduce(i)
+        } else {
+            self.transform(i)
+        };
+
+        self.q.push(q);
+        self.p.push(p);
+        self.d.push(d);
+        self.z.push(z);
+    }
+
+    fn reduce(&mut self, i: usize) -> (Polynomial, Polynomial, usize, usize) {
+        (
+            self.q[i-1].shift(),
+            self.p[i-1].shift(),
+            2 + self.d[i-1],
+            self.z[i-2],
+        )
+    }
+
+    fn transform(&mut self, i: usize) -> (Polynomial, Polynomial, usize, usize) {
+        let mult = self.q[i-1].constant() / self.q[self.z[i-2]].constant();
+
+        (
+            (self.q[i-1] + self.q[self.z[i-2]] * mult).shift(),
+            (self.p[i-1] + self.p[self.z[i-2]] * mult).shift(),
+            2 + std::cmp::min(self.d[i-1], self.d[self.z[i-2]]),
+            if self.d[i-1] >= self.d[self.z[i-2]] {
+                i - 1
+            } else {
+                self.z[i - 2]
+            },
+        )
+   }
+}
+
+struct ErrorLocations {
+    terms: Vec<Codeword>,
+    pow: usize,
+}
+
+impl ErrorLocations {
+    // Λ(x) = coefs[0] + coefs[1]*x + coefs[2]*x^2 + ...
+    pub fn new<T: Iterator<Item = Codeword>>(coefs: T) -> ErrorLocations {
+        ErrorLocations {
+            terms: coefs.enumerate().map(|(p, c)| {
+                c / Codeword::for_power(p)
+            }).collect(),
+            pow: 0,
+        }
+    }
+
+    fn update_terms(&mut self) {
+        for (j, term) in self.terms.iter_mut().enumerate() {
+            *term = *term * Codeword::for_power(j);
+        }
+    }
+
+    fn sum_terms(&self) -> Codeword {
+        self.terms.iter().fold(Codeword::default(), |s, &x| {
+            s + x
+        })
+    }
+}
+
+impl Iterator for ErrorLocations {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.pow < POWERS.len() {
+            let pow = self.pow;
+            self.pow += 1;
+
+            self.update_terms();
+
+            if self.sum_terms().zero() {
+                return Some(Codeword::for_power(pow).invert().power().unwrap());
+            }
+        }
+
+        None
     }
 }
 
@@ -494,7 +574,7 @@ const POWERS: &'static [usize] = &[
 
 #[cfg(test)]
 mod test {
-    use super::{encode, decode, syndromes, Codeword};
+    use super::{encode, syndromes, Codeword, Polynomial, decode};
 
     #[test]
     fn test_for_power() {
@@ -558,5 +638,70 @@ mod test {
 
         assert!(syndromes(w).iter().all(|s| s.zero()));
         assert!(!syndromes(w ^ 1<<60).iter().all(|s| s.zero()));
+    }
+
+    #[test]
+    fn test_polynomial() {
+        let p = Polynomial::new((0..23).map(|i| {
+            Codeword::for_power(i)
+        }));
+
+        assert!(p.degree().unwrap() == 22);
+        assert!(p.constant() == Codeword::for_power(0));
+
+        let p = p.shift();
+        assert!(p.degree().unwrap() == 21);
+        assert!(p.constant() == Codeword::for_power(1));
+
+        let q = p.clone() * Codeword::for_power(0);
+        assert!(q.degree().unwrap() == 21);
+        assert!(q.constant() == Codeword::for_power(1));
+
+        let q = p.clone() * Codeword::for_power(2);
+        assert!(q.degree().unwrap() == 21);
+        assert!(q.constant() == Codeword::for_power(3));
+
+        let q = p.clone() + p.clone();
+        assert!(q.constant().zero());
+
+        for coef in q.coefs() {
+            assert!(coef.zero());
+        }
+
+        let p = Polynomial::new((4..27).map(|i| {
+            Codeword::for_power(i)
+        }));
+
+        let q = Polynomial::new((3..26).map(|i| {
+            Codeword::for_power(i)
+        }));
+
+        let r = p + q.shift();
+
+        assert!(r.coefs[0].zero());
+        assert!(r.coefs[1].zero());
+        assert!(r.coefs[2].zero());
+        assert!(r.coefs[3].zero());
+        assert!(r.coefs[4].zero());
+        assert!(!r.coefs[22].zero());
+
+        let p = Polynomial::new((0..2).map(|_| {
+            Codeword::for_power(0)
+        }));
+
+        let q = Polynomial::new((0..4).map(|_| {
+            Codeword::for_power(1)
+        }));
+
+        let r = p + q;
+
+        assert!(r.coef(0) == Codeword::for_power(6));
+    }
+
+    #[test]
+    fn test_decode() {
+        let w = encode(0b1111111100000000)>>1 ^ 0b110110011110111;
+        println!("{:?}", decode(w));
+        panic!();
     }
 }
