@@ -676,7 +676,8 @@ impl Iterator for ErrorLocations {
 
 #[cfg(test)]
 mod test {
-    use super::{encode, Syndromes, Codeword, Polynomial, decode};
+    use super::{encode, Syndromes, Codeword, Polynomial, decode, BCHDecoder,
+                ErrorLocations};
 
     #[test]
     fn test_for_power() {
@@ -798,6 +799,27 @@ mod test {
         let r = p + q;
 
         assert!(r.coef(0) == Codeword::for_power(6));
+    }
+
+    #[test]
+    fn test_decoder() {
+        let w = encode(0b1111111100000000)^0b11<<61;
+        let poly = BCHDecoder::new(Syndromes::new(w >> 1)).decode();
+
+        assert!(poly.coef(0).power().unwrap() == 0);
+        assert!(poly.coef(1).power().unwrap() == 3);
+        assert!(poly.coef(2).power().unwrap() == 58);
+    }
+
+    #[test]
+    fn test_locs() {
+        let coefs = [Codeword::for_power(0), Codeword::for_power(3),
+                     Codeword::for_power(58)];
+        let mut locs = ErrorLocations::new(coefs.iter().cloned());
+
+        assert!(locs.next().unwrap() == 61);
+        assert!(locs.next().unwrap() == 60);
+        assert!(locs.next().is_none());
     }
 
     #[test]
