@@ -1,15 +1,39 @@
+//! This module implements encoding and decoding of the (63, 16, 23) BCH code used to
+//! protect P25's NID field.
+//!
+//! It uses an optimized "matrix multiplication" for encoding and
+//! the Berlekamp-Massey algorithm followed by Chien search for decoding, and both use
+//! only stack memory.
+//!
+//! Most Galois field information as well as the Berlekamp-Massey implementation are
+//! derived from \[1] and the Chien search was derived from \[2].
+//!
+//! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
+//! al, 2000
+//!
+//! \[2]: https://en.wikipedia.org/wiki/Chien_search
+
 use std;
 
+/// Encode the given word into a P25 BCH codeword.
 pub fn encode(word: u16) -> u64 {
     GEN.iter().fold(0, |accum, row| {
+        // Continually shift in bits created by "multiplying" the word with the generator
+        // row.
         accum << 1 | ((word & row).count_ones() % 2) as u64
     })
 }
 
+/// Decode the given codeword into data bits, correcting up to 11 errors. Return
+/// `Some((data, err))`, where `data` is the data bits and `err` is the number of errors,
+/// if the codeword could be corrected and `None` if it couldn't.
 pub fn decode(word: u64) -> Option<(u16, usize)> {
+    // The BCH code is only over the first 63 bits, so strip off the P25 parity bit.
     let word = word >> 1;
+    // Get the error location polynomial.
     let poly = BCHDecoder::new(Syndromes::new(word)).decode();
 
+    // The degree indicates the number of errors that need to be corrected.
     let errors = match poly.degree() {
         Some(deg) => deg,
         None => panic!("invalid polynomial"),
@@ -19,15 +43,16 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
     // no greater than ERRORS.
     assert!(errors <= ERRORS);
 
+    // Get the bit locations from the polynomial.
     let locs = ErrorLocations::new(poly.coefs().iter().cloned());
 
+    // Correct the codeword and count the number of corrected errors. Stop the
+    // `ErrorLocations` iteration after `errors` iterations since it won't yield any more
+    // locations after that anyway.
     let (word, count) = locs.take(errors).fold((word, 0), |(w, s), loc| {
         (w ^ 1 << loc, s + 1)
     });
 
-    // "If the Chien Search fails to find v roots of a error locator polynomial of degree
-    // v, then the error pattern is an uncorrectable error pattern" -- Lecture 17:
-    // Berlekamp-Massey Algorithm for Binary BCH Codes
     if count == errors {
         // Strip off the (corrected) parity-check bits.
         Some(((word >> 47) as u16, errors))
@@ -36,13 +61,16 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
     }
 }
 
+/// The n in (n,k,d).
 const WORD_SIZE: usize = 63;
+/// The d in (n,k,d).
 const DISTANCE: usize = 23;
-// 2t+1 = 23 => t = 11
+/// 2t+1 = 23 => t = 11
 const ERRORS: usize = 11;
+/// Required syndrome codewords.
 const SYNDROMES: usize = 2 * ERRORS;
 
-// Maps α^i to codewords.
+/// Maps α^i to its codeword.
 const CODEWORDS: &'static [u8] = &[
     0b100000,
     0b010000,
@@ -106,10 +134,10 @@ const CODEWORDS: &'static [u8] = &[
     0b101111,
     0b100111,
     0b100011,
-    0b100001
+    0b100001,
 ];
 
-// Maps codewords to α^i.
+/// Maps a codeword to i in α^i.
 const POWERS: &'static [usize] = &[
     5,
     4,
@@ -176,6 +204,7 @@ const POWERS: &'static [usize] = &[
     58,
 ];
 
+/// Generator matrix from P25, transformed for more efficient codeword generation.
 const GEN: &'static [u16] = &[
     0b1000000000000000,
     0b0100000000000000,
@@ -243,59 +272,35 @@ const GEN: &'static [u16] = &[
     0b0000000000000011,
 ];
 
-struct Syndromes {
-    pow: std::ops::Range<usize>,
-    word: u64,
-}
-
-impl Syndromes {
-    pub fn new(word: u64) -> Syndromes {
-        Syndromes {
-            pow: 1..DISTANCE,
-            word: word,
-        }
-    }
-}
-
-impl Iterator for Syndromes {
-    type Item = Codeword;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.pow.next() {
-            Some(pow) => Some((0..WORD_SIZE).fold(Codeword::default(), |s, b| {
-                if self.word >> b & 1 == 0 {
-                    s
-                } else {
-                    s + Codeword::for_power(b * pow)
-                }
-            })),
-            None => None,
-        }
-    }
-}
-
 #[derive(Copy, Clone)]
+/// Codeword in GF(2^6) defined by α^6+α+1.
 struct Codeword(u8);
 
 impl Codeword {
-    pub fn new(codeword: u8) -> Codeword {
+    /// Construct a new `Codeword` with the given (valid) codeword in the field.
+    fn new(codeword: u8) -> Codeword {
         Codeword(codeword)
     }
 
+    /// Check if the codeword is zero.
     pub fn zero(&self) -> bool { self.0 == 0 }
 
+    /// Return `Some(i)` if the codeword is equal to α^i and `None` if it's equal to zero.
     pub fn power(&self) -> Option<usize> {
         if self.zero() {
             None
         } else {
+            // Convert to zero-based index.
             Some(POWERS[self.0 as usize - 1])
         }
     }
 
+    /// Return the codeword for the given power, which is cyclic in the field.
     pub fn for_power(power: usize) -> Codeword {
         Codeword::new(CODEWORDS[power % POWERS.len()])
     }
 
+    /// Find 1/a^i for the codeword equal to a^i. Panic if the codeword is zero.
     pub fn invert(self) -> Codeword {
         match self.power() {
             Some(p) => Codeword::for_power(POWERS.len() - p),
@@ -305,6 +310,7 @@ impl Codeword {
 }
 
 impl Default for Codeword {
+    /// Get the additive identity codeword.
     fn default() -> Self {
         Codeword::new(0)
     }
@@ -326,7 +332,7 @@ impl std::ops::Div for Codeword {
 
     fn div(self, rhs: Codeword) -> Self::Output {
         match (self.power(), rhs.power()) {
-            // min(power) = -62 => 63+min(power) > 0
+            // max(q) = 62 => 63-max(power) > 0
             (Some(p), Some(q)) => Codeword::for_power(p + POWERS.len() - q),
             (None, Some(_)) => Codeword::default(),
             (_, None) => panic!("divide by zero"),
@@ -378,15 +384,22 @@ impl std::cmp::Ord for Codeword {
 }
 
 #[derive(Copy, Clone)]
+/// A syndrome polynomial with GF(2^6) codewords as coefficients.
 struct Polynomial {
-    /// Coefficients of the polynomial.
+    /// Coefficients of the polynomial. The maximum degree span in the algorithm is [0,
+    /// 2t+1], or 2t+2 coefficients.
     coefs: [Codeword; SYNDROMES + 2],
-    /// Index into `coefs` of the degree-0 coefficient.
+    /// Index into `coefs` of the degree-0 coefficient. Coefficients with a lesser index
+    /// will be zero.
     start: usize,
 }
 
 impl Polynomial {
+    /// Construct a new `Polynomial` from the given coefficients, so
+    /// p(x) = coefs[0] + coefs[1]*x + ... + coefs[n]*x^n. Only `SYNDROMES+2` coefficients
+    /// will be used from the iterator.
     pub fn new<T: Iterator<Item = Codeword>>(coefs: T) -> Polynomial {
+        // Start with all zero coefficients and add in the given ones.
         let mut poly = [Codeword::default(); SYNDROMES + 2];
 
         for (cur, coef) in poly.iter_mut().zip(coefs) {
@@ -399,17 +412,22 @@ impl Polynomial {
         }
     }
 
+    /// Get the degree-0 coefficient.
     pub fn constant(&self) -> Codeword {
         self.coefs[self.start]
     }
 
+    /// Get the coefficients starting from degree-0.
     pub fn coefs(&self) -> &[Codeword] {
         &self.coefs[self.start..]
     }
 
+    /// Return `Some(deg)`, where `deg` is the highest degree term in the polynomial, if
+    /// the polynomial is nonzero and `None` if it's zero.
     pub fn degree(&self) -> Option<usize> {
         for (deg, coef) in self.coefs.iter().enumerate().rev() {
             if !coef.zero() {
+                // Any coefficients before `start` aren't part of the polynomial.
                 return Some(deg - self.start);
             }
         }
@@ -417,12 +435,17 @@ impl Polynomial {
         None
     }
 
+    /// Divide the polynomial by x -- shift all coefficients to a lower degree -- and
+    /// replace the shifted coefficient with the zero codeword. There must be no constant
+    /// term.
     pub fn shift(mut self) -> Polynomial {
         self.coefs[self.start] = Codeword::default();
         self.start += 1;
         self
     }
 
+    /// Get the coefficient of the given absolute degree if it exists in the polynomial
+    /// or the zero codeword if it doesn't.
     fn get(&self, idx: usize) -> Codeword {
         match self.coefs.get(idx) {
             Some(&c) => c,
@@ -430,6 +453,8 @@ impl Polynomial {
         }
     }
 
+    /// Get the coefficient of the given degree or the zero codeword if the degree doesn't
+    /// exist in the polynomial.
     pub fn coef(&self, deg: usize) -> Codeword {
         self.get(self.start + deg)
     }
@@ -439,6 +464,8 @@ impl std::ops::Add for Polynomial {
     type Output = Polynomial;
 
     fn add(mut self, rhs: Polynomial) -> Self::Output {
+        // Sum the coefficients and reset the degree-0 term back to index 0. Since start >
+        // 0 => start+i >= i, so there's no overwriting.
         for i in 0..self.coefs.len() {
             self.coefs[i] = self.coef(i) + rhs.coef(i);
         }
@@ -460,19 +487,65 @@ impl std::ops::Mul<Codeword> for Polynomial {
     }
 }
 
+/// Iterator over the syndromes of a received codeword. Each syndrome is a codeword in
+/// GF(2^6).
+struct Syndromes {
+    /// Exponent power of the current syndrome.
+    pow: std::ops::Range<usize>,
+    /// Received codeword itself.
+    word: u64,
+}
+
+impl Syndromes {
+    /// Construct a new `Syndromes` for the given received codeword.
+    pub fn new(word: u64) -> Syndromes {
+        Syndromes {
+            pow: 1..DISTANCE,
+            word: word,
+        }
+    }
+}
+
+impl Iterator for Syndromes {
+    type Item = Codeword;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.pow.next() {
+            Some(pow) => Some((0..WORD_SIZE).fold(Codeword::default(), |s, b| {
+                if self.word >> b & 1 == 0 {
+                    s
+                } else {
+                    s + Codeword::for_power(b * pow)
+                }
+            })),
+            None => None,
+        }
+    }
+}
+
+/// Implements the iterative part of the Berlekamp-Massey algorithm.
 struct BCHDecoder {
-    p_cur: Polynomial,
+    /// Saved p polynomial: p_{z_i-1}.
     p_saved: Polynomial,
-    q_cur: Polynomial,
+    /// Previous iteration's p polynomial: p_{i-1}.
+    p_cur: Polynomial,
+    /// Saved q polynomial: q_{z_i-1}.
     q_saved: Polynomial,
+    /// Previous iteration's q polynomial: q_{i-1}.
+    q_cur: Polynomial,
+    /// Degree-related term of saved p polynomial: D_{z_i-1}.
     deg_saved: usize,
+    /// Degree-related term of previous p polynomial: D_{i-1}.
     deg_cur: usize,
 }
 
 impl BCHDecoder {
+    /// Construct a new `BCHDecoder` from the given syndrome codeword iterator.
     pub fn new<T: Iterator<Item = Codeword>>(syndromes: T) -> BCHDecoder {
+        // A zero followed by the syndromes.
         let q = Polynomial::new(std::iter::once(Codeword::for_power(0))
                                     .chain(syndromes.into_iter()));
+        // 2t zeroes followed by a one.
         let p = Polynomial::new((0..SYNDROMES+1).map(|_| Codeword::default())
                                     .chain(std::iter::once(Codeword::for_power(0))));
 
@@ -486,6 +559,8 @@ impl BCHDecoder {
         }
     }
 
+    /// Perform the iterative steps to get the error-location polynomial Λ(x) wih deg(Λ)
+    /// <= t.
     pub fn decode(mut self) -> Polynomial {
         for _ in 0..SYNDROMES {
             self.step();
@@ -494,6 +569,8 @@ impl BCHDecoder {
         self.p_cur
     }
 
+    /// Perform one iterative step of the algorithm, updating the state polynomials and
+    /// degrees.
     fn step(&mut self) {
         let (save, q, p, d) = if self.q_cur.constant().zero() {
             self.reduce()
@@ -512,6 +589,7 @@ impl BCHDecoder {
         self.deg_cur = d;
     }
 
+    /// Simply shift the polynomials since they have no degree-0 term.
     fn reduce(&mut self) -> (bool, Polynomial, Polynomial, usize) {
         (
             false,
@@ -521,6 +599,7 @@ impl BCHDecoder {
         )
     }
 
+    /// Remove the degree-0 terms and shift the polynomials.
     fn transform(&mut self) -> (bool, Polynomial, Polynomial, usize) {
         let mult = self.q_cur.constant() / self.q_saved.constant();
 
@@ -533,17 +612,26 @@ impl BCHDecoder {
    }
 }
 
+/// Uses Chien search to find the roots in GF(2^6) of an error-locator polynomial and
+/// produce an iterator of error bit positions.
 struct ErrorLocations {
+    /// Coefficients of the polynomial.
     terms: [Codeword; ERRORS + 1],
+    /// Current exponent power of the iteration.
     pow: std::ops::Range<usize>,
 }
 
 impl ErrorLocations {
-    // Λ(x) = coefs[0] + coefs[1]*x + coefs[2]*x^2 + ...
+    /// Construct a new `ErrorLocations` from the given coefficients, where Λ(x) =
+    /// coefs[0] + coefs[1]*x + ... + coefs[e]*x^e.
     pub fn new<T: Iterator<Item = Codeword>>(coefs: T) -> ErrorLocations {
+        // The maximum degree is t error locations (t+1 coefficients.)
         let mut poly = [Codeword::default(); ERRORS + 1];
 
         for (pow, (cur, coef)) in poly.iter_mut().zip(coefs).enumerate() {
+            // Since the first call to `update_terms()` multiplies by `pow` and the
+            // coefficients should equal themselves on the first iteration, divide by
+            // `pow` here.
             *cur = *cur + coef / Codeword::for_power(pow)
         }
 
@@ -553,12 +641,15 @@ impl ErrorLocations {
         }
     }
 
+    /// Perform the term-updating step of the algorithm: x_{j,i} = x_{j,i-1} * α^j.
     fn update_terms(&mut self) {
-        for (j, term) in self.terms.iter_mut().enumerate() {
-            *term = *term * Codeword::for_power(j);
+        for (pow, term) in self.terms.iter_mut().enumerate() {
+            *term = *term * Codeword::for_power(pow);
         }
     }
 
+    /// Calculate the sum of the terms: x_{0,i} + x_{1,i} + ... + x_{t,i} -- evaluate the
+    /// error-locator polynomial at Λ(α^i).
     fn sum_terms(&self) -> Codeword {
         self.terms.iter().fold(Codeword::default(), |s, &x| s + x)
     }
