@@ -571,9 +571,7 @@ impl ErrorLocations {
     }
 
     fn sum_terms(&self) -> Codeword {
-        self.terms.iter().fold(Codeword::default(), |s, &x| {
-            s + x
-        })
+        self.terms.iter().fold(Codeword::default(), |s, &x| s + x)
     }
 }
 
