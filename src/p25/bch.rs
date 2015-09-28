@@ -25,14 +25,12 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
         (w ^ 1 << loc, s + 1)
     });
 
-
-    let data = (word >> 47) as u16;
-
     // "If the Chien Search fails to find v roots of a error locator polynomial of degree
     // v, then the error pattern is an uncorrectable error pattern" -- Lecture 17:
     // Berlekamp-Massey Algorithm for Binary BCH Codes
     if count == errors {
-        Some((data, errors))
+        // Strip off the (corrected) parity-check bits.
+        Some(((word >> 47) as u16, errors))
     } else {
         None
     }
