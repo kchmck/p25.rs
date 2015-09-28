@@ -7,7 +7,7 @@ pub fn encode(word: u16) -> u64 {
 }
 
 pub fn decode(word: u64) -> Option<(u16, usize)> {
-    let poly = BCHDecoder::new(Syndromes::new(word)).decode();
+    let poly = BCHDecoder::new(Syndromes::new(word >> 1)).decode();
 
     let errors = match poly.degree() {
         Some(deg) => deg,
@@ -24,7 +24,11 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
         (word ^ 1 << loc, s + 1)
     });
 
-    let data = (word >> 47) as u16;
+    let data = (word >> 48) as u16;
+
+    if data & 1 ^ data >> 1 & 1 != (word & 1) as u16 {
+        return None;
+    }
 
     // "If the Chien Search fails to find v roots of a error locator polynomial of degree
     // v, then the error pattern is an uncorrectable error pattern" -- Lecture 17:
@@ -730,7 +734,7 @@ mod test {
 
     #[test]
     fn test_decode() {
-        let w = encode(0b1111111100000000)>>1 ^ 0b11010011<<30;
+        let w = encode(0b1111111100000000) ^ 0b11010011<<30;
         let d = decode(w);
 
         println!("{:?}", d);
