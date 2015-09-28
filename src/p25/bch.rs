@@ -713,12 +713,33 @@ mod test {
 
     #[test]
     fn test_decode() {
-        let w = encode(0b1111111100000000) ^ 0b11010011<<30;
-        let d = decode(w);
+        assert!(decode(encode(0b0000111100001111) ^ 1<<63).unwrap() ==
+                (0b0000111100001111, 1));
 
-        match d {
-            Ok((0b1111111100000000, 5)) => {},
-            _ => panic!(),
-        }
+        assert!(decode(encode(0b1100011111111111) ^ 1).unwrap() ==
+                (0b1100011111111111, 0));
+
+        assert!(decode(encode(0b1111111100000000) ^ 0b11010011<<30).unwrap() ==
+                (0b1111111100000000, 5));
+
+        assert!(decode(encode(0b1101101101010001) ^ (1<<63 | 1)).unwrap() ==
+                (0b1101101101010001, 1));
+
+        assert!(decode(encode(0b1111111111111111) ^ 0b11111111111).unwrap() ==
+                (0b1111111111111111, 10));
+
+        assert!(decode(encode(0b0000000000000000) ^ 0b11111111111).unwrap() ==
+                (0b0000000000000000, 10));
+
+        assert!(decode(encode(0b0000111110000000) ^ 0b111111111110).unwrap() ==
+                (0b0000111110000000, 11));
+
+        assert!(decode(encode(0b0000111110000000) ^ 0b111111111110).unwrap() ==
+                (0b0000111110000000, 11));
+
+        assert!(decode(encode(0b0000111110001010) ^ 0b1111111111110).is_none());
+        assert!(decode(encode(0b0000001111111111) ^ 0b11111111111111111111110).is_none());
+        assert!(decode(encode(0b0000001111111111) ^
+                       0b00100101010101000010001100100010011111111110).is_none());
     }
 }
