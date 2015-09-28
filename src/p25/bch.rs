@@ -288,12 +288,6 @@ impl Iterator for Syndromes {
 #[derive(Copy, Clone)]
 struct Codeword(u8);
 
-impl std::fmt::Debug for Codeword {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(fmt, "Codeword({:?})", self.power())
-    }
-}
-
 impl Codeword {
     pub fn new(codeword: u8) -> Codeword {
         Codeword(codeword)
@@ -449,21 +443,6 @@ impl Polynomial {
 
     pub fn coef(&self, deg: usize) -> Codeword {
         self.get(self.start + deg)
-    }
-}
-
-impl std::fmt::Display for Polynomial {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        for (i, coef) in self.coefs().iter().enumerate() {
-            match coef.power() {
-                Some(p) => try!(write!(fmt, "a^{}*x^{} + ", p, i)),
-                None => {},
-            }
-        }
-
-        try!(write!(fmt, "0"));
-
-        Ok(())
     }
 }
 
@@ -743,8 +722,6 @@ mod test {
     fn test_decode() {
         let w = encode(0b1111111100000000) ^ 0b11010011<<30;
         let d = decode(w);
-
-        println!("{:?}", d);
 
         match d {
             Ok((0b1111111100000000, 5)) => {},
