@@ -545,17 +545,21 @@ impl BCHDecoder {
 }
 
 struct ErrorLocations {
-    terms: Vec<Codeword>,
+    terms: [Codeword; ERRORS + 1],
     pow: std::ops::Range<usize>,
 }
 
 impl ErrorLocations {
     // Λ(x) = coefs[0] + coefs[1]*x + coefs[2]*x^2 + ...
     pub fn new<T: Iterator<Item = Codeword>>(coefs: T) -> ErrorLocations {
+        let mut poly = [Codeword::default(); ERRORS + 1];
+
+        for (pow, (cur, coef)) in poly.iter_mut().zip(coefs).enumerate() {
+            *cur = *cur + coef / Codeword::for_power(pow)
+        }
+
         ErrorLocations {
-            terms: coefs.enumerate().map(|(p, c)| {
-                c / Codeword::for_power(p)
-            }).collect(),
+            terms: poly,
             pow: 0..POWERS.len(),
         }
     }
