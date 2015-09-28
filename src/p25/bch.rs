@@ -398,14 +398,14 @@ struct Polynomial {
 
 impl Polynomial {
     pub fn new<T: Iterator<Item = Codeword>>(coefs: T) -> Polynomial {
-        let mut c = [Codeword::default(); SYNDROMES + 2];
+        let mut poly = [Codeword::default(); SYNDROMES + 2];
 
-        for (cur, coef) in c.iter_mut().zip(coefs) {
+        for (cur, coef) in poly.iter_mut().zip(coefs) {
             *cur = *cur + coef;
         }
 
         Polynomial {
-            coefs: c,
+            coefs: poly,
             start: 0,
         }
     }
