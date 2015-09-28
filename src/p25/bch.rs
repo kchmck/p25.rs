@@ -1,17 +1,19 @@
 use std;
 
+use self::BCHError::*;
+
 pub fn encode(word: u16) -> u64 {
     GEN.iter().fold(0, |accum, row| {
         accum << 1 | ((word & row).count_ones() % 2) as u64
     })
 }
 
-pub fn decode(word: u64) -> Option<(u16, usize)> {
+pub fn decode(word: u64) -> Result<(u16, usize), BCHError> {
     let poly = BCHDecoder::new(Syndromes::new(word >> 1)).decode();
 
     let errors = match poly.degree() {
         Some(deg) => deg,
-        None => return None,
+        None => panic!("invalid polynomial"),
     };
 
     // Even if there are more errors, the BM algorithm produces a polynomial with degree
@@ -27,16 +29,16 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
     let data = (word >> 48) as u16;
 
     if data & 1 ^ data >> 1 & 1 != (word & 1) as u16 {
-        return None;
+        return Err(ParityError);
     }
 
     // "If the Chien Search fails to find v roots of a error locator polynomial of degree
     // v, then the error pattern is an uncorrectable error pattern" -- Lecture 17:
     // Berlekamp-Massey Algorithm for Binary BCH Codes
     if count == errors {
-        Some((data, errors))
+        Ok((data, errors))
     } else {
-        None
+        Err(UnrecoverableError)
     }
 }
 
@@ -246,6 +248,11 @@ const GEN: &'static [u16] = &[
     0b1101100010001111,
     0b0000000000000011,
 ];
+
+pub enum BCHError {
+    UnrecoverableError,
+    ParityError,
+}
 
 struct Syndromes {
     pow: std::ops::Range<usize>,
@@ -740,7 +747,7 @@ mod test {
         println!("{:?}", d);
 
         match d {
-            Some((0b1111111100000000, 5)) => {},
+            Ok((0b1111111100000000, 5)) => {},
             _ => panic!(),
         }
     }
