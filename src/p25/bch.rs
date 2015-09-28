@@ -400,8 +400,8 @@ impl Polynomial {
     pub fn new<T: Iterator<Item = Codeword>>(coefs: T) -> Polynomial {
         let mut c = [Codeword::default(); SYNDROMES + 2];
 
-        for (i, coef) in coefs.enumerate() {
-            c[i] = c[i] + coef;
+        for (cur, coef) in c.iter_mut().zip(coefs) {
+            *cur = *cur + coef;
         }
 
         Polynomial {
