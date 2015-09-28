@@ -6,7 +6,7 @@ pub fn encode(word: u16) -> u64 {
     })
 }
 
-pub fn decode(word: u64) -> Option<(u64, usize)> {
+pub fn decode(word: u64) -> Option<(u16, usize)> {
     let poly = BCHDecoder::new(Syndromes::new(word)).decode();
 
     let errors = match poly.degree() {
@@ -24,11 +24,13 @@ pub fn decode(word: u64) -> Option<(u64, usize)> {
         (word ^ 1 << loc, s + 1)
     });
 
+    let data = (word >> 47) as u16;
+
     // "If the Chien Search fails to find v roots of a error locator polynomial of degree
     // v, then the error pattern is an uncorrectable error pattern" -- Lecture 17:
     // Berlekamp-Massey Algorithm for Binary BCH Codes
     if count == errors {
-        Some((word, errors))
+        Some((data, errors))
     } else {
         None
     }
@@ -734,7 +736,7 @@ mod test {
         println!("{:?}", d);
 
         match d {
-            Some((9187424089929167924, 5)) => {},
+            Some((0b1111111100000000, 5)) => {},
             _ => panic!(),
         }
     }
