@@ -17,7 +17,7 @@ use std;
 
 /// Encode the given word into a P25 BCH codeword.
 pub fn encode(word: u16) -> u64 {
-    GEN.iter().fold(0, |accum, row| {
+    GEN.iter().fold(word as u64, |accum, row| {
         // Continually shift in bits created by "multiplying" the word with the generator
         // row.
         accum << 1 | ((word & row).count_ones() % 2) as u64
@@ -206,22 +206,6 @@ const POWERS: &'static [usize] = &[
 
 /// Generator matrix from P25, transformed for more efficient codeword generation.
 const GEN: &'static [u16] = &[
-    0b1000000000000000,
-    0b0100000000000000,
-    0b0010000000000000,
-    0b0001000000000000,
-    0b0000100000000000,
-    0b0000010000000000,
-    0b0000001000000000,
-    0b0000000100000000,
-    0b0000000010000000,
-    0b0000000001000000,
-    0b0000000000100000,
-    0b0000000000010000,
-    0b0000000000001000,
-    0b0000000000000100,
-    0b0000000000000010,
-    0b0000000000000001,
     0b1110110001000111,
     0b1001101001100100,
     0b0100110100110010,
