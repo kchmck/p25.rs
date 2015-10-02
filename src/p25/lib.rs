@@ -5,6 +5,7 @@ pub mod bits;
 pub mod c4fm;
 pub mod filters;
 pub mod fir;
+pub mod galois;
 pub mod receiver;
 pub mod sync;
 pub mod system;
