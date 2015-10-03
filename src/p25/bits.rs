@@ -57,8 +57,6 @@ impl<P, T> Bits<P, T>
 {
     /// Construct a new `Bits<T>`.
     fn new(src: T) -> Bits<P, T> {
-        P::validate();
-
         Bits {
             params: std::marker::PhantomData,
             src: src,
@@ -98,10 +96,16 @@ impl<P, T> Iterator for Bits<P, T>
 
 #[cfg(test)]
 mod test {
+    use super::*;
+
+    #[test]
+    fn validate_params() {
+        BitIterator::validate();
+        DibitIterator::validate();
+    }
+
     #[test]
     fn test_bits() {
-        use super::*;
-
         const BITS: &'static [u8] = &[
             0b00011011,
             0b11001100,
