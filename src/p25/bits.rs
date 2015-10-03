@@ -43,14 +43,13 @@ impl IterateParams for DibitIterator {
 pub struct Bits<P, T>
     where P: IterateParams, T: Iterator<Item = u8>
 {
+    params: std::marker::PhantomData<P>,
     /// The source of bits.
     src: T,
     /// The current index into the current byte.
     idx: u8,
     /// The current byte in the source.
     byte: u8,
-
-    _params: std::marker::PhantomData<P>,
 }
 
 impl<P, T> Bits<P, T>
@@ -61,10 +60,10 @@ impl<P, T> Bits<P, T>
         P::validate();
 
         Bits {
+            params: std::marker::PhantomData,
             src: src,
             byte: 0,
             idx: 0,
-            _params: std::marker::PhantomData,
         }
     }
 }
