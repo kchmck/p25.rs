@@ -4,9 +4,7 @@ pub fn iter_dibits<T: Iterator<Item = u8>>(src: T) -> SubByteIter<DibitParams, T
     SubByteIter::new(src)
 }
 
-pub fn iter_bits<T: Iterator<Item = u8>>(src: T) -> SubByteIter<BitParams, T> {
-    SubByteIter::new(src)
-}
+pub type Bits<T> = SubByteIter<BitParams, T>;
 
 pub trait IterateParams {
     type IterType;
@@ -57,7 +55,7 @@ impl<P, T> SubByteIter<P, T>
     where P: IterateParams, T: Iterator<Item = u8>
 {
     /// Construct a new `SubByteIter<T>`.
-    fn new(src: T) -> SubByteIter<P, T> {
+    pub fn new(src: T) -> SubByteIter<P, T> {
         SubByteIter {
             params: std::marker::PhantomData,
             src: src,
@@ -127,7 +125,7 @@ mod test {
         }
 
         {
-            let mut b = iter_bits(BITS.iter().cloned());
+            let mut b = Bits::new(BITS.iter().cloned());
 
             assert!(b.next().unwrap().0 == 0);
             assert!(b.next().unwrap().0 == 0);
