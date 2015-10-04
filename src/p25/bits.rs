@@ -4,7 +4,7 @@ pub fn iter_dibits<T: Iterator<Item = u8>>(src: T) -> SubByteIter<DibitIterator,
     SubByteIter::new(src)
 }
 
-pub fn iter_bits<T: Iterator<Item = u8>>(src: T) -> SubByteIter<BitIterator, T> {
+pub fn iter_bits<T: Iterator<Item = u8>>(src: T) -> SubByteIter<BitParams, T> {
     SubByteIter::new(src)
 }
 
@@ -23,9 +23,9 @@ pub trait IterateParams {
 }
 
 pub struct Bit(pub u8);
-pub struct BitIterator;
+pub struct BitParams;
 
-impl IterateParams for BitIterator {
+impl IterateParams for BitParams {
     type IterType = Bit;
     fn bits() -> u8 { 1 }
     fn wrap(x: u8) -> Bit { Bit(x) }
@@ -100,7 +100,7 @@ mod test {
 
     #[test]
     fn validate_params() {
-        BitIterator::validate();
+        BitParams::validate();
         DibitIterator::validate();
     }
 
