@@ -1,6 +1,6 @@
 use std;
 
-pub fn iter_dibits<T: Iterator<Item = u8>>(src: T) -> SubByteIter<DibitIterator, T> {
+pub fn iter_dibits<T: Iterator<Item = u8>>(src: T) -> SubByteIter<DibitParams, T> {
     SubByteIter::new(src)
 }
 
@@ -31,10 +31,11 @@ impl IterateParams for BitParams {
     fn wrap(x: u8) -> Bit { Bit(x) }
 }
 
+#[derive(Debug)]
 pub struct Dibit(pub u8);
-pub struct DibitIterator;
+pub struct DibitParams;
 
-impl IterateParams for DibitIterator {
+impl IterateParams for DibitParams {
     type IterType = Dibit;
     fn bits() -> u8 { 2 }
     fn wrap(x: u8) -> Dibit { Dibit(x) }
@@ -101,7 +102,7 @@ mod test {
     #[test]
     fn validate_params() {
         BitParams::validate();
-        DibitIterator::validate();
+        DibitParams::validate();
     }
 
     #[test]
