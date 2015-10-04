@@ -1,10 +1,7 @@
 use std;
 
-pub fn iter_dibits<T: Iterator<Item = u8>>(src: T) -> SubByteIter<DibitParams, T> {
-    SubByteIter::new(src)
-}
-
 pub type Bits<T> = SubByteIter<BitParams, T>;
+pub type Dibits<T> = SubByteIter<DibitParams, T>;
 
 pub trait IterateParams {
     type IterType;
@@ -111,7 +108,7 @@ mod test {
         ];
 
         {
-            let mut d = iter_dibits(BITS.iter().cloned());
+            let mut d = Dibits::new(BITS.iter().cloned());
 
             assert!(d.next().unwrap().0 == 0b00);
             assert!(d.next().unwrap().0 == 0b01);

@@ -101,7 +101,7 @@ mod test {
             0b00011011,
         ];
 
-        let d = bits::iter_dibits(BITS.iter().cloned());
+        let d = bits::Dibits::new(BITS.iter().cloned());
         let mut imp = C4FMImpulse::new(d);
 
         assert!(imp.next().unwrap() == 600.0);
