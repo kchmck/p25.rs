@@ -1,11 +1,11 @@
 use std;
 
-pub fn iter_dibits<T: Iterator<Item = u8>>(src: T) -> Bits<DibitIterator, T> {
-    Bits::new(src)
+pub fn iter_dibits<T: Iterator<Item = u8>>(src: T) -> SubByteIter<DibitIterator, T> {
+    SubByteIter::new(src)
 }
 
-pub fn iter_bits<T: Iterator<Item = u8>>(src: T) -> Bits<BitIterator, T> {
-    Bits::new(src)
+pub fn iter_bits<T: Iterator<Item = u8>>(src: T) -> SubByteIter<BitIterator, T> {
+    SubByteIter::new(src)
 }
 
 pub trait IterateParams {
@@ -40,7 +40,7 @@ impl IterateParams for DibitIterator {
     fn wrap(x: u8) -> Dibit { Dibit(x) }
 }
 
-pub struct Bits<P, T>
+pub struct SubByteIter<P, T>
     where P: IterateParams, T: Iterator<Item = u8>
 {
     params: std::marker::PhantomData<P>,
@@ -52,12 +52,12 @@ pub struct Bits<P, T>
     byte: u8,
 }
 
-impl<P, T> Bits<P, T>
+impl<P, T> SubByteIter<P, T>
     where P: IterateParams, T: Iterator<Item = u8>
 {
-    /// Construct a new `Bits<T>`.
-    fn new(src: T) -> Bits<P, T> {
-        Bits {
+    /// Construct a new `SubByteIter<T>`.
+    fn new(src: T) -> SubByteIter<P, T> {
+        SubByteIter {
             params: std::marker::PhantomData,
             src: src,
             byte: 0,
@@ -66,7 +66,7 @@ impl<P, T> Bits<P, T>
     }
 }
 
-impl<P, T> Iterator for Bits<P, T>
+impl<P, T> Iterator for SubByteIter<P, T>
     where P: IterateParams, T: Iterator<Item = u8>
 {
     type Item = P::IterType;
