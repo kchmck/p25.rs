@@ -49,7 +49,7 @@ impl<T, S> Iterator for C4FMImpulse<T, S> where
                 bits::Dibit(0b00) => Some(600.0),
                 bits::Dibit(0b10) => Some(-600.0),
                 bits::Dibit(0b11) => Some(-1800.0),
-                _ => panic!("invalid dibit encountered"),
+                _ => unreachable!(),
             }
         } else {
             None
