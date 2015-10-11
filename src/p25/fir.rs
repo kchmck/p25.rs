@@ -1,3 +1,5 @@
+//! Defines the `FIRFilter` structure for FIR filtering.
+
 use std::cmp;
 
 /// A FIR filter for convolving with a series of samples.
