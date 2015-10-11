@@ -117,13 +117,13 @@ impl Decider {
 
     pub fn decide(&self, sum: f64) -> bits::Dibit {
         if sum >= self.high_thresh {
-            bits::Dibit(0b01)
+            bits::Dibit::new(0b01)
         } else if sum >= 0.0 {
-            bits::Dibit(0b00)
+            bits::Dibit::new(0b00)
         } else if sum <= -self.high_thresh {
-            bits::Dibit(0b11)
+            bits::Dibit::new(0b11)
         } else {
-            bits::Dibit(0b10)
+            bits::Dibit::new(0b10)
         }
     }
 }

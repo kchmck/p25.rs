@@ -44,11 +44,11 @@ impl<T, S> Iterator for C4FMImpulse<T, S> where
 
         // Map the current dibit to a scaled impulse.
         if let Some(dibit) = self.src.next() {
-            match dibit {
-                bits::Dibit(0b01) => Some(1800.0),
-                bits::Dibit(0b00) => Some(600.0),
-                bits::Dibit(0b10) => Some(-600.0),
-                bits::Dibit(0b11) => Some(-1800.0),
+            match dibit.bits() {
+                0b01 => Some(1800.0),
+                0b00 => Some(600.0),
+                0b10 => Some(-600.0),
+                0b11 => Some(-1800.0),
                 _ => unreachable!(),
             }
         } else {
@@ -83,9 +83,9 @@ impl Iterator for C4FMDeviationDibits {
         self.idx %= 4;
 
         Some(if idx < 2 {
-            bits::Dibit(0b01)
+            bits::Dibit::new(0b01)
         } else {
-            bits::Dibit(0b11)
+            bits::Dibit::new(0b11)
         })
     }
 }
@@ -151,13 +151,13 @@ mod test {
     fn test_deviation() {
         let mut d = C4FMDeviationDibits::new();
 
-        assert!(d.next().unwrap().0 == 0b01);
-        assert!(d.next().unwrap().0 == 0b01);
-        assert!(d.next().unwrap().0 == 0b11);
-        assert!(d.next().unwrap().0 == 0b11);
-        assert!(d.next().unwrap().0 == 0b01);
-        assert!(d.next().unwrap().0 == 0b01);
-        assert!(d.next().unwrap().0 == 0b11);
-        assert!(d.next().unwrap().0 == 0b11);
+        assert!(d.next().unwrap().bits() == 0b01);
+        assert!(d.next().unwrap().bits() == 0b01);
+        assert!(d.next().unwrap().bits() == 0b11);
+        assert!(d.next().unwrap().bits() == 0b11);
+        assert!(d.next().unwrap().bits() == 0b01);
+        assert!(d.next().unwrap().bits() == 0b01);
+        assert!(d.next().unwrap().bits() == 0b11);
+        assert!(d.next().unwrap().bits() == 0b11);
     }
 }

@@ -17,23 +17,43 @@ pub trait IterateParams {
     }
 }
 
-pub struct Bit(pub u8);
+pub struct Bit(u8);
+
+impl Bit {
+    pub fn new(bits: u8) -> Bit {
+        assert!(bits & 0b11111110 == 0);
+        Bit(bits)
+    }
+
+    pub fn bits(&self) -> u8 { self.0 }
+}
+
 pub struct BitParams;
 
 impl IterateParams for BitParams {
     type IterType = Bit;
     fn bits() -> u8 { 1 }
-    fn wrap(x: u8) -> Bit { Bit(x) }
+    fn wrap(x: u8) -> Bit { Bit::new(x) }
 }
 
 #[derive(Debug)]
-pub struct Dibit(pub u8);
+pub struct Dibit(u8);
+
+impl Dibit {
+    pub fn new(bits: u8) -> Dibit {
+        assert!(bits & 0b11111100 == 0);
+        Dibit(bits)
+    }
+
+    pub fn bits(&self) -> u8 { self.0 }
+}
+
 pub struct DibitParams;
 
 impl IterateParams for DibitParams {
     type IterType = Dibit;
     fn bits() -> u8 { 2 }
-    fn wrap(x: u8) -> Dibit { Dibit(x) }
+    fn wrap(x: u8) -> Dibit { Dibit::new(x) }
 }
 
 pub struct SubByteIter<P, T>
