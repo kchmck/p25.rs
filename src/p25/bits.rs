@@ -9,7 +9,6 @@ pub trait IterateParams {
     fn bits() -> u8;
     fn wrap(x: u8) -> Self::IterType;
 
-    fn shift() -> u8 { Self::bits() }
     fn iterations() -> u8 { 8 / Self::bits() }
 
     fn validate() {
@@ -99,14 +98,14 @@ impl<P, T> Iterator for SubByteIter<P, T>
         let byte = self.byte;
 
         // Strip off the MSBs for the next iteration.
-        self.byte <<= P::shift();
+        self.byte <<= P::bits();
 
         // Move to the next item and reset after all have been visited.
         self.idx += 1;
         self.idx %= P::iterations();
 
         // Yield the MSBs.
-        Some(P::wrap(byte >> (8 - P::shift())))
+        Some(P::wrap(byte >> (8 - P::bits())))
     }
 }
 
