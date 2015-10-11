@@ -1,5 +1,8 @@
 #![feature(default_type_parameter_fallback)]
 
+#[macro_use]
+mod macros;
+
 pub mod baseband;
 pub mod bits;
 pub mod c4fm;
