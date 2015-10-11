@@ -19,11 +19,7 @@ use galois::{self, GaloisField};
 
 /// Encode the given word into a P25 BCH codeword.
 pub fn encode(word: u16) -> u64 {
-    GEN.iter().fold(word as u64, |accum, row| {
-        // Continually shift in bits created by "multiplying" the word with the generator
-        // row.
-        accum << 1 | ((word & row).count_ones() % 2) as u64
-    })
+    matrix_mul_systematic!(word, GEN, u64)
 }
 
 /// Decode the given codeword into data bits, correcting up to 11 errors. Return
