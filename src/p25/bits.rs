@@ -95,7 +95,7 @@ impl Tribit {
 }
 
 /// An iterator for sub-byte (bit-level) values.
-pub struct SubByteIter<P, T> where
+struct SubByteIter<P, T> where
     P: IterParams, T: Iterator<Item = u8>
 {
     params: std::marker::PhantomData<P>,
