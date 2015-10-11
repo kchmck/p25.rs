@@ -32,6 +32,7 @@ pub trait IterParams {
 }
 
 /// A single bit.
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
 pub struct Bit(u8);
 
 impl Bit {
@@ -54,8 +55,8 @@ impl IterParams for BitParams {
     fn wrap(bits: u8) -> Bit { Bit::new(bits) }
 }
 
-#[derive(Debug)]
 /// Two bits.
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
 pub struct Dibit(u8);
 
 impl Dibit {
