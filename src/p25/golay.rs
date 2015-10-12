@@ -10,7 +10,7 @@
 pub mod standard {
     /// Encode the 12 data bits into a 23-bit codeword.
     pub fn encode(data: u16) -> u32 {
-        assert!(data & 0xF000 == 0);
+        assert!(data >> 12 == 0);
         matrix_mul_systematic!(data, super::CORE_SHORT, u32)
     }
 
@@ -18,7 +18,7 @@ pub mod standard {
     /// err))`, where `data` are the 12 data bits and `err` is the number of errors
     /// corrected in the data bits, on success and `None` on an unrecoverable error.
     pub fn decode(word: u32) -> Option<(u16, usize)> {
-        assert!(word & 0xFF800000 == 0);
+        assert!(word >> 23 == 0);
 
         // Create a 24-bit codeword with odd weight.
         let expanded = if word.count_ones() % 2 == 0 {
@@ -42,7 +42,7 @@ pub mod standard {
 pub mod extended {
     /// Encode the 12 data bits into a 24-bit codeword.
     pub fn encode(data: u16) -> u32 {
-        assert!(data & 0xF000 == 0);
+        assert!(data >> 12 == 0);
         matrix_mul_systematic!(data, super::CORE, u32)
     }
 
@@ -50,7 +50,7 @@ pub mod extended {
     /// err))`, where `data` are the 12 data bits and `err` is the number of errors
     /// corrected in the data bits, on success and `None` on an unrecoverable error.
     pub fn decode(word: u32) -> Option<(u16, usize)> {
-        assert!(word & 0xFF000000 == 0);
+        assert!(word >> 24 == 0);
         super::decode_syndrome(super::word_data(word), super::syndrome_24(word))
     }
 }
@@ -61,7 +61,7 @@ pub mod shortened {
 
     /// Encode the 6 data bits to an 18-bit codeword.
     pub fn encode(data: u8) -> u32 {
-        assert!(data & 0b11000000 == 0);
+        assert!(data >> 6 == 0);
         extended::encode(data as u16)
     }
 
@@ -69,7 +69,7 @@ pub mod shortened {
     /// err))`, where `data` are the 6 data bits and `err` is the number of errors
     /// corrected in the data bits, on success and `None` on an unrecoverable error.
     pub fn decode(word: u32) -> Option<(u8, usize)> {
-        assert!(word & 0xFFFC0000 == 0);
+        assert!(word >> 18 == 0);
 
         match extended::decode(word) {
             Some((data, err)) => Some((data as u8, err)),

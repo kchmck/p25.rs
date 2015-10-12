@@ -11,7 +11,7 @@
 pub mod standard {
     /// Encode the 11 bits of data to a 15-bit codeword.
     pub fn encode(data: u16) -> u16 {
-        assert!(data & 0xF800 == 0);
+        assert!(data >> 11 == 0);
         matrix_mul_systematic!(data, GEN, u16)
     }
 
@@ -19,7 +19,7 @@ pub mod standard {
     /// err))`, where `data` are the 11 data bits and `err` is the number of errors, on
     /// success and `None` on an unrecoverable error.
     pub fn decode(word: u16) -> Option<(u16, usize)> {
-        assert!(word & 0x8000 == 0);
+        assert!(word >> 15 == 0);
         super::decode_hamming::<StandardHamming>(word)
     }
 
@@ -74,7 +74,7 @@ pub mod standard {
 pub mod shortened {
     /// Encode the 6 data bits to a 10-bit codeword.
     pub fn encode(data: u8) -> u16 {
-        assert!(data & 0b11000000 == 0);
+        assert!(data >> 6 == 0);
         matrix_mul_systematic!(data, GEN, u16)
     }
 
@@ -82,7 +82,7 @@ pub mod shortened {
     /// err))`, where `data` are the 6 data bits and `err` is the number of errors, on
     /// success and `None` on an unrecoverable error.
     pub fn decode(word: u16) -> Option<(u8, usize)> {
-        assert!(word & 0xFC00 == 0);
+        assert!(word >> 10 == 0);
         super::decode_hamming::<ShortHamming>(word)
     }
 

@@ -38,7 +38,7 @@ pub struct Bit(u8);
 impl Bit {
     /// Construct a new `Bit` with the given bit in the LSB position.
     pub fn new(bits: u8) -> Bit {
-        assert!(bits & 0b11111110 == 0);
+        assert!(bits >> 1 == 0);
         Bit(bits)
     }
 
@@ -62,7 +62,7 @@ pub struct Dibit(u8);
 impl Dibit {
     /// Construct a new `Dibit` with the two given bits in the LSB position.
     pub fn new(bits: u8) -> Dibit {
-        assert!(bits & 0b11111100 == 0);
+        assert!(bits >> 2 == 0);
         Dibit(bits)
     }
 
@@ -86,7 +86,7 @@ pub struct Tribit(u8);
 impl Tribit {
     /// Construct a new `Tribit` with the three given bits in the LSB position.
     pub fn new(bits: u8) -> Tribit {
-        assert!(bits & 0b11111000 == 0);
+        assert!(bits >> 3 == 0);
         Tribit(bits)
     }
 
