@@ -200,6 +200,15 @@ impl Polynomial {
             s + *coef * x.pow(pow)
         })
     }
+
+    /// Truncate the polynomial to have no terms greater than the given degree.
+    pub fn truncate(mut self, deg: usize) -> Polynomial {
+        for i in (self.start + deg + 1)..self.coefs.len() {
+            self.coefs[i] = P25Codeword::default();
+        }
+
+        self
+    }
 }
 
 impl Default for Polynomial {
@@ -437,6 +446,22 @@ mod test {
 
         let p = p.shift();
         assert_eq!(p.eval(P25Codeword::for_power(1)), 0b110000);
+    }
+
+    #[test]
+    fn test_truncate() {
+        let p = Polynomial::new((0..5).map(|_| {
+            P25Codeword::for_power(0)
+        }));
+
+        assert_eq!(p.degree().unwrap(), 4);
+        assert_eq!(p.coefs[4].power().unwrap(), 0);
+        assert!(p.coefs[5].power().is_none());
+
+        let p = p.truncate(2);
+        assert_eq!(p.degree().unwrap(), 2);
+        assert_eq!(p.coefs[2].power().unwrap(), 0);
+        assert!(p.coefs[3].power().is_none());
     }
 
     #[test]
