@@ -295,9 +295,176 @@ impl<F: GaloisField> std::cmp::Ord for Codeword<F> {
     }
 }
 
+/// Wraps a static codeword array.
+pub trait PolynomialCoefs: Default + Copy + Clone + std::ops::Deref<Target = [P25Codeword]> +
+    std::ops::DerefMut
+{}
+
+/// A syndrome polynomial with GF(2^6) codewords as coefficients.
+#[derive(Copy, Clone)]
+pub struct Polynomial<P: PolynomialCoefs> {
+    /// Coefficients of the polynomial. The maximum degree span in the algorithm is [0,
+    /// 2t+1], or 2t+2 coefficients.
+    coefs: P,
+    /// Index into `coefs` of the degree-0 coefficient. Coefficients with a lesser index
+    /// will be zero.
+    start: usize,
+}
+
+impl<P: PolynomialCoefs> Polynomial<P> {
+    /// Construct a new `Polynomial` from the given coefficients, so
+    /// p(x) = coefs[0] + coefs[1]*x + ... + coefs[n]*x^n. Only `SYNDROMES+2` coefficients
+    /// will be used from the iterator.
+    pub fn new<T: Iterator<Item = P25Codeword>>(init: T) -> Polynomial<P> {
+        // Start with all zero coefficients and add in the given ones.
+        let mut coefs = P::default();
+
+        for (cur, coef) in coefs.iter_mut().zip(init) {
+            *cur = *cur + coef;
+        }
+
+        Polynomial {
+            coefs: coefs,
+            start: 0,
+        }
+    }
+
+    /// Get the degree-0 coefficient.
+    pub fn constant(&self) -> P25Codeword {
+        self.coefs[self.start]
+    }
+
+    /// Get the coefficients starting from degree-0.
+    pub fn coefs(&self) -> &[P25Codeword] {
+        &self.coefs[self.start..]
+    }
+
+    /// Return `Some(deg)`, where `deg` is the highest degree term in the polynomial, if
+    /// the polynomial is nonzero and `None` if it's zero.
+    pub fn degree(&self) -> Option<usize> {
+        for (deg, coef) in self.coefs.iter().enumerate().rev() {
+            if !coef.zero() {
+                // Any coefficients before `start` aren't part of the polynomial.
+                return Some(deg - self.start);
+            }
+        }
+
+        None
+    }
+
+    /// Divide the polynomial by x -- shift all coefficients to a lower degree -- and
+    /// replace the shifted coefficient with the zero codeword. There must be no constant
+    /// term.
+    pub fn shift(mut self) -> Polynomial<P> {
+        self.coefs[self.start] = P25Codeword::default();
+        self.start += 1;
+        self
+    }
+
+    /// Get the coefficient of the given absolute degree if it exists in the polynomial
+    /// or the zero codeword if it doesn't.
+    fn get(&self, idx: usize) -> P25Codeword {
+        match self.coefs.get(idx) {
+            Some(&c) => c,
+            None => P25Codeword::default(),
+        }
+    }
+
+    /// Get the coefficient of the given degree or the zero codeword if the degree doesn't
+    /// exist in the polynomial.
+    pub fn coef(&self, deg: usize) -> P25Codeword {
+        self.get(self.start + deg)
+    }
+
+    /// Evaluate the polynomial, substituting in `x`.
+    pub fn eval(&self, x: P25Codeword) -> P25Codeword {
+        self.coefs().iter().enumerate().fold(P25Codeword::default(), |s, (pow, coef)| {
+            s + *coef * x.pow(pow)
+        })
+    }
+
+    /// Truncate the polynomial to have no terms greater than the given degree.
+    pub fn truncate(mut self, deg: usize) -> Polynomial<P> {
+        for i in (self.start + deg + 1)..self.coefs.len() {
+            self.coefs[i] = P25Codeword::default();
+        }
+
+        self
+    }
+}
+
+impl<P: PolynomialCoefs> Default for Polynomial<P> {
+    fn default() -> Self {
+        Polynomial::new(std::iter::empty())
+    }
+}
+
+impl<P: PolynomialCoefs> std::ops::Add for Polynomial<P> {
+    type Output = Polynomial<P>;
+
+    fn add(mut self, rhs: Polynomial<P>) -> Self::Output {
+        // Sum the coefficients and reset the degree-0 term back to index 0. Since start >
+        // 0 => start+i >= i, so there's no overwriting.
+        for i in 0..self.coefs.len() {
+            self.coefs[i] = self.coef(i) + rhs.coef(i);
+        }
+
+        self.start = 0;
+        self
+    }
+}
+
+impl<P: PolynomialCoefs> std::ops::Mul<P25Codeword> for Polynomial<P> {
+    type Output = Polynomial<P>;
+
+    fn mul(mut self, rhs: P25Codeword) -> Self::Output {
+        for coef in self.coefs.iter_mut() {
+            *coef = *coef * rhs;
+        }
+
+        self
+    }
+}
+
+impl<P: PolynomialCoefs> std::ops::Mul<Polynomial<P>> for Polynomial<P> {
+    type Output = Polynomial<P>;
+
+    fn mul(self, rhs: Polynomial<P>) -> Self::Output {
+        let mut out = Polynomial::<P>::default();
+
+        for (i, coef) in self.coefs().iter().enumerate() {
+            for (j, mult) in rhs.coefs().iter().enumerate() {
+                match out.coefs.get_mut(i + j) {
+                    Some(c) => *c = *c + *coef * *mult,
+                    None => {},
+                }
+            }
+        }
+
+        out
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use std;
     use super::*;
+
+    #[derive(Copy, Clone, Default)]
+    struct TestCoefs([P25Codeword; 24]);
+
+    impl std::ops::Deref for TestCoefs {
+        type Target = [P25Codeword];
+        fn deref(&self) -> &Self::Target { &self.0[..] }
+    }
+
+    impl std::ops::DerefMut for TestCoefs {
+        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
+    }
+
+    impl PolynomialCoefs for TestCoefs {}
+
+    type TestPolynomial = Polynomial<TestCoefs>;
 
     #[test]
     fn test_for_power() {
@@ -351,5 +518,118 @@ mod test {
         assert_eq!(P25Codeword::for_power(1).pow(10).power().unwrap(), 10);
         assert_eq!(P25Codeword::for_power(62).pow(10).power().unwrap(), 53);
         assert!(P25Codeword::default().pow(20).power().is_none());
+    }
+
+    #[test]
+    fn test_eval() {
+        let p = TestPolynomial::new((0..3).map(|_| {
+            P25Codeword::for_power(0)
+        }));
+        assert_eq!(p.eval(P25Codeword::for_power(1)), 0b111000);
+
+        let p = p.shift();
+        assert_eq!(p.eval(P25Codeword::for_power(1)), 0b110000);
+    }
+
+    #[test]
+    fn test_truncate() {
+        let p = TestPolynomial::new((0..5).map(|_| {
+            P25Codeword::for_power(0)
+        }));
+
+        assert_eq!(p.degree().unwrap(), 4);
+        assert_eq!(p.coefs[4].power().unwrap(), 0);
+        assert!(p.coefs[5].power().is_none());
+
+        let p = p.truncate(2);
+        assert_eq!(p.degree().unwrap(), 2);
+        assert_eq!(p.coefs[2].power().unwrap(), 0);
+        assert!(p.coefs[3].power().is_none());
+    }
+
+    #[test]
+    fn test_polynomial() {
+        let p = TestPolynomial::new((0..23).map(|i| {
+            P25Codeword::for_power(i)
+        }));
+
+        assert!(p.degree().unwrap() == 22);
+        assert!(p.constant() == P25Codeword::for_power(0));
+
+        let p = p.shift();
+        assert!(p.degree().unwrap() == 21);
+        assert!(p.constant() == P25Codeword::for_power(1));
+
+        let q = p.clone() * P25Codeword::for_power(0);
+        assert!(q.degree().unwrap() == 21);
+        assert!(q.constant() == P25Codeword::for_power(1));
+
+        let q = p.clone() * P25Codeword::for_power(2);
+        assert!(q.degree().unwrap() == 21);
+        assert!(q.constant() == P25Codeword::for_power(3));
+
+        let q = p.clone() + p.clone();
+        assert!(q.constant().zero());
+
+        for coef in q.coefs() {
+            assert!(coef.zero());
+        }
+
+        let p = TestPolynomial::new((4..27).map(|i| {
+            P25Codeword::for_power(i)
+        }));
+
+        let q = TestPolynomial::new((3..26).map(|i| {
+            P25Codeword::for_power(i)
+        }));
+
+        let r = p + q.shift();
+
+        assert!(r.coefs[0].zero());
+        assert!(r.coefs[1].zero());
+        assert!(r.coefs[2].zero());
+        assert!(r.coefs[3].zero());
+        assert!(r.coefs[4].zero());
+        assert!(!r.coefs[22].zero());
+
+        let p = TestPolynomial::new((0..2).map(|_| {
+            P25Codeword::for_power(0)
+        }));
+
+        let q = TestPolynomial::new((0..4).map(|_| {
+            P25Codeword::for_power(1)
+        }));
+
+        let r = p + q;
+
+        assert!(r.coef(0) == P25Codeword::for_power(6));
+    }
+
+    #[test]
+    fn test_poly_mul() {
+        let p = TestPolynomial::new((0..2).map(|_| {
+            P25Codeword::for_power(0)
+        }));
+
+        let q = p.clone();
+        let r = p * q;
+
+        assert_eq!(r.coef(0).power().unwrap(), 0);
+        assert!(r.coef(1).power().is_none());
+        assert_eq!(r.coef(2).power().unwrap(), 0);
+
+        let p = TestPolynomial::new((0..3).map(|p| {
+            P25Codeword::for_power(p)
+        }));
+        let q = TestPolynomial::new([
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+        ].iter().cloned());
+        let r = p * q;
+
+        assert!(r.coef(0).power().is_none());
+        assert_eq!(r.coef(1).power().unwrap(), 0);
+        assert_eq!(r.coef(2).power().unwrap(), 1);
+        assert_eq!(r.coef(3).power().unwrap(), 2);
     }
 }
