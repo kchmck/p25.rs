@@ -244,6 +244,25 @@ impl std::ops::Mul<P25Codeword> for Polynomial {
     }
 }
 
+impl std::ops::Mul<Polynomial> for Polynomial {
+    type Output = Polynomial;
+
+    fn mul(self, rhs: Polynomial) -> Self::Output {
+        let mut out = Polynomial::default();
+
+        for (i, coef) in self.coefs().iter().enumerate() {
+            for (j, mult) in rhs.coefs().iter().enumerate() {
+                match out.coefs.get_mut(i + j) {
+                    Some(c) => *c = *c + *coef * *mult,
+                    None => {},
+                }
+            }
+        }
+
+        out
+    }
+}
+
 /// Iterator over the syndromes of a received codeword. Each syndrome is a codeword in
 /// GF(2^6).
 struct Syndromes {
@@ -538,6 +557,34 @@ mod test {
         let r = p + q;
 
         assert!(r.coef(0) == P25Codeword::for_power(6));
+    }
+
+    #[test]
+    fn test_poly_mul() {
+        let p = Polynomial::new((0..2).map(|p| {
+            P25Codeword::for_power(0)
+        }));
+
+        let q = p.clone();
+        let r = p * q;
+
+        assert_eq!(r.coef(0).power().unwrap(), 0);
+        assert!(r.coef(1).power().is_none());
+        assert_eq!(r.coef(2).power().unwrap(), 0);
+
+        let p = Polynomial::new((0..3).map(|p| {
+            P25Codeword::for_power(p)
+        }));
+        let q = Polynomial::new([
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+        ].iter().cloned());
+        let r = p * q;
+
+        assert!(r.coef(0).power().is_none());
+        assert_eq!(r.coef(1).power().unwrap(), 0);
+        assert_eq!(r.coef(2).power().unwrap(), 1);
+        assert_eq!(r.coef(3).power().unwrap(), 2);
     }
 
     #[test]
