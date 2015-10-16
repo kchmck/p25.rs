@@ -55,6 +55,14 @@ impl<F: GaloisField> Codeword<F> {
             None => panic!("divide by zero"),
         }
     }
+
+    /// Raise codeword to the given power.
+    pub fn pow(&self, pow: usize) -> Codeword<F> {
+        match self.power() {
+            Some(p) => Codeword::for_power(p * pow),
+            None => Codeword::default(),
+        }
+    }
 }
 
 impl<F: GaloisField> Default for Codeword<F> {
