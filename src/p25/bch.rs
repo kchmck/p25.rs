@@ -59,8 +59,6 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
     }
 }
 
-/// The n in (n,k,d).
-const WORD_SIZE: usize = 63;
 /// The d in (n,k,d).
 const DISTANCE: usize = 23;
 /// 2t+1 = 23 => t = 11
@@ -213,7 +211,7 @@ impl galois::GaloisField for BCHField {
         POWERS[codeword]
     }
 
-    fn size() -> usize { WORD_SIZE }
+    fn size() -> usize { 63 }
 }
 
 type BCHCodeword = galois::Codeword<BCHField>;
@@ -398,7 +396,7 @@ impl Iterator for Syndromes {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.pow.next() {
-            Some(pow) => Some((0..WORD_SIZE).fold(BCHCodeword::default(), |s, b| {
+            Some(pow) => Some((0..BCHField::size()).fold(BCHCodeword::default(), |s, b| {
                 if self.word >> b & 1 == 0 {
                     s
                 } else {
