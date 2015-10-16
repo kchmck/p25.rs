@@ -15,7 +15,7 @@
 
 use std;
 
-use galois::{self, GaloisField};
+use galois::{GaloisField, P25Field, P25Codeword};
 
 /// Encode the given word into a P25 BCH codeword.
 pub fn encode(word: u16) -> u64 {
@@ -65,156 +65,6 @@ const DISTANCE: usize = 23;
 const ERRORS: usize = 11;
 /// Required syndrome codewords.
 const SYNDROMES: usize = 2 * ERRORS;
-
-#[derive(Copy, Clone, Debug)]
-/// GF(2^6) field characterized by α^6+α+1.as described in P25 specification.
-struct BCHField;
-
-impl galois::GaloisField for BCHField {
-    fn codeword(pow: usize) -> u8 {
-        const CODEWORDS: &'static [u8] = &[
-            0b100000,
-            0b010000,
-            0b001000,
-            0b000100,
-            0b000010,
-            0b000001,
-            0b110000,
-            0b011000,
-            0b001100,
-            0b000110,
-            0b000011,
-            0b110001,
-            0b101000,
-            0b010100,
-            0b001010,
-            0b000101,
-            0b110010,
-            0b011001,
-            0b111100,
-            0b011110,
-            0b001111,
-            0b110111,
-            0b101011,
-            0b100101,
-            0b100010,
-            0b010001,
-            0b111000,
-            0b011100,
-            0b001110,
-            0b000111,
-            0b110011,
-            0b101001,
-            0b100100,
-            0b010010,
-            0b001001,
-            0b110100,
-            0b011010,
-            0b001101,
-            0b110110,
-            0b011011,
-            0b111101,
-            0b101110,
-            0b010111,
-            0b111011,
-            0b101101,
-            0b100110,
-            0b010011,
-            0b111001,
-            0b101100,
-            0b010110,
-            0b001011,
-            0b110101,
-            0b101010,
-            0b010101,
-            0b111010,
-            0b011101,
-            0b111110,
-            0b011111,
-            0b111111,
-            0b101111,
-            0b100111,
-            0b100011,
-            0b100001,
-        ];
-
-        CODEWORDS[pow]
-    }
-
-    fn power(codeword: usize) -> usize {
-        const POWERS: &'static [usize] = &[
-            5,
-            4,
-            10,
-            3,
-            15,
-            9,
-            29,
-            2,
-            34,
-            14,
-            50,
-            8,
-            37,
-            28,
-            20,
-            1,
-            25,
-            33,
-            46,
-            13,
-            53,
-            49,
-            42,
-            7,
-            17,
-            36,
-            39,
-            27,
-            55,
-            19,
-            57,
-            0,
-            62,
-            24,
-            61,
-            32,
-            23,
-            45,
-            60,
-            12,
-            31,
-            52,
-            22,
-            48,
-            44,
-            41,
-            59,
-            6,
-            11,
-            16,
-            30,
-            35,
-            51,
-            38,
-            21,
-            26,
-            47,
-            54,
-            43,
-            18,
-            40,
-            56,
-            58,
-        ];
-
-        POWERS[codeword]
-    }
-
-    fn size() -> usize { 63 }
-}
-
-type BCHCodeword = galois::Codeword<BCHField>;
 
 /// Generator matrix from P25, transformed for more efficient codeword generation.
 const GEN: &'static [u16] = &[
@@ -273,7 +123,7 @@ const GEN: &'static [u16] = &[
 struct Polynomial {
     /// Coefficients of the polynomial. The maximum degree span in the algorithm is [0,
     /// 2t+1], or 2t+2 coefficients.
-    coefs: [BCHCodeword; SYNDROMES + 2],
+    coefs: [P25Codeword; SYNDROMES + 2],
     /// Index into `coefs` of the degree-0 coefficient. Coefficients with a lesser index
     /// will be zero.
     start: usize,
@@ -283,9 +133,9 @@ impl Polynomial {
     /// Construct a new `Polynomial` from the given coefficients, so
     /// p(x) = coefs[0] + coefs[1]*x + ... + coefs[n]*x^n. Only `SYNDROMES+2` coefficients
     /// will be used from the iterator.
-    pub fn new<T: Iterator<Item = BCHCodeword>>(coefs: T) -> Polynomial {
+    pub fn new<T: Iterator<Item = P25Codeword>>(coefs: T) -> Polynomial {
         // Start with all zero coefficients and add in the given ones.
-        let mut poly = [BCHCodeword::default(); SYNDROMES + 2];
+        let mut poly = [P25Codeword::default(); SYNDROMES + 2];
 
         for (cur, coef) in poly.iter_mut().zip(coefs) {
             *cur = *cur + coef;
@@ -298,12 +148,12 @@ impl Polynomial {
     }
 
     /// Get the degree-0 coefficient.
-    pub fn constant(&self) -> BCHCodeword {
+    pub fn constant(&self) -> P25Codeword {
         self.coefs[self.start]
     }
 
     /// Get the coefficients starting from degree-0.
-    pub fn coefs(&self) -> &[BCHCodeword] {
+    pub fn coefs(&self) -> &[P25Codeword] {
         &self.coefs[self.start..]
     }
 
@@ -324,23 +174,23 @@ impl Polynomial {
     /// replace the shifted coefficient with the zero codeword. There must be no constant
     /// term.
     pub fn shift(mut self) -> Polynomial {
-        self.coefs[self.start] = BCHCodeword::default();
+        self.coefs[self.start] = P25Codeword::default();
         self.start += 1;
         self
     }
 
     /// Get the coefficient of the given absolute degree if it exists in the polynomial
     /// or the zero codeword if it doesn't.
-    fn get(&self, idx: usize) -> BCHCodeword {
+    fn get(&self, idx: usize) -> P25Codeword {
         match self.coefs.get(idx) {
             Some(&c) => c,
-            None => BCHCodeword::default(),
+            None => P25Codeword::default(),
         }
     }
 
     /// Get the coefficient of the given degree or the zero codeword if the degree doesn't
     /// exist in the polynomial.
-    pub fn coef(&self, deg: usize) -> BCHCodeword {
+    pub fn coef(&self, deg: usize) -> P25Codeword {
         self.get(self.start + deg)
     }
 }
@@ -360,10 +210,10 @@ impl std::ops::Add for Polynomial {
     }
 }
 
-impl std::ops::Mul<BCHCodeword> for Polynomial {
+impl std::ops::Mul<P25Codeword> for Polynomial {
     type Output = Polynomial;
 
-    fn mul(mut self, rhs: BCHCodeword) -> Self::Output {
+    fn mul(mut self, rhs: P25Codeword) -> Self::Output {
         for coef in self.coefs.iter_mut() {
             *coef = *coef * rhs;
         }
@@ -392,15 +242,15 @@ impl Syndromes {
 }
 
 impl Iterator for Syndromes {
-    type Item = BCHCodeword;
+    type Item = P25Codeword;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.pow.next() {
-            Some(pow) => Some((0..BCHField::size()).fold(BCHCodeword::default(), |s, b| {
+            Some(pow) => Some((0..P25Field::size()).fold(P25Codeword::default(), |s, b| {
                 if self.word >> b & 1 == 0 {
                     s
                 } else {
-                    s + BCHCodeword::for_power(b * pow)
+                    s + P25Codeword::for_power(b * pow)
                 }
             })),
             None => None,
@@ -426,13 +276,13 @@ struct BCHDecoder {
 
 impl BCHDecoder {
     /// Construct a new `BCHDecoder` from the given syndrome codeword iterator.
-    pub fn new<T: Iterator<Item = BCHCodeword>>(syndromes: T) -> BCHDecoder {
+    pub fn new<T: Iterator<Item = P25Codeword>>(syndromes: T) -> BCHDecoder {
         // A zero followed by the syndromes.
-        let q = Polynomial::new(std::iter::once(BCHCodeword::for_power(0))
+        let q = Polynomial::new(std::iter::once(P25Codeword::for_power(0))
                                     .chain(syndromes.into_iter()));
         // 2t zeroes followed by a one.
-        let p = Polynomial::new((0..SYNDROMES+1).map(|_| BCHCodeword::default())
-                                    .chain(std::iter::once(BCHCodeword::for_power(0))));
+        let p = Polynomial::new((0..SYNDROMES+1).map(|_| P25Codeword::default())
+                                    .chain(std::iter::once(P25Codeword::for_power(0))));
 
         BCHDecoder {
             q_saved: q,
@@ -501,7 +351,7 @@ impl BCHDecoder {
 /// produce an iterator of error bit positions.
 struct ErrorLocations {
     /// Coefficients of the polynomial.
-    terms: [BCHCodeword; ERRORS + 1],
+    terms: [P25Codeword; ERRORS + 1],
     /// Current exponent power of the iteration.
     pow: std::ops::Range<usize>,
 }
@@ -509,34 +359,34 @@ struct ErrorLocations {
 impl ErrorLocations {
     /// Construct a new `ErrorLocations` from the given coefficients, where Λ(x) =
     /// coefs[0] + coefs[1]*x + ... + coefs[e]*x^e.
-    pub fn new<T: Iterator<Item = BCHCodeword>>(coefs: T) -> ErrorLocations {
+    pub fn new<T: Iterator<Item = P25Codeword>>(coefs: T) -> ErrorLocations {
         // The maximum degree is t error locations (t+1 coefficients.)
-        let mut poly = [BCHCodeword::default(); ERRORS + 1];
+        let mut poly = [P25Codeword::default(); ERRORS + 1];
 
         for (pow, (cur, coef)) in poly.iter_mut().zip(coefs).enumerate() {
             // Since the first call to `update_terms()` multiplies by `pow` and the
             // coefficients should equal themselves on the first iteration, divide by
             // `pow` here.
-            *cur = *cur + coef / BCHCodeword::for_power(pow)
+            *cur = *cur + coef / P25Codeword::for_power(pow)
         }
 
         ErrorLocations {
             terms: poly,
-            pow: 0..BCHField::size(),
+            pow: 0..P25Field::size(),
         }
     }
 
     /// Perform the term-updating step of the algorithm: x_{j,i} = x_{j,i-1} * α^j.
     fn update_terms(&mut self) {
         for (pow, term) in self.terms.iter_mut().enumerate() {
-            *term = *term * BCHCodeword::for_power(pow);
+            *term = *term * P25Codeword::for_power(pow);
         }
     }
 
     /// Calculate the sum of the terms: x_{0,i} + x_{1,i} + ... + x_{t,i} -- evaluate the
     /// error-locator polynomial at Λ(α^i).
-    fn sum_terms(&self) -> BCHCodeword {
-        self.terms.iter().fold(BCHCodeword::default(), |s, &x| s + x)
+    fn sum_terms(&self) -> P25Codeword {
+        self.terms.iter().fold(P25Codeword::default(), |s, &x| s + x)
     }
 }
 
@@ -553,7 +403,7 @@ impl Iterator for ErrorLocations {
             self.update_terms();
 
             if self.sum_terms().zero() {
-                return Some(BCHCodeword::for_power(pow).invert().power().unwrap());
+                return Some(P25Codeword::for_power(pow).invert().power().unwrap());
             }
         }
     }
@@ -561,54 +411,9 @@ impl Iterator for ErrorLocations {
 
 #[cfg(test)]
 mod test {
-    use super::{encode, Syndromes, BCHCodeword, Polynomial, decode, BCHDecoder,
+    use super::{encode, Syndromes, Polynomial, decode, BCHDecoder,
                 ErrorLocations};
-
-    #[test]
-    fn test_for_power() {
-        assert_eq!(BCHCodeword::for_power(0), 0b100000);
-        assert_eq!(BCHCodeword::for_power(62), 0b100001);
-        assert_eq!(BCHCodeword::for_power(63), 0b100000);
-    }
-
-    #[test]
-    fn test_add_sub() {
-        assert_eq!((BCHCodeword::new(0b100000) + BCHCodeword::new(0b010000)), 0b110000);
-        assert_eq!((BCHCodeword::new(0b100000) - BCHCodeword::new(0b010000)), 0b110000);
-        assert_eq!((BCHCodeword::new(0b100001) + BCHCodeword::new(0b100001)), 0b000000);
-        assert_eq!((BCHCodeword::new(0b100001) - BCHCodeword::new(0b100001)), 0b000000);
-        assert_eq!((BCHCodeword::new(0b100001) + BCHCodeword::new(0b110100)), 0b010101);
-        assert_eq!((BCHCodeword::new(0b100001) - BCHCodeword::new(0b110100)), 0b010101);
-    }
-
-    #[test]
-    fn test_mul() {
-        assert_eq!((BCHCodeword::new(0b011000) * BCHCodeword::new(0b101000)), 0b011110);
-        assert_eq!((BCHCodeword::new(0b000000) * BCHCodeword::new(0b101000)), 0b000000);
-        assert_eq!((BCHCodeword::new(0b011000) * BCHCodeword::new(0b000000)), 0b000000);
-        assert_eq!((BCHCodeword::new(0b000000) * BCHCodeword::new(0b000000)), 0b000000);
-        assert_eq!((BCHCodeword::new(0b100001) * BCHCodeword::new(0b100000)), 0b100001);
-        assert_eq!((BCHCodeword::new(0b100001) * BCHCodeword::new(0b010000)), 0b100000);
-        assert_eq!((BCHCodeword::new(0b110011) * BCHCodeword::new(0b110011)), 0b100111);
-        assert_eq!((BCHCodeword::new(0b111101) * BCHCodeword::new(0b111101)), 0b011001);
-    }
-
-
-    #[test]
-    fn test_div() {
-        assert_eq!((BCHCodeword::new(0b000100) / BCHCodeword::new(0b101000)), 0b111010);
-        assert_eq!((BCHCodeword::new(0b000000) / BCHCodeword::new(0b101000)), 0b000000);
-        assert_eq!((BCHCodeword::new(0b011110) / BCHCodeword::new(0b100000)), 0b011110);
-        assert_eq!((BCHCodeword::new(0b011110) / BCHCodeword::new(0b011110)), 0b100000);
-    }
-
-    #[test]
-    fn test_cmp() {
-        assert!(BCHCodeword::new(0b100000) > BCHCodeword::new(0b000000));
-        assert!(BCHCodeword::new(0b000000) == BCHCodeword::new(0b000000));
-        assert!(BCHCodeword::new(0b010000) > BCHCodeword::new(0b100000));
-        assert!(BCHCodeword::new(0b100001) > BCHCodeword::new(0b100000));
-    }
+    use galois::P25Codeword;
 
     #[test]
     fn test_encode() {
@@ -631,23 +436,23 @@ mod test {
     #[test]
     fn test_polynomial() {
         let p = Polynomial::new((0..23).map(|i| {
-            BCHCodeword::for_power(i)
+            P25Codeword::for_power(i)
         }));
 
         assert!(p.degree().unwrap() == 22);
-        assert!(p.constant() == BCHCodeword::for_power(0));
+        assert!(p.constant() == P25Codeword::for_power(0));
 
         let p = p.shift();
         assert!(p.degree().unwrap() == 21);
-        assert!(p.constant() == BCHCodeword::for_power(1));
+        assert!(p.constant() == P25Codeword::for_power(1));
 
-        let q = p.clone() * BCHCodeword::for_power(0);
+        let q = p.clone() * P25Codeword::for_power(0);
         assert!(q.degree().unwrap() == 21);
-        assert!(q.constant() == BCHCodeword::for_power(1));
+        assert!(q.constant() == P25Codeword::for_power(1));
 
-        let q = p.clone() * BCHCodeword::for_power(2);
+        let q = p.clone() * P25Codeword::for_power(2);
         assert!(q.degree().unwrap() == 21);
-        assert!(q.constant() == BCHCodeword::for_power(3));
+        assert!(q.constant() == P25Codeword::for_power(3));
 
         let q = p.clone() + p.clone();
         assert!(q.constant().zero());
@@ -657,11 +462,11 @@ mod test {
         }
 
         let p = Polynomial::new((4..27).map(|i| {
-            BCHCodeword::for_power(i)
+            P25Codeword::for_power(i)
         }));
 
         let q = Polynomial::new((3..26).map(|i| {
-            BCHCodeword::for_power(i)
+            P25Codeword::for_power(i)
         }));
 
         let r = p + q.shift();
@@ -674,16 +479,16 @@ mod test {
         assert!(!r.coefs[22].zero());
 
         let p = Polynomial::new((0..2).map(|_| {
-            BCHCodeword::for_power(0)
+            P25Codeword::for_power(0)
         }));
 
         let q = Polynomial::new((0..4).map(|_| {
-            BCHCodeword::for_power(1)
+            P25Codeword::for_power(1)
         }));
 
         let r = p + q;
 
-        assert!(r.coef(0) == BCHCodeword::for_power(6));
+        assert!(r.coef(0) == P25Codeword::for_power(6));
     }
 
     #[test]
@@ -698,8 +503,8 @@ mod test {
 
     #[test]
     fn test_locs() {
-        let coefs = [BCHCodeword::for_power(0), BCHCodeword::for_power(3),
-                     BCHCodeword::for_power(58)];
+        let coefs = [P25Codeword::for_power(0), P25Codeword::for_power(3),
+                     P25Codeword::for_power(58)];
         let mut locs = ErrorLocations::new(coefs.iter().cloned());
 
         assert!(locs.next().unwrap() == 61);
