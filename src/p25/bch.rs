@@ -195,6 +195,12 @@ impl Polynomial {
     }
 }
 
+impl Default for Polynomial {
+    fn default() -> Self {
+        Polynomial::new(std::iter::empty())
+    }
+}
+
 impl std::ops::Add for Polynomial {
     type Output = Polynomial;
 
