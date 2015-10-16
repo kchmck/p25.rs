@@ -193,6 +193,13 @@ impl Polynomial {
     pub fn coef(&self, deg: usize) -> P25Codeword {
         self.get(self.start + deg)
     }
+
+    /// Evaluate the polynomial, substituting in `x`.
+    pub fn eval(&self, x: P25Codeword) -> P25Codeword {
+        self.coefs().iter().enumerate().fold(P25Codeword::default(), |s, (pow, coef)| {
+            s + *coef * x.pow(pow)
+        })
+    }
 }
 
 impl Default for Polynomial {
@@ -420,6 +427,17 @@ mod test {
     use super::{encode, Syndromes, Polynomial, decode, BCHDecoder,
                 ErrorLocations};
     use galois::P25Codeword;
+
+    #[test]
+    fn test_eval() {
+        let p = Polynomial::new((0..3).map(|_| {
+            P25Codeword::for_power(0)
+        }));
+        assert_eq!(p.eval(P25Codeword::for_power(1)), 0b111000);
+
+        let p = p.shift();
+        assert_eq!(p.eval(P25Codeword::for_power(1)), 0b110000);
+    }
 
     #[test]
     fn test_encode() {
