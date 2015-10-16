@@ -118,31 +118,52 @@ const GEN: &'static [u16] = &[
     0b0000000000000011,
 ];
 
-#[derive(Copy, Clone)]
+type BCHPolynomial = Polynomial<BCHCoefs>;
+
+#[derive(Copy, Clone, Default)]
+struct BCHCoefs([P25Codeword; SYNDROMES + 2]);
+
+impl std::ops::Deref for BCHCoefs {
+    type Target = [P25Codeword];
+    fn deref(&self) -> &Self::Target { &self.0[..] }
+}
+
+impl std::ops::DerefMut for BCHCoefs {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
+}
+
+impl PolynomialCoefs for BCHCoefs {}
+
+/// Wraps a static codeword array.
+trait PolynomialCoefs: Default + Copy + Clone + std::ops::Deref<Target = [P25Codeword]> +
+    std::ops::DerefMut
+{}
+
 /// A syndrome polynomial with GF(2^6) codewords as coefficients.
-struct Polynomial {
+#[derive(Copy, Clone)]
+struct Polynomial<P: PolynomialCoefs> {
     /// Coefficients of the polynomial. The maximum degree span in the algorithm is [0,
     /// 2t+1], or 2t+2 coefficients.
-    coefs: [P25Codeword; SYNDROMES + 2],
+    coefs: P,
     /// Index into `coefs` of the degree-0 coefficient. Coefficients with a lesser index
     /// will be zero.
     start: usize,
 }
 
-impl Polynomial {
+impl<P: PolynomialCoefs> Polynomial<P> {
     /// Construct a new `Polynomial` from the given coefficients, so
     /// p(x) = coefs[0] + coefs[1]*x + ... + coefs[n]*x^n. Only `SYNDROMES+2` coefficients
     /// will be used from the iterator.
-    pub fn new<T: Iterator<Item = P25Codeword>>(coefs: T) -> Polynomial {
+    pub fn new<T: Iterator<Item = P25Codeword>>(init: T) -> Polynomial<P> {
         // Start with all zero coefficients and add in the given ones.
-        let mut poly = [P25Codeword::default(); SYNDROMES + 2];
+        let mut coefs = P::default();
 
-        for (cur, coef) in poly.iter_mut().zip(coefs) {
+        for (cur, coef) in coefs.iter_mut().zip(init) {
             *cur = *cur + coef;
         }
 
         Polynomial {
-            coefs: poly,
+            coefs: coefs,
             start: 0,
         }
     }
@@ -173,7 +194,7 @@ impl Polynomial {
     /// Divide the polynomial by x -- shift all coefficients to a lower degree -- and
     /// replace the shifted coefficient with the zero codeword. There must be no constant
     /// term.
-    pub fn shift(mut self) -> Polynomial {
+    pub fn shift(mut self) -> Polynomial<P> {
         self.coefs[self.start] = P25Codeword::default();
         self.start += 1;
         self
@@ -202,7 +223,7 @@ impl Polynomial {
     }
 
     /// Truncate the polynomial to have no terms greater than the given degree.
-    pub fn truncate(mut self, deg: usize) -> Polynomial {
+    pub fn truncate(mut self, deg: usize) -> Polynomial<P> {
         for i in (self.start + deg + 1)..self.coefs.len() {
             self.coefs[i] = P25Codeword::default();
         }
@@ -211,16 +232,16 @@ impl Polynomial {
     }
 }
 
-impl Default for Polynomial {
+impl<P: PolynomialCoefs> Default for Polynomial<P> {
     fn default() -> Self {
         Polynomial::new(std::iter::empty())
     }
 }
 
-impl std::ops::Add for Polynomial {
-    type Output = Polynomial;
+impl<P: PolynomialCoefs> std::ops::Add for Polynomial<P> {
+    type Output = Polynomial<P>;
 
-    fn add(mut self, rhs: Polynomial) -> Self::Output {
+    fn add(mut self, rhs: Polynomial<P>) -> Self::Output {
         // Sum the coefficients and reset the degree-0 term back to index 0. Since start >
         // 0 => start+i >= i, so there's no overwriting.
         for i in 0..self.coefs.len() {
@@ -232,8 +253,8 @@ impl std::ops::Add for Polynomial {
     }
 }
 
-impl std::ops::Mul<P25Codeword> for Polynomial {
-    type Output = Polynomial;
+impl<P: PolynomialCoefs> std::ops::Mul<P25Codeword> for Polynomial<P> {
+    type Output = Polynomial<P>;
 
     fn mul(mut self, rhs: P25Codeword) -> Self::Output {
         for coef in self.coefs.iter_mut() {
@@ -244,11 +265,11 @@ impl std::ops::Mul<P25Codeword> for Polynomial {
     }
 }
 
-impl std::ops::Mul<Polynomial> for Polynomial {
-    type Output = Polynomial;
+impl<P: PolynomialCoefs> std::ops::Mul<Polynomial<P>> for Polynomial<P> {
+    type Output = Polynomial<P>;
 
-    fn mul(self, rhs: Polynomial) -> Self::Output {
-        let mut out = Polynomial::default();
+    fn mul(self, rhs: Polynomial<P>) -> Self::Output {
+        let mut out = Polynomial::<P>::default();
 
         for (i, coef) in self.coefs().iter().enumerate() {
             for (j, mult) in rhs.coefs().iter().enumerate() {
@@ -302,13 +323,13 @@ impl Iterator for Syndromes {
 /// Implements the iterative part of the Berlekamp-Massey algorithm.
 struct BCHDecoder {
     /// Saved p polynomial: p_{z_i-1}.
-    p_saved: Polynomial,
+    p_saved: BCHPolynomial,
     /// Previous iteration's p polynomial: p_{i-1}.
-    p_cur: Polynomial,
+    p_cur: BCHPolynomial,
     /// Saved q polynomial: q_{z_i-1}.
-    q_saved: Polynomial,
+    q_saved: BCHPolynomial,
     /// Previous iteration's q polynomial: q_{i-1}.
-    q_cur: Polynomial,
+    q_cur: BCHPolynomial,
     /// Degree-related term of saved p polynomial: D_{z_i-1}.
     deg_saved: usize,
     /// Degree-related term of previous p polynomial: D_{i-1}.
@@ -319,10 +340,10 @@ impl BCHDecoder {
     /// Construct a new `BCHDecoder` from the given syndrome codeword iterator.
     pub fn new<T: Iterator<Item = P25Codeword>>(syndromes: T) -> BCHDecoder {
         // A zero followed by the syndromes.
-        let q = Polynomial::new(std::iter::once(P25Codeword::for_power(0))
+        let q = BCHPolynomial::new(std::iter::once(P25Codeword::for_power(0))
                                     .chain(syndromes.into_iter()));
         // 2t zeroes followed by a one.
-        let p = Polynomial::new((0..SYNDROMES+1).map(|_| P25Codeword::default())
+        let p = BCHPolynomial::new((0..SYNDROMES+1).map(|_| P25Codeword::default())
                                     .chain(std::iter::once(P25Codeword::for_power(0))));
 
         BCHDecoder {
@@ -337,7 +358,7 @@ impl BCHDecoder {
 
     /// Perform the iterative steps to get the error-location polynomial Λ(x) wih deg(Λ)
     /// <= t.
-    pub fn decode(mut self) -> Polynomial {
+    pub fn decode(mut self) -> BCHPolynomial {
         for _ in 0..SYNDROMES {
             self.step();
         }
@@ -366,7 +387,7 @@ impl BCHDecoder {
     }
 
     /// Simply shift the polynomials since they have no degree-0 term.
-    fn reduce(&mut self) -> (bool, Polynomial, Polynomial, usize) {
+    fn reduce(&mut self) -> (bool, BCHPolynomial, BCHPolynomial, usize) {
         (
             false,
             self.q_cur.shift(),
@@ -376,7 +397,7 @@ impl BCHDecoder {
     }
 
     /// Remove the degree-0 terms and shift the polynomials.
-    fn transform(&mut self) -> (bool, Polynomial, Polynomial, usize) {
+    fn transform(&mut self) -> (bool, BCHPolynomial, BCHPolynomial, usize) {
         let mult = self.q_cur.constant() / self.q_saved.constant();
 
         (
@@ -452,13 +473,13 @@ impl Iterator for ErrorLocations {
 
 #[cfg(test)]
 mod test {
-    use super::{encode, Syndromes, Polynomial, decode, BCHDecoder,
+    use super::{encode, Syndromes, BCHPolynomial, decode, BCHDecoder,
                 ErrorLocations};
     use galois::P25Codeword;
 
     #[test]
     fn test_eval() {
-        let p = Polynomial::new((0..3).map(|_| {
+        let p = BCHPolynomial::new((0..3).map(|_| {
             P25Codeword::for_power(0)
         }));
         assert_eq!(p.eval(P25Codeword::for_power(1)), 0b111000);
@@ -469,7 +490,7 @@ mod test {
 
     #[test]
     fn test_truncate() {
-        let p = Polynomial::new((0..5).map(|_| {
+        let p = BCHPolynomial::new((0..5).map(|_| {
             P25Codeword::for_power(0)
         }));
 
@@ -503,7 +524,7 @@ mod test {
 
     #[test]
     fn test_polynomial() {
-        let p = Polynomial::new((0..23).map(|i| {
+        let p = BCHPolynomial::new((0..23).map(|i| {
             P25Codeword::for_power(i)
         }));
 
@@ -529,11 +550,11 @@ mod test {
             assert!(coef.zero());
         }
 
-        let p = Polynomial::new((4..27).map(|i| {
+        let p = BCHPolynomial::new((4..27).map(|i| {
             P25Codeword::for_power(i)
         }));
 
-        let q = Polynomial::new((3..26).map(|i| {
+        let q = BCHPolynomial::new((3..26).map(|i| {
             P25Codeword::for_power(i)
         }));
 
@@ -546,11 +567,11 @@ mod test {
         assert!(r.coefs[4].zero());
         assert!(!r.coefs[22].zero());
 
-        let p = Polynomial::new((0..2).map(|_| {
+        let p = BCHPolynomial::new((0..2).map(|_| {
             P25Codeword::for_power(0)
         }));
 
-        let q = Polynomial::new((0..4).map(|_| {
+        let q = BCHPolynomial::new((0..4).map(|_| {
             P25Codeword::for_power(1)
         }));
 
@@ -561,7 +582,7 @@ mod test {
 
     #[test]
     fn test_poly_mul() {
-        let p = Polynomial::new((0..2).map(|p| {
+        let p = BCHPolynomial::new((0..2).map(|p| {
             P25Codeword::for_power(0)
         }));
 
@@ -572,10 +593,10 @@ mod test {
         assert!(r.coef(1).power().is_none());
         assert_eq!(r.coef(2).power().unwrap(), 0);
 
-        let p = Polynomial::new((0..3).map(|p| {
+        let p = BCHPolynomial::new((0..3).map(|p| {
             P25Codeword::for_power(p)
         }));
-        let q = Polynomial::new([
+        let q = BCHPolynomial::new([
             P25Codeword::default(),
             P25Codeword::for_power(0),
         ].iter().cloned());
