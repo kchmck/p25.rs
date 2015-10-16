@@ -171,32 +171,32 @@ impl Iterator for Syndromes {
 }
 
 /// Implements the iterative part of the Berlekamp-Massey algorithm.
-struct BCHDecoder {
+struct BerlMasseyDecoder<P: PolynomialCoefs> {
     /// Saved p polynomial: p_{z_i-1}.
-    p_saved: BCHPolynomial,
+    p_saved: Polynomial<P>,
     /// Previous iteration's p polynomial: p_{i-1}.
-    p_cur: BCHPolynomial,
+    p_cur: Polynomial<P>,
     /// Saved q polynomial: q_{z_i-1}.
-    q_saved: BCHPolynomial,
+    q_saved: Polynomial<P>,
     /// Previous iteration's q polynomial: q_{i-1}.
-    q_cur: BCHPolynomial,
+    q_cur: Polynomial<P>,
     /// Degree-related term of saved p polynomial: D_{z_i-1}.
     deg_saved: usize,
     /// Degree-related term of previous p polynomial: D_{i-1}.
     deg_cur: usize,
 }
 
-impl BCHDecoder {
-    /// Construct a new `BCHDecoder` from the given syndrome codeword iterator.
-    pub fn new<T: Iterator<Item = P25Codeword>>(syndromes: T) -> BCHDecoder {
+impl<P: PolynomialCoefs> BerlMasseyDecoder<P> {
+    /// Construct a new `BerlMasseyDecoder` from the given syndrome codeword iterator.
+    pub fn new<T: Iterator<Item = P25Codeword>>(syndromes: T) -> BerlMasseyDecoder<P> {
         // A zero followed by the syndromes.
-        let q = BCHPolynomial::new(std::iter::once(P25Codeword::for_power(0))
+        let q = Polynomial::new(std::iter::once(P25Codeword::for_power(0))
                                     .chain(syndromes.into_iter()));
         // 2t zeroes followed by a one.
-        let p = BCHPolynomial::new((0..SYNDROMES+1).map(|_| P25Codeword::default())
+        let p = Polynomial::new((0..SYNDROMES+1).map(|_| P25Codeword::default())
                                     .chain(std::iter::once(P25Codeword::for_power(0))));
 
-        BCHDecoder {
+        BerlMasseyDecoder {
             q_saved: q,
             q_cur: q.shift(),
             p_saved: p,
@@ -208,7 +208,7 @@ impl BCHDecoder {
 
     /// Perform the iterative steps to get the error-location polynomial Λ(x) wih deg(Λ)
     /// <= t.
-    pub fn decode(mut self) -> BCHPolynomial {
+    pub fn decode(mut self) -> Polynomial<P> {
         for _ in 0..SYNDROMES {
             self.step();
         }
@@ -237,7 +237,7 @@ impl BCHDecoder {
     }
 
     /// Simply shift the polynomials since they have no degree-0 term.
-    fn reduce(&mut self) -> (bool, BCHPolynomial, BCHPolynomial, usize) {
+    fn reduce(&mut self) -> (bool, Polynomial<P>, Polynomial<P>, usize) {
         (
             false,
             self.q_cur.shift(),
@@ -247,7 +247,7 @@ impl BCHDecoder {
     }
 
     /// Remove the degree-0 terms and shift the polynomials.
-    fn transform(&mut self) -> (bool, BCHPolynomial, BCHPolynomial, usize) {
+    fn transform(&mut self) -> (bool, Polynomial<P>, Polynomial<P>, usize) {
         let mult = self.q_cur.constant() / self.q_saved.constant();
 
         (
@@ -258,6 +258,8 @@ impl BCHDecoder {
         )
    }
 }
+
+type BCHDecoder = BerlMasseyDecoder<BCHCoefs>;
 
 /// Uses Chien search to find the roots in GF(2^6) of an error-locator polynomial and
 /// produce an iterator of error bit positions.
