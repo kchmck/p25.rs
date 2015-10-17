@@ -49,7 +49,8 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
     // Correct the codeword and count the number of corrected errors. Stop the
     // `Errors` iteration after `errors` iterations since it won't yield any more
     // locations after that anyway.
-    let (word, count) = locs.take(errors).fold((word, 0), |(w, s), (loc, _)| {
+    let (word, count) = locs.take(errors).fold((word, 0), |(w, s), (loc, val)| {
+        assert!(val.power().unwrap() == 0);
         (w ^ 1 << loc, s + 1)
     });
 
