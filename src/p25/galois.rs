@@ -391,6 +391,21 @@ impl<P: PolynomialCoefs> Polynomial<P> {
 
         self
     }
+
+    /// Take the derivative of the polynomial.
+    pub fn deriv(mut self) -> Polynomial<P> {
+        for i in self.start..self.coefs.len() {
+            if (i - self.start) % 2 == 0 {
+                if let Some(&coef) = self.coefs.get(i + 1) {
+                    self.coefs[i] = coef
+                }
+            } else {
+                self.coefs[i] = P25Codeword::default();
+            }
+        }
+
+        self
+    }
 }
 
 impl<P: PolynomialCoefs> Default for Polynomial<P> {
@@ -631,5 +646,33 @@ mod test {
         assert_eq!(r.coef(1).power().unwrap(), 0);
         assert_eq!(r.coef(2).power().unwrap(), 1);
         assert_eq!(r.coef(3).power().unwrap(), 2);
+    }
+
+    #[test]
+    fn test_prime() {
+        let p = TestPolynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+        ].into_iter().cloned());
+
+        let q = p.deriv();
+
+        assert_eq!(q.coefs[0], P25Codeword::for_power(3));
+        assert_eq!(q.coefs[1], P25Codeword::default());
+        assert_eq!(q.coefs[2], P25Codeword::default());
+
+        let p = TestPolynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+        ].into_iter().cloned());
+
+        let q = p.shift().deriv();
+
+        assert_eq!(q.coef(0), P25Codeword::for_power(3));
+        assert_eq!(q.coef(1), P25Codeword::default());
+        assert_eq!(q.coef(2), P25Codeword::default());
     }
 }
