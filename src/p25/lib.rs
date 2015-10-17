@@ -3,6 +3,8 @@
 #[macro_use]
 mod macros;
 
+mod bmcf;
+
 pub mod baseband;
 pub mod bits;
 pub mod c4fm;
