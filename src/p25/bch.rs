@@ -28,8 +28,10 @@ pub fn encode(word: u16) -> u64 {
 pub fn decode(word: u64) -> Option<(u16, usize)> {
     // The BCH code is only over the first 63 bits, so strip off the P25 parity bit.
     let word = word >> 1;
+
+    let syndromes = Syndromes::new(word).poly();
     // Get the error location polynomial.
-    let poly = BCHDecoder::new(Syndromes::new(word).poly()).decode();
+    let poly = BCHDecoder::new(syndromes).decode();
 
     // The degree indicates the number of errors that need to be corrected.
     let errors = match poly.degree() {
@@ -42,12 +44,12 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
     assert!(errors <= ERRORS);
 
     // Get the bit locations from the polynomial.
-    let locs = ErrorLocations::new(poly.iter().cloned());
+    let locs = Errors::new(poly, syndromes);
 
     // Correct the codeword and count the number of corrected errors. Stop the
-    // `ErrorLocations` iteration after `errors` iterations since it won't yield any more
+    // `Errors` iteration after `errors` iterations since it won't yield any more
     // locations after that anyway.
-    let (word, count) = locs.take(errors).fold((word, 0), |(w, s), loc| {
+    let (word, count) = locs.take(errors).fold((word, 0), |(w, s), (loc, _)| {
         (w ^ 1 << loc, s + 1)
     });
 
@@ -266,36 +268,42 @@ type BCHDecoder = BerlMasseyDecoder<BCHCoefs>;
 
 /// Uses Chien search to find the roots in GF(2^6) of an error-locator polynomial and
 /// produce an iterator of error bit positions.
-struct ErrorLocations {
-    /// Coefficients of the polynomial.
-    terms: [P25Codeword; ERRORS + 1],
+struct Errors<P: PolynomialCoefs> {
+    /// Error location polynomial.
+    epoly: Polynomial<P>,
+    /// Derivative of above.
+    deriv: Polynomial<P>,
+    /// Error value polynomial.
+    vpoly: Polynomial<P>,
     /// Current exponent power of the iteration.
     pow: std::ops::Range<usize>,
 }
 
-impl ErrorLocations {
-    /// Construct a new `ErrorLocations` from the given coefficients, where Λ(x) =
+impl<P: PolynomialCoefs> Errors<P> {
+    /// Construct a new `Errors` from the given coefficients, where Λ(x) =
     /// coefs[0] + coefs[1]*x + ... + coefs[e]*x^e.
-    pub fn new<T: Iterator<Item = P25Codeword>>(coefs: T) -> ErrorLocations {
-        // The maximum degree is t error locations (t+1 coefficients.)
-        let mut poly = [P25Codeword::default(); ERRORS + 1];
+    pub fn new(mut epoly: Polynomial<P>, syndromes: Polynomial<P>) -> Errors<P> {
+        let deriv = epoly.deriv();
+        let vpoly = (epoly * syndromes).truncate(syndromes.len() - 2);
 
-        for (pow, (cur, coef)) in poly.iter_mut().zip(coefs).enumerate() {
+        for (pow, cur) in epoly.iter_mut().enumerate() {
             // Since the first call to `update_terms()` multiplies by `pow` and the
             // coefficients should equal themselves on the first iteration, divide by
             // `pow` here.
-            *cur = *cur + coef / P25Codeword::for_power(pow)
+            *cur = *cur / P25Codeword::for_power(pow)
         }
 
-        ErrorLocations {
-            terms: poly,
+        Errors {
+            epoly: epoly,
+            deriv: deriv,
+            vpoly: vpoly,
             pow: 0..P25Field::size(),
         }
     }
 
     /// Perform the term-updating step of the algorithm: x_{j,i} = x_{j,i-1} * α^j.
     fn update_terms(&mut self) {
-        for (pow, term) in self.terms.iter_mut().enumerate() {
+        for (pow, term) in self.epoly.iter_mut().enumerate() {
             *term = *term * P25Codeword::for_power(pow);
         }
     }
@@ -303,12 +311,17 @@ impl ErrorLocations {
     /// Calculate the sum of the terms: x_{0,i} + x_{1,i} + ... + x_{t,i} -- evaluate the
     /// error-locator polynomial at Λ(α^i).
     fn sum_terms(&self) -> P25Codeword {
-        self.terms.iter().fold(P25Codeword::default(), |s, &x| s + x)
+        self.epoly.iter().fold(P25Codeword::default(), |s, &x| s + x)
+    }
+
+    /// Determine the error value for the given error location/root.
+    fn value(&self, loc: P25Codeword, root: P25Codeword) -> P25Codeword {
+        self.vpoly.eval(root) / self.deriv.eval(root) * loc
     }
 }
 
-impl Iterator for ErrorLocations {
-    type Item = usize;
+impl<P: PolynomialCoefs> Iterator for Errors<P> {
+    type Item = (usize, P25Codeword);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -320,7 +333,10 @@ impl Iterator for ErrorLocations {
             self.update_terms();
 
             if self.sum_terms().zero() {
-                return Some(P25Codeword::for_power(pow).invert().power().unwrap());
+                let root = P25Codeword::for_power(pow);
+                let loc = root.invert();
+
+                return Some((loc.power().unwrap(), self.value(loc, root)));
             }
         }
     }
@@ -329,7 +345,7 @@ impl Iterator for ErrorLocations {
 #[cfg(test)]
 mod test {
     use super::*;
-    use super::{Syndromes, BCHDecoder, ErrorLocations};
+    use super::{Syndromes, BCHDecoder, Errors, BCHPolynomial};
     use galois::P25Codeword;
 
     #[test]
@@ -362,12 +378,19 @@ mod test {
 
     #[test]
     fn test_locs() {
-        let coefs = [P25Codeword::for_power(0), P25Codeword::for_power(3),
-                     P25Codeword::for_power(58)];
-        let mut locs = ErrorLocations::new(coefs.iter().cloned());
+        let w = encode(0b0000111100001111)^0b11<<61;
+        let p = Syndromes::new(w >> 1).poly();
 
-        assert!(locs.next().unwrap() == 61);
-        assert!(locs.next().unwrap() == 60);
+        let coefs = BCHPolynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+        ].into_iter().cloned());
+
+        let mut locs = Errors::new(coefs, p);
+
+        assert_eq!(locs.next().unwrap(), (61, P25Codeword::for_power(0)));
+        assert_eq!(locs.next().unwrap(), (60, P25Codeword::for_power(0)));
         assert!(locs.next().is_none());
     }
 
