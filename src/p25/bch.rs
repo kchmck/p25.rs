@@ -29,7 +29,7 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
     // The BCH code is only over the first 63 bits, so strip off the P25 parity bit.
     let word = word >> 1;
     // Get the error location polynomial.
-    let poly = BCHDecoder::new(Syndromes::new(word)).decode();
+    let poly = BCHDecoder::new(Syndromes::new(word).poly()).decode();
 
     // The degree indicates the number of errors that need to be corrected.
     let errors = match poly.degree() {
@@ -151,6 +151,12 @@ impl Syndromes {
             word: word,
         }
     }
+
+    /// Generate the "syndrome polynomial".
+    pub fn poly(mut self) -> BCHPolynomial {
+        BCHPolynomial::new(std::iter::once(P25Codeword::for_power(0))
+                                    .chain(self.into_iter()))
+    }
 }
 
 impl Iterator for Syndromes {
@@ -188,17 +194,14 @@ struct BerlMasseyDecoder<P: PolynomialCoefs> {
 
 impl<P: PolynomialCoefs> BerlMasseyDecoder<P> {
     /// Construct a new `BerlMasseyDecoder` from the given syndrome codeword iterator.
-    pub fn new<T: Iterator<Item = P25Codeword>>(syndromes: T) -> BerlMasseyDecoder<P> {
-        // A zero followed by the syndromes.
-        let q = Polynomial::new(std::iter::once(P25Codeword::for_power(0))
-                                    .chain(syndromes.into_iter()));
+    pub fn new(syndromes: Polynomial<P>) -> BerlMasseyDecoder<P> {
         // 2t zeroes followed by a one.
         let p = Polynomial::new((0..SYNDROMES+1).map(|_| P25Codeword::default())
                                     .chain(std::iter::once(P25Codeword::for_power(0))));
 
         BerlMasseyDecoder {
-            q_saved: q,
-            q_cur: q.shift(),
+            q_saved: syndromes,
+            q_cur: syndromes.shift(),
             p_saved: p,
             p_cur: p.shift(),
             deg_saved: 0,
@@ -350,7 +353,7 @@ mod test {
     #[test]
     fn test_decoder() {
         let w = encode(0b1111111100000000)^0b11<<61;
-        let poly = BCHDecoder::new(Syndromes::new(w >> 1)).decode();
+        let poly = BCHDecoder::new(Syndromes::new(w >> 1).poly()).decode();
 
         assert!(poly.coef(0).power().unwrap() == 0);
         assert!(poly.coef(1).power().unwrap() == 3);
