@@ -298,7 +298,21 @@ impl<F: GaloisField> std::cmp::Ord for Codeword<F> {
 /// Wraps a static codeword array.
 pub trait PolynomialCoefs: Default + Copy + Clone + std::ops::Deref<Target = [P25Codeword]> +
     std::ops::DerefMut
-{}
+{
+    /// The `d` Hamming distance in (n,k,d).
+    fn distance() -> usize;
+
+    /// Maximum number of correctable errors: d=2t+1 => t = (d-1)/2 = floor(d/2)
+    fn errors() -> usize { Self::distance() / 2 }
+    /// Number of syndromes needed, degree of syndrome polynomial.
+    fn syndromes() -> usize { Self::errors() * 2 }
+
+    /// Verify the implementer is well-formed.
+    fn validate(&self) {
+        assert!(Self::distance() % 2 == 1);
+        assert!(self.len() == Self::syndromes() + 2);
+    }
+}
 
 /// A syndrome polynomial with GF(2^6) codewords as coefficients.
 #[derive(Copy, Clone)]
@@ -481,9 +495,17 @@ mod test {
         fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
     }
 
-    impl PolynomialCoefs for TestCoefs {}
+    impl PolynomialCoefs for TestCoefs {
+        fn distance() -> usize { 23 }
+    }
 
     type TestPolynomial = Polynomial<TestCoefs>;
+
+    #[test]
+    fn test_coefs() {
+        assert_eq!(TestCoefs::errors(), 11);
+        assert_eq!(TestCoefs::syndromes(), 22);
+    }
 
     #[test]
     fn test_for_power() {

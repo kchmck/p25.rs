@@ -41,7 +41,7 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
 
     // Even if there are more errors, the BM algorithm produces a polynomial with degree
     // no greater than ERRORS.
-    assert!(errors <= ERRORS);
+    assert!(errors <= BCHCoefs::errors());
 
     // Get the bit locations from the polynomial.
     let locs = Errors::new(poly, syn);
@@ -61,13 +61,6 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
         None
     }
 }
-
-/// The d in (n,k,d).
-const DISTANCE: usize = 23;
-/// 2t+1 = 23 => t = 11
-const ERRORS: usize = 11;
-/// Required syndrome codewords.
-const SYNDROMES: usize = 2 * ERRORS;
 
 /// Generator matrix from P25, transformed for more efficient codeword generation.
 const GEN: &'static [u16] = &[
@@ -122,7 +115,7 @@ const GEN: &'static [u16] = &[
 ];
 
 #[derive(Copy, Clone, Default)]
-struct BCHCoefs([P25Codeword; SYNDROMES + 2]);
+struct BCHCoefs([P25Codeword; 22 + 2]);
 
 impl std::ops::Deref for BCHCoefs {
     type Target = [P25Codeword];
@@ -133,14 +126,16 @@ impl std::ops::DerefMut for BCHCoefs {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
 }
 
-impl PolynomialCoefs for BCHCoefs {}
+impl PolynomialCoefs for BCHCoefs {
+    fn distance() -> usize { 23 }
+}
 
 type BCHPolynomial = Polynomial<BCHCoefs>;
 
 /// Generate the syndrome polynomial for the given received word.
 fn syndromes(word: u64) -> BCHPolynomial {
     BCHPolynomial::new(std::iter::once(P25Codeword::for_power(0))
-        .chain((1..DISTANCE).map(|pow| {
+        .chain((1..BCHCoefs::distance()).map(|pow| {
             (0..P25Field::size()).fold(P25Codeword::default(), |s, b| {
                 if word >> b & 1 == 0 {
                     s
@@ -172,7 +167,7 @@ impl<P: PolynomialCoefs> BerlMasseyDecoder<P> {
     /// Construct a new `BerlMasseyDecoder` from the given syndrome polynomial.
     pub fn new(syn: Polynomial<P>) -> BerlMasseyDecoder<P> {
         // 2t zeroes followed by a one.
-        let p = Polynomial::new((0..SYNDROMES+1).map(|_| P25Codeword::default())
+        let p = Polynomial::new((0..P::syndromes()+1).map(|_| P25Codeword::default())
                                     .chain(std::iter::once(P25Codeword::for_power(0))));
 
         BerlMasseyDecoder {
@@ -188,7 +183,7 @@ impl<P: PolynomialCoefs> BerlMasseyDecoder<P> {
     /// Perform the iterative steps to get the error-location polynomial Λ(x) wih deg(Λ)
     /// <= t.
     pub fn decode(mut self) -> Polynomial<P> {
-        for _ in 0..SYNDROMES {
+        for _ in 0..P::syndromes() {
             self.step();
         }
 
@@ -319,8 +314,13 @@ impl<P: PolynomialCoefs> Iterator for Errors<P> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use super::{syndromes, BCHDecoder, Errors, BCHPolynomial};
-    use galois::P25Codeword;
+    use super::{syndromes, BCHDecoder, Errors, BCHCoefs, BCHPolynomial};
+    use galois::{P25Codeword, PolynomialCoefs};
+
+    #[test]
+    fn validate_coefs() {
+        BCHCoefs::default().validate();
+    }
 
     #[test]
     fn test_encode() {
