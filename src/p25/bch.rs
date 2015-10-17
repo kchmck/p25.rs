@@ -42,7 +42,7 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
     assert!(errors <= ERRORS);
 
     // Get the bit locations from the polynomial.
-    let locs = ErrorLocations::new(poly.coefs().iter().cloned());
+    let locs = ErrorLocations::new(poly.iter().cloned());
 
     // Correct the codeword and count the number of corrected errors. Stop the
     // `ErrorLocations` iteration after `errors` iterations since it won't yield any more

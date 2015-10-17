@@ -334,11 +334,6 @@ impl<P: PolynomialCoefs> Polynomial<P> {
         self.coefs[self.start]
     }
 
-    /// Get the coefficients starting from degree-0.
-    pub fn coefs(&self) -> &[P25Codeword] {
-        &self.coefs[self.start..]
-    }
-
     /// Return `Some(deg)`, where `deg` is the highest degree term in the polynomial, if
     /// the polynomial is nonzero and `None` if it's zero.
     pub fn degree(&self) -> Option<usize> {
@@ -378,7 +373,7 @@ impl<P: PolynomialCoefs> Polynomial<P> {
 
     /// Evaluate the polynomial, substituting in `x`.
     pub fn eval(&self, x: P25Codeword) -> P25Codeword {
-        self.coefs().iter().enumerate().fold(P25Codeword::default(), |s, (pow, coef)| {
+        self.iter().enumerate().fold(P25Codeword::default(), |s, (pow, coef)| {
             s + *coef * x.pow(pow)
         })
     }
@@ -414,6 +409,15 @@ impl<P: PolynomialCoefs> Default for Polynomial<P> {
     }
 }
 
+impl<P: PolynomialCoefs> std::ops::Deref for Polynomial<P> {
+    type Target = [P25Codeword];
+    fn deref(&self) -> &Self::Target { &self.coefs[self.start..] }
+}
+
+impl<P: PolynomialCoefs> std::ops::DerefMut for Polynomial<P> {
+    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.coefs[self.start..] }
+}
+
 impl<P: PolynomialCoefs> std::ops::Add for Polynomial<P> {
     type Output = Polynomial<P>;
 
@@ -447,8 +451,8 @@ impl<P: PolynomialCoefs> std::ops::Mul<Polynomial<P>> for Polynomial<P> {
     fn mul(self, rhs: Polynomial<P>) -> Self::Output {
         let mut out = Polynomial::<P>::default();
 
-        for (i, coef) in self.coefs().iter().enumerate() {
-            for (j, mult) in rhs.coefs().iter().enumerate() {
+        for (i, coef) in self.iter().enumerate() {
+            for (j, mult) in rhs.iter().enumerate() {
                 match out.coefs.get_mut(i + j) {
                     Some(c) => *c = *c + *coef * *mult,
                     None => {},
@@ -586,7 +590,7 @@ mod test {
         let q = p.clone() + p.clone();
         assert!(q.constant().zero());
 
-        for coef in q.coefs() {
+        for coef in q.iter() {
             assert!(coef.zero());
         }
 
