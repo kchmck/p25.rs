@@ -4,7 +4,7 @@ use bits;
 use system::{SystemParams, P25Params};
 
 /// Yields a series of scaled impulses vs time corresponding to given dibits.
-pub struct C4FMImpulse<T, S: SystemParams> {
+pub struct C4FMImpulses<T, S: SystemParams> {
     system: std::marker::PhantomData<S>,
     /// The dibit source to iterate over.
     src: T,
@@ -12,13 +12,13 @@ pub struct C4FMImpulse<T, S: SystemParams> {
     sample: usize,
 }
 
-impl<T, S = P25Params> C4FMImpulse<T, S> where
+impl<T, S = P25Params> C4FMImpulses<T, S> where
     T: Iterator<Item = bits::Dibit>,
     S: SystemParams
 {
-    /// Construct a new `C4FMImpulse<T>` from the given source and sample rate.
-    pub fn new(src: T) -> C4FMImpulse<T, S> {
-        C4FMImpulse {
+    /// Construct a new `C4FMImpulses<T>` from the given source and sample rate.
+    pub fn new(src: T) -> C4FMImpulses<T, S> {
+        C4FMImpulses {
             system: std::marker::PhantomData,
             src: src,
             sample: 0,
@@ -26,7 +26,7 @@ impl<T, S = P25Params> C4FMImpulse<T, S> where
     }
 }
 
-impl<T, S> Iterator for C4FMImpulse<T, S> where
+impl<T, S> Iterator for C4FMImpulses<T, S> where
     T: Iterator<Item = bits::Dibit>,
     S: SystemParams
 {
@@ -102,7 +102,7 @@ mod test {
         ];
 
         let d = bits::Dibits::new(BITS.iter().cloned());
-        let mut imp = C4FMImpulse::new(d);
+        let mut imp = C4FMImpulses::new(d);
 
         assert!(imp.next().unwrap() == 600.0);
         assert!(imp.next().unwrap() == 0.0);
