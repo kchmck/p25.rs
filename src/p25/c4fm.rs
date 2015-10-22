@@ -1,35 +1,27 @@
 use std;
 
 use bits;
-use system::{SystemParams, P25Params};
+use consts;
 
 /// Yields a series of scaled impulses vs time corresponding to given dibits.
-pub struct C4FMImpulses<T, S: SystemParams> {
-    system: std::marker::PhantomData<S>,
+pub struct C4FMImpulses<T> {
     /// The dibit source to iterate over.
     src: T,
     /// Current global sample index.
     sample: usize,
 }
 
-impl<T, S = P25Params> C4FMImpulses<T, S> where
-    T: Iterator<Item = bits::Dibit>,
-    S: SystemParams
-{
+impl<T: Iterator<Item = bits::Dibit>> C4FMImpulses<T> {
     /// Construct a new `C4FMImpulses<T>` from the given source and sample rate.
-    pub fn new(src: T) -> C4FMImpulses<T, S> {
+    pub fn new(src: T) -> C4FMImpulses<T> {
         C4FMImpulses {
-            system: std::marker::PhantomData,
             src: src,
             sample: 0,
         }
     }
 }
 
-impl<T, S> Iterator for C4FMImpulses<T, S> where
-    T: Iterator<Item = bits::Dibit>,
-    S: SystemParams
-{
+impl<T: Iterator<Item = bits::Dibit>> Iterator for C4FMImpulses<T> {
     type Item = f64;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -38,7 +30,7 @@ impl<T, S> Iterator for C4FMImpulses<T, S> where
         self.sample += 1;
 
         // Impulse is only output at the beginning of a symbol period.
-        if s % S::period() != 0 {
+        if s % consts::PERIOD != 0 {
             return Some(0.0);
         }
 

@@ -1,7 +1,7 @@
 use std;
 
 use baseband::{DCOffsetCorrector, Decider, Correlator, Decoder};
-use system::{SystemParams, P25Params};
+use consts;
 
 use self::PeakType::*;
 use self::SyncError::*;
@@ -13,26 +13,26 @@ pub enum SyncError {
     InvalidSine,
 }
 
-enum SyncState<S: SystemParams> {
+enum SyncState {
     BootstrapRun(RunCheck),
     BigSine(Peaks),
     MidRun(RunCheck),
     SmallSine(Peaks),
-    LockBoundary(SymbolClock<S>),
-    EndRun(DCOffsetCorrector, Correlator<S>),
-    Locked(Decoder<S>),
+    LockBoundary(SymbolClock),
+    EndRun(DCOffsetCorrector, Correlator),
+    Locked(Decoder),
     Error(SyncError),
 }
 
-pub struct SyncDetector<S: SystemParams = P25Params> {
-    state: SyncState<S>,
-    timing: Timing<S>,
+pub struct SyncDetector {
+    state: SyncState,
+    timing: Timing,
     sums: Sums,
     dco: DCOffset,
 }
 
-impl<S: SystemParams> SyncDetector<S> {
-    pub fn new() -> SyncDetector<S> {
+impl SyncDetector {
+    pub fn new() -> SyncDetector {
         SyncDetector {
             state: Error(Uninitialized),
             timing: Timing::new(),
@@ -54,12 +54,12 @@ impl<S: SystemParams> SyncDetector<S> {
     }
 
     fn init(&mut self) {
-        self.state = BootstrapRun(RunCheck::new(4 * S::period(), None))
+        self.state = BootstrapRun(RunCheck::new(4 * consts::PERIOD, None))
     }
 
     /// Take the given sample and sample time and output where the state machine should
     /// move next.
-    fn handle(&mut self, s: f64, t: usize) -> Option<SyncState<S>> {
+    fn handle(&mut self, s: f64, t: usize) -> Option<SyncState> {
         match self.state {
             BootstrapRun(ref mut run) => match run.feed(s) {
                 Some(true) => Some(BigSine(Peaks::new(Maximum, s))),
@@ -76,7 +76,7 @@ impl<S: SystemParams> SyncDetector<S> {
 
                     match m {
                         Maximum if self.timing.pos == 4 => Some(MidRun(
-                            RunCheck::new(3 * S::period(), Some(S::period()))
+                            RunCheck::new(3 * consts::PERIOD, Some(consts::PERIOD))
                         )),
                         _ => None,
                     }
@@ -133,7 +133,7 @@ impl<S: SystemParams> SyncDetector<S> {
         }
     }
 
-    pub fn feed(&mut self, s: f64, t: usize) -> Option<Result<Decoder<S>, SyncError>> {
+    pub fn feed(&mut self, s: f64, t: usize) -> Option<Result<Decoder, SyncError>> {
         match self.handle(s, t) {
             Some(Error(e)) => Some(Err(e)),
             Some(Locked(d)) => Some(Ok(d)),
@@ -148,19 +148,17 @@ impl<S: SystemParams> SyncDetector<S> {
 
 /// Recovers impulse timing from the (positive and negative) peaks of the "big sine" and
 /// "small sine" sections of the frame sync waveform.
-struct Timing<S: SystemParams = P25Params> {
-    system: std::marker::PhantomData<S>,
+struct Timing {
     /// Times of the peaks in the waveform.
     times: [usize; 7],
     /// Current number of peaks (length of `times`.)
     pub pos: usize,
 }
 
-impl<S: SystemParams> Timing<S> {
+impl Timing {
     /// Construct a new `Timing` with the given symbol period.
-    pub fn new() -> Timing<S> {
+    pub fn new() -> Timing {
         Timing {
-            system: std::marker::PhantomData,
             times: [0; 7],
             pos: 0,
         }
@@ -180,7 +178,7 @@ impl<S: SystemParams> Timing<S> {
     /// Expand the peak times into impulse times (the big sine peaks are made by two
     /// impulses.)
     fn expand(&self) -> [usize; 10] {
-        let half_period = S::period() / 2;
+        let half_period = consts::PERIOD / 2;
 
         [
             self.times[0],
@@ -209,7 +207,7 @@ impl<S: SystemParams> Timing<S> {
         assert!(self.pos == 7);
 
         // Scale the impulse times by the symbol period.
-        let expected = EXPECTED_TIMES.iter().map(|e| e * S::period());
+        let expected = EXPECTED_TIMES.iter().map(|e| e * consts::PERIOD);
         let expanded = self.expand();
 
         // Calculate the average difference between real and expected timings.
@@ -229,30 +227,28 @@ impl<S: SystemParams> Timing<S> {
 }
 
 /// Calculates symbol impulse and boundary times.
-struct SymbolClock<S: SystemParams = P25Params> {
-    system: std::marker::PhantomData<S>,
+struct SymbolClock {
     /// Impulse starting time.
     start: usize,
 }
 
-impl<S: SystemParams> SymbolClock<S> {
+impl SymbolClock {
     /// Construct a new `SymbolClock` with the given impulse clock starting time and
     /// symbol period.
-    pub fn new(start: usize) -> SymbolClock<S> {
+    pub fn new(start: usize) -> SymbolClock {
         SymbolClock {
-            system: std::marker::PhantomData,
             start: start,
         }
     }
 
     /// Check if the given time falls on a symbol impulse.
     pub fn impulse(&self, t: usize) -> bool {
-        (t - self.start) % S::period() == 0
+        (t - self.start) % consts::PERIOD == 0
     }
 
     /// Check if the given time falls on a symbol boundary.
     pub fn boundary(&self, t: usize) -> bool {
-        self.impulse(t + S::period() / 2)
+        self.impulse(t + consts::PERIOD / 2)
     }
 }
 

@@ -1,28 +1,27 @@
 use bits;
 use sync;
-use system::{SystemParams, P25Params};
 use baseband::Decoder;
 
 use self::ReceiveState::*;
 
-enum ReceiveState<S: SystemParams> {
-    Syncing(sync::SyncDetector<S>),
-    Receiving(Decoder<S>),
+enum ReceiveState {
+    Syncing(sync::SyncDetector),
+    Receiving(Decoder),
     Dibit(bits::Dibit),
 }
 
-pub struct Receiver<S: SystemParams = P25Params> {
-    state: ReceiveState<S>,
+pub struct Receiver {
+    state: ReceiveState,
 }
 
-impl<S: SystemParams = P25Params> Receiver<S> {
-    pub fn new() -> Receiver<S> {
+impl Receiver {
+    pub fn new() -> Receiver {
         Receiver {
             state: Syncing(sync::SyncDetector::new()),
         }
     }
 
-    fn handle(&mut self, s: f64, t: usize) -> Option<ReceiveState<S>> {
+    fn handle(&mut self, s: f64, t: usize) -> Option<ReceiveState> {
         match self.state {
             Syncing(ref mut sync) => match sync.feed(s, t) {
                 Some(Err(_)) => {

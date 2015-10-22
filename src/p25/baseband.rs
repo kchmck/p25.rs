@@ -1,17 +1,17 @@
 use std;
 
 use bits;
-use system::{SystemParams, P25Params};
+use consts;
 
-pub struct Decoder<S: SystemParams = P25Params> {
+pub struct Decoder {
     corrector: DCOffsetCorrector,
-    correlator: Correlator<S>,
+    correlator: Correlator,
     decider: Decider,
 }
 
-impl<S: SystemParams> Decoder<S> {
-    pub fn new(corrector: DCOffsetCorrector, correlator: Correlator<S>, decider: Decider)
-        -> Decoder<S>
+impl Decoder {
+    pub fn new(corrector: DCOffsetCorrector, correlator: Correlator, decider: Decider)
+        -> Decoder
     {
         Decoder {
             corrector: corrector,
@@ -51,16 +51,14 @@ impl DCOffsetCorrector {
 }
 
 #[derive(Copy, Clone)]
-pub struct Correlator<S: SystemParams = P25Params> {
-    system: std::marker::PhantomData<S>,
+pub struct Correlator {
     pos: usize,
     sum: f64,
 }
 
-impl<S: SystemParams> Correlator<S> {
-    pub fn new() -> Correlator<S> {
+impl Correlator {
+    pub fn new() -> Correlator {
         Correlator {
-            system: std::marker::PhantomData,
             pos: 0,
             sum: 0.0,
         }
@@ -75,7 +73,7 @@ impl<S: SystemParams> Correlator<S> {
     pub fn feed(&mut self, s: f64) -> Option<f64> {
         self.add(s);
 
-        if self.pos > S::period() {
+        if self.pos > consts::PERIOD {
             Some(self.sum)
         } else {
             None
