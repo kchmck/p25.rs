@@ -10,6 +10,8 @@ use std;
 pub type Bits<T> = SubByteIter<BitParams, T>;
 /// Iterate over the dibits of a byte source, MSB to LSB.
 pub type Dibits<T> = SubByteIter<DibitParams, T>;
+/// Iterates over the tribits in a byte source, MSB to LSB.
+pub type Tribits<T> = SubByteIter<TribitParams, T>;
 
 /// Defines parameters needed for (power of two) sub-byte iterators.
 pub trait IterParams {
@@ -17,17 +19,25 @@ pub trait IterParams {
     type IterType;
 
     /// Number of bits to consume at each iteration.
-    fn bits() -> u8;
+    fn bits() -> usize;
+
+    /// Number of bytes to buffer, where the number of bits contained should be the lcm of
+    /// 8 and the number of bits per iteration.
+    fn buffer() -> usize { 1 }
+
+    /// Amount to shift buffer after loading in bytes.
+    fn buffer_shift() -> usize { 32 - 8 * Self::buffer() }
+
+    /// Number of iterations needed for each byte.
+    fn iterations() -> usize { 8 * Self::buffer() / Self::bits() }
+
     /// Wrap the given bits in container type.
     fn wrap(bits: u8) -> Self::IterType;
 
-    /// Number of iterations needed for each byte.
-    fn iterations() -> u8 { 8 / Self::bits() }
-
     /// Verify the parameters are supported.
     fn validate() {
-        // Only powers of two are valid because there can be no "leftovers."
-        assert!(Self::bits().is_power_of_two());
+        // Maximum buffer size is currently 32 bits.
+        assert!(Self::buffer() <= 4);
     }
 }
 
@@ -51,7 +61,8 @@ pub struct BitParams;
 
 impl IterParams for BitParams {
     type IterType = Bit;
-    fn bits() -> u8 { 1 }
+
+    fn bits() -> usize { 1 }
     fn wrap(bits: u8) -> Bit { Bit::new(bits) }
 }
 
@@ -75,7 +86,8 @@ pub struct DibitParams;
 
 impl IterParams for DibitParams {
     type IterType = Dibit;
-    fn bits() -> u8 { 2 }
+
+    fn bits() -> usize { 2 }
     fn wrap(bits: u8) -> Dibit { Dibit::new(bits) }
 }
 
@@ -94,6 +106,17 @@ impl Tribit {
     pub fn bits(&self) -> u8 { self.0 }
 }
 
+/// Parameters for `Tribits` iterator.
+pub struct TribitParams;
+
+impl IterParams for TribitParams {
+    type IterType = Tribit;
+
+    fn bits() -> usize { 3 }
+    fn buffer() -> usize { 3 }
+    fn wrap(bits: u8) -> Tribit { Tribit::new(bits) }
+}
+
 /// An iterator for sub-byte (bit-level) values.
 struct SubByteIter<P, T> where
     P: IterParams, T: Iterator<Item = u8>
@@ -101,10 +124,10 @@ struct SubByteIter<P, T> where
     params: std::marker::PhantomData<P>,
     /// Source of bytes.
     src: T,
+    /// Current buffered bits.
+    buf: u32,
     /// Current bit-level index into the current byte.
     idx: u8,
-    /// Current byte in the source.
-    byte: u8,
 }
 
 impl<P, T> SubByteIter<P, T> where
@@ -116,9 +139,29 @@ impl<P, T> SubByteIter<P, T> where
         SubByteIter {
             params: std::marker::PhantomData,
             src: src,
-            byte: 0,
+            buf: 0,
             idx: 0,
         }
+    }
+
+    /// Consume one or more bytes to create a buffer of bits, filled starting from the
+    /// MSB.
+    fn buffer(&mut self) -> Option<u32> {
+        let (buf, added) = (&mut self.src)
+            .take(P::buffer())
+            .fold((0, 0), |(buf, added), byte| {
+                (buf << 8 | byte as u32, added + 1)
+            });
+
+        // It's okay if there are no more source bits here, because we're on a safe
+        // boundary.
+        if added == 0 {
+            return None;
+        }
+
+        assert!(added == P::buffer(), "incomplete source");
+
+        Some(buf << P::buffer_shift())
     }
 }
 
@@ -129,97 +172,23 @@ impl<P, T> Iterator for SubByteIter<P, T> where
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.idx == 0 {
-            self.byte = match self.src.next() {
+            self.buf = match self.buffer() {
                 Some(b) => b,
                 None => return None,
             };
         }
 
         // Extract MSBs.
-        let bits = self.byte >> (8 - P::bits());
+        let bits = self.buf >> (32 - P::bits());
 
         // Strip off the MSBs for the next iteration.
-        self.byte <<= P::bits();
+        self.buf <<= P::bits();
 
         // Move to the next item and reset after all have been visited.
         self.idx += 1;
-        self.idx %= P::iterations();
+        self.idx %= P::iterations() as u8;
 
-        Some(P::wrap(bits))
-    }
-}
-
-/// Iterates over the tribits in a byte source.
-pub struct Tribits<T: Iterator<Item = u8>> {
-    /// The source of bytes.
-    src: T,
-    /// Current bit buffer, containing either 6 or 3 bits (in MSB position) or 0.
-    bits: u8,
-    /// Tribit index into `bits` (0 or 1).
-    idx: usize,
-    /// Buffered bits from current source byte, to be added to `bits`.
-    buf: u8,
-    /// Number of bits in `buf`, either 2, 4, 6, or 0.
-    buf_bits: usize,
-}
-
-impl<T: Iterator<Item = u8>> Tribits<T> {
-    /// Construct a new `Tribits` from the given source of bytes. The number of bytes must
-    /// be a multiple of 3 (a multiple of 24 bits).
-    pub fn new(src: T) -> Tribits<T> {
-        Tribits {
-            src: src,
-            bits: 0,
-            idx: 0,
-            buf: 0,
-            buf_bits: 0,
-        }
-    }
-}
-
-impl<T: Iterator<Item = u8>> Iterator for Tribits<T> {
-    type Item = Tribit;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        // If on the first tribit, it's time to flush the buffer and (maybe) load another
-        // byte.
-        if self.idx == 0 {
-            // Flush and reset the buffer.
-            self.bits = self.buf;
-            self.buf = 0;
-
-            // Calculate the number of bits to buffer for the next iteration.
-            self.buf_bits += 2;
-            self.buf_bits %= 8;
-
-            // Only load a new byte if bits need to be buffered.
-            if self.buf_bits != 0 {
-                let next = match self.src.next() {
-                    Some(b) => b,
-                    None => if self.buf_bits == 2 {
-                        // In this case we've covered 8 tribits = 24 bits = 3 bytes
-                        // exactly, so it's fine if there are no more bytes.
-                        return None;
-                    } else {
-                        panic!("incomplete tribit");
-                    }
-                };
-
-                // Add in some source bits after the MSBs.
-                self.bits |= next >> self.buf_bits << 2;
-                // Buffer the rest of the bits.
-                self.buf = next << (8 - self.buf_bits);
-            }
-        }
-
-        // Extract the 3 MSBs and strip them off for next time.
-        let bits = self.bits >> 5;
-        self.bits <<= 3;
-
-        self.idx += 1;
-        self.idx %= 2;
-
-        Some(Tribit::new(bits))
+        Some(P::wrap(bits as u8))
     }
 }
 
@@ -231,6 +200,7 @@ mod test {
     fn validate_params() {
         BitParams::validate();
         DibitParams::validate();
+        TribitParams::validate();
     }
 
     #[test]
