@@ -31,10 +31,6 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
     // The degree indicates the number of errors that need to be corrected.
     let errors = poly.degree().expect("invalid error polynomial");
 
-    // Even if there are more errors, the BM algorithm produces a polynomial with degree
-    // no greater than ERRORS.
-    assert!(errors <= BCHCoefs::errors());
-
     // Get the error locations from the polynomial.
     let locs = bmcf::Errors::new(poly, syn);
 
