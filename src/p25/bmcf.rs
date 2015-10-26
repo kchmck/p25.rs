@@ -106,7 +106,7 @@ impl<P: PolynomialCoefs> Errors<P> {
     /// Construct a new `Errors` from the given error and syndrome polynomials.
     pub fn new(mut epoly: Polynomial<P>, syn: Polynomial<P>) -> Errors<P> {
         let deriv = epoly.deriv();
-        let vpoly = (epoly * syn).truncate(syn.len() - 2);
+        let vpoly = (epoly * syn).truncate(P::syndromes());
 
         for (pow, cur) in epoly.iter_mut().enumerate() {
             // Since the first call to `update_terms()` multiplies by `pow` and the
