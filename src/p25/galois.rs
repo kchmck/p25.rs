@@ -164,7 +164,7 @@ pub trait GaloisField {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone)]
 /// Codeword in the associated field.
 pub struct Codeword<F: GaloisField> {
     field: std::marker::PhantomData<F>,
