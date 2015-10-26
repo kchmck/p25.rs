@@ -180,6 +180,9 @@ impl<F: GaloisField> Codeword<F> {
         }
     }
 
+    /// Get the wrapped codeword bits.
+    pub fn bits(&self) -> u8 { self.bits }
+
     /// Check if the codeword is zero.
     pub fn zero(&self) -> bool { self.bits == 0 }
 
