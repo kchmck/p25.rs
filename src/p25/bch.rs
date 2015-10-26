@@ -35,10 +35,7 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
     let poly = BCHDecoder::new(syn).decode();
 
     // The degree indicates the number of errors that need to be corrected.
-    let errors = match poly.degree() {
-        Some(deg) => deg,
-        None => panic!("invalid polynomial"),
-    };
+    let errors = poly.degree().expect("invalid error polynomial");
 
     // Even if there are more errors, the BM algorithm produces a polynomial with degree
     // no greater than ERRORS.
