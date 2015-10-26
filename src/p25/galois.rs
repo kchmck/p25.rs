@@ -8,7 +8,7 @@ impl GaloisField for P25Field {
     fn size() -> usize { 63 }
 
     fn codeword(pow: usize) -> u8 {
-        const CODEWORDS: &'static [u8] = &[
+        const CODEWORDS: [u8; 63] = [
             0b000001,
             0b000010,
             0b000100,
@@ -78,7 +78,7 @@ impl GaloisField for P25Field {
     }
 
     fn power(codeword: usize) -> usize {
-        const POWERS: &'static [usize] = &[
+        const POWERS: [usize; 63] = [
             0,
             1,
             6,
