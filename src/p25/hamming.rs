@@ -1,13 +1,12 @@
-//! This module provides `encode` and `decode` functions in `standard` and `shortened`
-//! submodules, for encoding and decoding of the standard and shortened Hamming codes
-//! defined by P25.
+//! Encoding and decoding of the (15, 11, 3) standard and (10, 6, 3) shortened Hamming
+//! codes described by P25.
 //!
-//! These algorithms are sourced from \[1].
+//! Both codes can correct up to 1 error. These algorithms are sourced from \[1].
 //!
 //! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
 //! al, 2000
 
-/// Encoding and decoding of the (15, 11, 3) standard HammingDecoder code defined by P25.
+/// Encoding and decoding of the (15, 11, 3) code.
 pub mod standard {
     /// Encode the 11 bits of data to a 15-bit codeword.
     pub fn encode(data: u16) -> u16 {
@@ -15,9 +14,9 @@ pub mod standard {
         matrix_mul_systematic!(data, GEN, u16)
     }
 
-    /// Try to decode the 15-bit word to the nearest codeword and return `Some((data,
-    /// err))`, where `data` are the 11 data bits and `err` is the number of errors, on
-    /// success and `None` on an unrecoverable error.
+    /// Try to decode the 15-bit word to the nearest codeword, correcting up to 1 error.
+    /// Return `Some((data, err))`, where `data` are the 11 data bits and `err` is the
+    /// number of errors, on success and `None` on an unrecoverable error.
     pub fn decode(word: u16) -> Option<(u16, usize)> {
         assert!(word >> 15 == 0);
         super::decode_hamming::<StandardHamming>(word)
@@ -70,7 +69,7 @@ pub mod standard {
     }
 }
 
-/// Encoding and decoding of the (10, 6, 3) shortened HammingDecoder code defined by P25.
+/// Encoding and decoding of the (10, 6, 3) code.
 pub mod shortened {
     /// Encode the 6 data bits to a 10-bit codeword.
     pub fn encode(data: u8) -> u16 {
@@ -78,9 +77,9 @@ pub mod shortened {
         matrix_mul_systematic!(data, GEN, u16)
     }
 
-    /// Try to decode the 10-bit word to the nearest codeword and return `Some((data,
-    /// err))`, where `data` are the 6 data bits and `err` is the number of errors, on
-    /// success and `None` on an unrecoverable error.
+    /// Try to decode the 10-bit word to the nearest codeword, correcting up to 1 error.
+    /// Return `Some((data, err))`, where `data` are the 6 data bits and `err` is the
+    /// number of errors, on success and `None` on an unrecoverable error.
     pub fn decode(word: u16) -> Option<(u8, usize)> {
         assert!(word >> 10 == 0);
         super::decode_hamming::<ShortHamming>(word)

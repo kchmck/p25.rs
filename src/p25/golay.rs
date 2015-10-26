@@ -1,12 +1,12 @@
-//! This module implements encoding and decoding for the (23, 12, 7) standard, (24, 12, 8)
-//! extended, and (18, 6, 8) shortened Golay codes described by P25.
+//! Encoding and decoding of the (23, 12, 7) standard, (24, 12, 8) extended, and (18, 6,
+//! 8) shortened Golay codes described by P25.
 //!
 //! These algorithms are sourced from \[1].
 //!
 //! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
 //! al, 2000
 
-/// Encoding and decoding for (23, 12, 7) standard Golay.
+/// Encoding and decoding of the (23, 12, 7) code.
 pub mod standard {
     /// Encode the 12 data bits into a 23-bit codeword.
     pub fn encode(data: u16) -> u32 {
@@ -14,9 +14,10 @@ pub mod standard {
         matrix_mul_systematic!(data, super::CORE_SHORT, u32)
     }
 
-    /// Try to decode the 23-bit codeword to the nearest codeword and return `Some((data,
-    /// err))`, where `data` are the 12 data bits and `err` is the number of errors
-    /// corrected in the data bits, on success and `None` on an unrecoverable error.
+    /// Try to decode the 23-bit word to the nearest codeword, correcting up to 3 errors.
+    /// Return `Some((data, err))`, where `data` are the 12 data bits and `err` is the
+    /// number of errors corrected in the data bits, on success and `None` on an
+    /// unrecoverable error.
     pub fn decode(word: u32) -> Option<(u16, usize)> {
         assert!(word >> 23 == 0);
 
@@ -38,7 +39,7 @@ pub mod standard {
     }
 }
 
-/// Encoding and decoding for (24, 12, 8) extended Golay.
+/// Encoding and decoding of the (24, 12, 8) code.
 pub mod extended {
     /// Encode the 12 data bits into a 24-bit codeword.
     pub fn encode(data: u16) -> u32 {
@@ -46,16 +47,17 @@ pub mod extended {
         matrix_mul_systematic!(data, super::CORE, u32)
     }
 
-    /// Try to decode the 24-bit codeword to the nearest codeword and return `Some((data,
-    /// err))`, where `data` are the 12 data bits and `err` is the number of errors
-    /// corrected in the data bits, on success and `None` on an unrecoverable error.
+    /// Try to decode the 24-bit word to the nearest codeword, correcting up to 3 errors.
+    /// Return `Some((data, err))`, where `data` are the 12 data bits and `err` is the
+    /// number of errors corrected in the data bits, on success and `None` on an
+    /// unrecoverable error.
     pub fn decode(word: u32) -> Option<(u16, usize)> {
         assert!(word >> 24 == 0);
         super::decode_syndrome(super::word_data(word), super::syndrome_24(word))
     }
 }
 
-/// Encoding and decoding for (18, 6, 8) shortened Golay.
+/// Encoding and decoding of the (18, 6, 8) code.
 pub mod shortened {
     use super::extended;
 
@@ -65,9 +67,10 @@ pub mod shortened {
         extended::encode(data as u16)
     }
 
-    /// Try to decode the 18-bit codeword to the nearest codeword and return `Some((data,
-    /// err))`, where `data` are the 6 data bits and `err` is the number of errors
-    /// corrected in the data bits, on success and `None` on an unrecoverable error.
+    /// Try to decode the 18-bit word to the nearest codeword, correcting up to 3 errors.
+    /// Return `Some((data, err))`, where `data` are the 6 data bits and `err` is the
+    /// number of errors corrected in the data bits, on success and `None` on an
+    /// unrecoverable error.
     pub fn decode(word: u32) -> Option<(u8, usize)> {
         assert!(word >> 18 == 0);
 

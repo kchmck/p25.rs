@@ -1,36 +1,30 @@
-//! This module implements encoding and decoding of the (63, 16, 23) BCH code used to
-//! protect P25's NID field.
+//! Encoding and decoding of the (63, 16, 23) BCH code described by P25.
 //!
-//! It uses an optimized "matrix multiplication" for encoding and
-//! the Berlekamp-Massey algorithm followed by Chien search for decoding, and both use
-//! only stack memory.
-//!
-//! Most Galois field information as well as the Berlekamp-Massey implementation are
-//! derived from \[1] and the Chien search was derived from \[2].
+//! These algorithms are derived from \[1].
 //!
 //! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
 //! al, 2000
-//!
-//! \[2]: https://en.wikipedia.org/wiki/Chien_search
 
 use std;
 
 use galois::{GaloisField, P25Field, P25Codeword, Polynomial, PolynomialCoefs};
 use bmcf;
 
-/// Encode the given word into a P25 BCH codeword.
+/// Encode the 16 data bits into a 64-bit codeword.
 pub fn encode(word: u16) -> u64 {
     matrix_mul_systematic!(word, GEN, u64)
 }
 
-/// Decode the given codeword into data bits, correcting up to 11 errors. Return
-/// `Some((data, err))`, where `data` is the data bits and `err` is the number of errors,
-/// if the codeword could be corrected and `None` if it couldn't.
+/// Try to decode the 64-bit word to the nearest codeword, correcting up to 11 errors.
+/// Return `Some((data, err))`, where `data` is the 16 data bits and `err` is the number
+/// of errors, if the codeword could be corrected and `None` if it couldn't.
 pub fn decode(word: u64) -> Option<(u16, usize)> {
     // The BCH code is only over the first 63 bits, so strip off the P25 parity bit.
     let word = word >> 1;
 
+    // Compute the syndrome polynomial.
     let syn = syndromes(word);
+
     // Get the error location polynomial.
     let poly = BCHDecoder::new(syn).decode();
 
@@ -41,12 +35,12 @@ pub fn decode(word: u64) -> Option<(u16, usize)> {
     // no greater than ERRORS.
     assert!(errors <= BCHCoefs::errors());
 
-    // Get the bit locations from the polynomial.
+    // Get the error locations from the polynomial.
     let locs = bmcf::Errors::new(poly, syn);
 
-    // Correct the codeword and count the number of corrected errors. Stop the
-    // `Errors` iteration after `errors` iterations since it won't yield any more
-    // locations after that anyway.
+    // Correct the codeword and count the number of corrected errors. Stop the iteration
+    // after `errors` iterations since it won't yield any more locations after that
+    // anyway.
     let (word, count) = locs.take(errors).fold((word, 0), |(w, s), (loc, val)| {
         assert!(val.power().unwrap() == 0);
         (w ^ 1 << loc, s + 1)

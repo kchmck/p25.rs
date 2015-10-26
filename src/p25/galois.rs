@@ -309,15 +309,14 @@ pub struct Polynomial<P: PolynomialCoefs> {
 }
 
 impl<P: PolynomialCoefs> Polynomial<P> {
-    /// Construct a new `Polynomial` from the given coefficients, so
-    /// p(x) = coefs[0] + coefs[1]*x + ... + coefs[n]*x^n. Only `SYNDROMES+2` coefficients
-    /// will be used from the iterator.
+    /// Construct a new `Polynomial` from the given coefficients, so p(x) = coefs[0] +
+    /// coefs[1]*x + ... + coefs[n]*x^n.
     pub fn new<T: Iterator<Item = P25Codeword>>(init: T) -> Polynomial<P> {
         // Start with all zero coefficients and add in the given ones.
         let mut coefs = P::default();
 
         for (cur, coef) in coefs.iter_mut().zip(init) {
-            *cur = *cur + coef;
+            *cur = coef;
         }
 
         Polynomial {

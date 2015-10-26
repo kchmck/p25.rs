@@ -1,3 +1,12 @@
+//! Implements the Berlekamp-Massey, Chien Search, and Forney algorithms.
+//!
+//! Most Galois field information as well as the Berlekamp-Massey and Forney
+//! implementations are derived from \[1] and the Chien search is derived from \[2].
+//!
+//! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
+//! al, 2000
+//! \[2]: https://en.wikipedia.org/wiki/Chien_search
+
 use std;
 
 use galois::{Polynomial, PolynomialCoefs, P25Codeword, P25Field, GaloisField};
@@ -36,7 +45,7 @@ impl<P: PolynomialCoefs> BerlMasseyDecoder<P> {
     }
 
     /// Perform the iterative steps to get the error-location polynomial Λ(x) wih deg(Λ)
-    /// <= t.
+    /// <= P::errors().
     pub fn decode(mut self) -> Polynomial<P> {
         for _ in 0..P::syndromes() {
             self.step();
