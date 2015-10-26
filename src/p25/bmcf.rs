@@ -93,22 +93,22 @@ impl<P: PolynomialCoefs> BerlMasseyDecoder<P> {
 /// associated error values.
 pub struct Errors<P: PolynomialCoefs> {
     /// Error location polynomial.
-    epoly: Polynomial<P>,
+    errs: Polynomial<P>,
     /// Derivative of above.
     deriv: Polynomial<P>,
     /// Error value polynomial.
-    vpoly: Polynomial<P>,
+    vals: Polynomial<P>,
     /// Current exponent power of the iteration.
     pow: std::ops::Range<usize>,
 }
 
 impl<P: PolynomialCoefs> Errors<P> {
     /// Construct a new `Errors` from the given error and syndrome polynomials.
-    pub fn new(mut epoly: Polynomial<P>, syn: Polynomial<P>) -> Errors<P> {
-        let deriv = epoly.deriv();
-        let vpoly = (epoly * syn).truncate(P::syndromes());
+    pub fn new(mut errs: Polynomial<P>, syn: Polynomial<P>) -> Errors<P> {
+        let deriv = errs.deriv();
+        let vals = (errs * syn).truncate(P::syndromes());
 
-        for (pow, cur) in epoly.iter_mut().enumerate() {
+        for (pow, cur) in errs.iter_mut().enumerate() {
             // Since the first call to `update_terms()` multiplies by `pow` and the
             // coefficients should equal themselves on the first iteration, divide by
             // `pow` here.
@@ -116,16 +116,16 @@ impl<P: PolynomialCoefs> Errors<P> {
         }
 
         Errors {
-            epoly: epoly,
+            errs: errs,
             deriv: deriv,
-            vpoly: vpoly,
+            vals: vals,
             pow: 0..P25Field::size(),
         }
     }
 
     /// Perform the term-updating step of the algorithm: x_{j,i} = x_{j,i-1} * α^j.
     fn update_terms(&mut self) {
-        for (pow, term) in self.epoly.iter_mut().enumerate() {
+        for (pow, term) in self.errs.iter_mut().enumerate() {
             *term = *term * P25Codeword::for_power(pow);
         }
     }
@@ -133,12 +133,12 @@ impl<P: PolynomialCoefs> Errors<P> {
     /// Calculate the sum of the terms: x_{0,i} + x_{1,i} + ... + x_{t,i} -- evaluate the
     /// error-locator polynomial at Λ(α^i).
     fn sum_terms(&self) -> P25Codeword {
-        self.epoly.iter().fold(P25Codeword::default(), |s, &x| s + x)
+        self.errs.iter().fold(P25Codeword::default(), |s, &x| s + x)
     }
 
     /// Determine the error value for the given error location/root.
     fn value(&self, loc: P25Codeword, root: P25Codeword) -> P25Codeword {
-        self.vpoly.eval(root) / self.deriv.eval(root) * loc
+        self.vals.eval(root) / self.deriv.eval(root) * loc
     }
 }
 
