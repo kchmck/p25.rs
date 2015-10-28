@@ -14,7 +14,7 @@ pub type Tribits<T> = SubByteIter<TribitParams, T>;
 /// Defines parameters needed for (power of two) sub-byte iterators.
 pub trait IterParams {
     /// Type to yield at each iteration.
-    type IterType;
+    type Output;
 
     /// Number of bits to consume at each iteration.
     fn bits() -> usize;
@@ -58,7 +58,7 @@ impl Dibit {
 pub struct DibitParams;
 
 impl IterParams for DibitParams {
-    type IterType = Dibit;
+    type Output = Dibit;
 
     fn bits() -> usize { 2 }
     fn wrap(bits: u8) -> Dibit { Dibit::new(bits) }
@@ -83,7 +83,7 @@ impl Tribit {
 pub struct TribitParams;
 
 impl IterParams for TribitParams {
-    type IterType = Tribit;
+    type Output = Tribit;
 
     fn bits() -> usize { 3 }
     fn buffer() -> usize { 3 }
@@ -141,7 +141,7 @@ impl<P, T> SubByteIter<P, T> where
 impl<P, T> Iterator for SubByteIter<P, T> where
     P: IterParams, T: Iterator<Item = u8>
 {
-    type Item = P::IterType;
+    type Item = P::Output;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.idx == 0 {
