@@ -1,41 +1,54 @@
-//! This module defines the `Bits`, `Dibits`, and `Tribits` iterators as well as the
-//! wrapper types `Bit`, `Dibit`, and `Tribit`, for working with sub-byte values.
-//!
-//! The wrapped values of `Bit`, `Dibit`, and `Tribit, are guaranteed to have only one,
-//! two, or three bits, respectively.
+//! This module defines wrapper types and iterators for working with sub-byte values, as
+//! well as iterators to group those values back into bytes.
 
 use std;
 
-/// Iterate over the dibits of a byte source, MSB to LSB.
+/// Iterate over the 2-bit symbols of a byte source, MSB to LSB.
 pub type Dibits<T> = SubByteIter<DibitParams, T>;
-/// Iterates over the tribits in a byte source, MSB to LSB.
+/// Iterates over the 3-bit symbols of a byte source, MSB to LSB.
 pub type Tribits<T> = SubByteIter<TribitParams, T>;
+/// Iterates over the 6-bit symbols of a byte source, MSB to LSB. The source must be a
+/// multiple of 3 bytes.
+pub type Hexbits<T> = SubByteIter<HexbitParams, T>;
 
-/// Defines parameters needed for (power of two) sub-byte iterators.
+/// Groups dibits into full bytes. The source must be a multiple of 4 dibits.
+pub type DibitBytes<T> = SubByteIter<DibitByteParams, T>;
+/// Groups tribits into full bytes. The source must be a multiple of 8 tribits.
+pub type TribitBytes<T> = SubByteIter<TribitByteParams, T>;
+/// Groups hexbits into full bytes. The source must be a multiple of 6 hexbits.
+pub type HexbitBytes<T> = SubByteIter<HexbitByteParams, T>;
+
 pub trait IterParams {
+    /// Type to consume when buffering.
+    type Input;
     /// Type to yield at each iteration.
     type Output;
 
     /// Number of bits to consume at each iteration.
     fn bits() -> usize;
 
-    /// Number of bytes to buffer, where the number of bits contained should be the lcm of
-    /// 8 and the number of bits per iteration.
-    fn buffer() -> usize { 1 }
+    /// Number of input symbols to consume when buffering.
+    fn buffer() -> usize;
 
-    /// Amount to shift buffer after loading in bytes.
-    fn buffer_shift() -> usize { 32 - 8 * Self::buffer() }
+    /// Amount to shift buffer after loading an input symbol.
+    fn shift() -> usize;
 
-    /// Number of iterations needed for each byte.
-    fn iterations() -> usize { 8 * Self::buffer() / Self::bits() }
+    /// Amount to shift buffer after all buffering.
+    fn post_shift() -> usize { 32 - Self::shift() * Self::buffer() }
 
-    /// Wrap the given bits in container type.
-    fn wrap(bits: u8) -> Self::IterType;
+    /// Number of iterations before buffering.
+    fn iterations() -> usize { Self::shift() * Self::buffer() / Self::bits() }
+
+    /// Convert input symbol to a byte.
+    fn to_byte(input: Self::Input) -> u8;
+
+    /// Convert bits to output type.
+    fn to_output(bits: u8) -> Self::Output;
 
     /// Verify the parameters are supported.
     fn validate() {
         // Maximum buffer size is currently 32 bits.
-        assert!(Self::buffer() <= 4);
+        assert!(Self::buffer() * Self::shift() <= 32);
     }
 }
 
@@ -50,7 +63,7 @@ impl Dibit {
         Dibit(bits)
     }
 
-    /// Get the wrapped dibit.
+    /// Get the wrapped dibit, which is guaranteed to have only 2 LSBs.
     pub fn bits(&self) -> u8 { self.0 }
 }
 
@@ -58,10 +71,15 @@ impl Dibit {
 pub struct DibitParams;
 
 impl IterParams for DibitParams {
+    type Input = u8;
     type Output = Dibit;
 
     fn bits() -> usize { 2 }
-    fn wrap(bits: u8) -> Dibit { Dibit::new(bits) }
+    fn buffer() -> usize { 1 }
+    fn shift() -> usize { 8 }
+
+    fn to_byte(input: Self::Input) -> u8 { input }
+    fn to_output(bits: u8) -> Dibit { Dibit::new(bits) }
 }
 
 /// Three bits.
@@ -75,7 +93,7 @@ impl Tribit {
         Tribit(bits)
     }
 
-    /// Get the wrapped tribit.
+    /// Get the wrapped tribit, which is guaranteed to have only 3 LSBs.
     pub fn bits(&self) -> u8 { self.0 }
 }
 
@@ -83,16 +101,95 @@ impl Tribit {
 pub struct TribitParams;
 
 impl IterParams for TribitParams {
+    type Input = u8;
     type Output = Tribit;
 
     fn bits() -> usize { 3 }
     fn buffer() -> usize { 3 }
-    fn wrap(bits: u8) -> Tribit { Tribit::new(bits) }
+    fn shift() -> usize { 8 }
+
+    fn to_byte(input: Self::Input) -> u8 { input }
+    fn to_output(bits: u8) -> Tribit { Tribit::new(bits) }
+}
+
+/// Six bits.
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
+pub struct Hexbit(u8);
+
+impl Hexbit {
+    /// Construct a new `Hexbit` with the 6 given bits in the LSB position.
+    pub fn new(bits: u8) -> Hexbit {
+        assert!(bits >> 6 == 0);
+        Hexbit(bits)
+    }
+
+    /// Get the wrapped hexbit, which is guaranteed to have only 6 LSBs.
+    pub fn bits(&self) -> u8 { self.0 }
+}
+
+/// Parameters for `Hexbits` iterator.
+pub struct HexbitParams;
+
+impl IterParams for HexbitParams {
+    type Input = u8;
+    type Output = Hexbit;
+
+    fn bits() -> usize { 6 }
+    fn buffer() -> usize { 3 }
+    fn shift() -> usize { 8 }
+
+    fn to_byte(input: Self::Input) -> u8 { input }
+    fn to_output(bits: u8) -> Hexbit { Hexbit::new(bits) }
+}
+
+/// Parameters for `DibitBytes` iterator.
+pub struct DibitByteParams;
+
+impl IterParams for DibitByteParams {
+    type Input = Dibit;
+    type Output = u8;
+
+    fn bits() -> usize { 8 }
+    fn buffer() -> usize { 4 }
+    fn shift() -> usize { 2 }
+
+    fn to_byte(input: Self::Input) -> u8 { input.bits() }
+    fn to_output(bits: u8) -> Self::Output { bits }
+}
+
+/// Parameters for `TribitBytes` iterator.
+pub struct TribitByteParams;
+
+impl IterParams for TribitByteParams {
+    type Input = Tribit;
+    type Output = u8;
+
+    fn bits() -> usize { 8 }
+    fn buffer() -> usize { 8 }
+    fn shift() -> usize { 3 }
+
+    fn to_byte(input: Self::Input) -> u8 { input.bits() }
+    fn to_output(bits: u8) -> Self::Output { bits }
+}
+
+/// Parameters for `HexbitBytes` iterator.
+pub struct HexbitByteParams;
+
+impl IterParams for HexbitByteParams {
+    type Input = Hexbit;
+    type Output = u8;
+
+    fn bits() -> usize { 8 }
+    fn buffer() -> usize { 4 }
+    fn shift() -> usize { 6 }
+
+    fn to_byte(input: Self::Input) -> u8 { input.bits() }
+    fn to_output(bits: u8) -> Self::Output { bits }
 }
 
 /// An iterator for sub-byte (bit-level) values.
 struct SubByteIter<P, T> where
-    P: IterParams, T: Iterator<Item = u8>
+    P: IterParams, T: Iterator<Item = P::Input>
 {
     params: std::marker::PhantomData<P>,
     /// Source of bytes.
@@ -104,10 +201,9 @@ struct SubByteIter<P, T> where
 }
 
 impl<P, T> SubByteIter<P, T> where
-    P: IterParams, T: Iterator<Item = u8>
+    P: IterParams, T: Iterator<Item = P::Input>
 {
-    /// Construct a new `SubByteIter` over the given byte source. All bits are iterated
-    /// over, so the number of bits must be a byte multiple.
+    /// Construct a new `SubByteIter` over the given symbol source.
     pub fn new(src: T) -> SubByteIter<P, T> {
         SubByteIter {
             params: std::marker::PhantomData,
@@ -117,16 +213,16 @@ impl<P, T> SubByteIter<P, T> where
         }
     }
 
-    /// Consume one or more bytes to create a buffer of bits, filled starting from the
+    /// Consume one or more symbols to create a buffer of bits, filled starting from the
     /// MSB.
     fn buffer(&mut self) -> Option<u32> {
         let (buf, added) = (&mut self.src)
             .take(P::buffer())
-            .fold((0, 0), |(buf, added), byte| {
-                (buf << 8 | byte as u32, added + 1)
+            .fold((0, 0), |(buf, added), next| {
+                (buf << P::shift() | P::to_byte(next) as u32, added + 1)
             });
 
-        // It's okay if there are no more source bits here, because we're on a safe
+        // It's okay if there are no more source symbols here, because we're on a safe
         // boundary.
         if added == 0 {
             return None;
@@ -134,12 +230,12 @@ impl<P, T> SubByteIter<P, T> where
 
         assert!(added == P::buffer(), "incomplete source");
 
-        Some(buf << P::buffer_shift())
+        Some(buf << P::post_shift())
     }
 }
 
 impl<P, T> Iterator for SubByteIter<P, T> where
-    P: IterParams, T: Iterator<Item = u8>
+    P: IterParams, T: Iterator<Item = P::Input>
 {
     type Item = P::Output;
 
@@ -161,7 +257,7 @@ impl<P, T> Iterator for SubByteIter<P, T> where
         self.idx += 1;
         self.idx %= P::iterations() as u8;
 
-        Some(P::wrap(bits as u8))
+        Some(P::to_output(bits as u8))
     }
 }
 
@@ -173,6 +269,77 @@ mod test {
     fn validate_params() {
         DibitParams::validate();
         TribitParams::validate();
+        HexbitParams::validate();
+        DibitByteParams::validate();
+        TribitByteParams::validate();
+        HexbitByteParams::validate();
+    }
+
+    #[test]
+    fn test_dibits() {
+        let bytes = [
+            0b00110011,
+            0b10011001,
+            0b11111111,
+        ];
+
+        let mut d = Dibits::new(bytes.iter().cloned());
+
+        assert_eq!(d.next().unwrap().bits(), 0b00);
+        assert_eq!(d.next().unwrap().bits(), 0b11);
+        assert_eq!(d.next().unwrap().bits(), 0b00);
+        assert_eq!(d.next().unwrap().bits(), 0b11);
+        assert_eq!(d.next().unwrap().bits(), 0b10);
+        assert_eq!(d.next().unwrap().bits(), 0b01);
+        assert_eq!(d.next().unwrap().bits(), 0b10);
+        assert_eq!(d.next().unwrap().bits(), 0b01);
+        assert_eq!(d.next().unwrap().bits(), 0b11);
+        assert_eq!(d.next().unwrap().bits(), 0b11);
+        assert_eq!(d.next().unwrap().bits(), 0b11);
+        assert_eq!(d.next().unwrap().bits(), 0b11);
+        assert!(d.next().is_none());
+    }
+
+    #[test]
+    fn test_dibit_bytes() {
+        let dibits = [
+            Dibit::new(0b00),
+            Dibit::new(0b11),
+            Dibit::new(0b00),
+            Dibit::new(0b11),
+            Dibit::new(0b10),
+            Dibit::new(0b01),
+            Dibit::new(0b10),
+            Dibit::new(0b01),
+            Dibit::new(0b11),
+            Dibit::new(0b11),
+            Dibit::new(0b11),
+            Dibit::new(0b11),
+        ];
+
+        let mut d = DibitBytes::new(dibits.iter().cloned());
+
+        assert_eq!(d.next().unwrap(), 0b00110011);
+        assert_eq!(d.next().unwrap(), 0b10011001);
+        assert_eq!(d.next().unwrap(), 0b11111111);
+        assert!(d.next().is_none());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_dibit_bytes_panic() {
+        let dibits = [
+            Dibit::new(0b00),
+            Dibit::new(0b11),
+            Dibit::new(0b00),
+            Dibit::new(0b11),
+            Dibit::new(0b10),
+        ];
+
+        let mut d = DibitBytes::new(dibits.iter().cloned());
+
+        d.next();
+        d.next();
     }
 
     #[test]
@@ -213,5 +380,136 @@ mod test {
         let t = Tribits::new(bytes.iter().cloned());
 
         for _ in t {}
+    }
+
+    #[test]
+    fn test_tribit_bytes() {
+        let tribits = [
+            Tribit::new(0b001),
+            Tribit::new(0b010),
+            Tribit::new(0b011),
+            Tribit::new(0b100),
+            Tribit::new(0b101),
+            Tribit::new(0b110),
+            Tribit::new(0b111),
+            Tribit::new(0b000),
+            Tribit::new(0b001),
+            Tribit::new(0b010),
+            Tribit::new(0b011),
+            Tribit::new(0b100),
+            Tribit::new(0b101),
+            Tribit::new(0b110),
+            Tribit::new(0b111),
+            Tribit::new(0b000),
+        ];
+
+        let mut t = TribitBytes::new(tribits.iter().cloned());
+
+        assert_eq!(t.next().unwrap(), 0b00101001);
+        assert_eq!(t.next().unwrap(), 0b11001011);
+        assert_eq!(t.next().unwrap(), 0b10111000);
+        assert_eq!(t.next().unwrap(), 0b00101001);
+        assert_eq!(t.next().unwrap(), 0b11001011);
+        assert_eq!(t.next().unwrap(), 0b10111000);
+        assert!(t.next().is_none());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_tribit_bytes_panic() {
+        let tribits = [
+            Tribit::new(0b001),
+            Tribit::new(0b010),
+            Tribit::new(0b011),
+            Tribit::new(0b100),
+        ];
+
+        let mut t = TribitBytes::new(tribits.iter().cloned());
+
+        t.next();
+        t.next();
+    }
+
+    #[test]
+    fn test_hexbits() {
+        let bytes = [
+            0b11111100,
+            0b00001010,
+            0b10010101,
+            0b11111100,
+            0b00001010,
+            0b10010101,
+        ];
+
+        let mut h = Hexbits::new(bytes.iter().cloned());
+
+        assert_eq!(h.next().unwrap().bits(), 0b111111);
+        assert_eq!(h.next().unwrap().bits(), 0b000000);
+        assert_eq!(h.next().unwrap().bits(), 0b101010);
+        assert_eq!(h.next().unwrap().bits(), 0b010101);
+        assert_eq!(h.next().unwrap().bits(), 0b111111);
+        assert_eq!(h.next().unwrap().bits(), 0b000000);
+        assert_eq!(h.next().unwrap().bits(), 0b101010);
+        assert_eq!(h.next().unwrap().bits(), 0b010101);
+        assert!(h.next().is_none());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_hexbits_panic() {
+        let bytes = [
+            0b11111100,
+            0b00001010,
+        ];
+
+        let mut h = Hexbits::new(bytes.iter().cloned());
+
+        assert_eq!(h.next().unwrap().bits(), 0b111111);
+        assert_eq!(h.next().unwrap().bits(), 0b000000);
+        h.next();
+    }
+
+    #[test]
+    fn test_hexbit_bytes() {
+        let hexbits = [
+            Hexbit::new(0b111111),
+            Hexbit::new(0b000000),
+            Hexbit::new(0b101010),
+            Hexbit::new(0b010101),
+            Hexbit::new(0b111111),
+            Hexbit::new(0b000000),
+            Hexbit::new(0b101010),
+            Hexbit::new(0b010101),
+        ];
+
+        let mut h = HexbitBytes::new(hexbits.iter().cloned());
+
+        assert_eq!(h.next().unwrap(), 0b11111100);
+        assert_eq!(h.next().unwrap(), 0b00001010);
+        assert_eq!(h.next().unwrap(), 0b10010101);
+        assert_eq!(h.next().unwrap(), 0b11111100);
+        assert_eq!(h.next().unwrap(), 0b00001010);
+        assert_eq!(h.next().unwrap(), 0b10010101);
+        assert!(h.next().is_none());
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_hexbit_bytes_panic() {
+        let hexbits = [
+            Hexbit::new(0b111111),
+            Hexbit::new(0b000000),
+            Hexbit::new(0b101010),
+            Hexbit::new(0b010101),
+            Hexbit::new(0b111111),
+        ];
+
+        let mut h = HexbitBytes::new(hexbits.iter().cloned());
+        h.next();
+        h.next();
+        h.next();
+        h.next();
+        h.next();
+        h.next();
     }
 }
