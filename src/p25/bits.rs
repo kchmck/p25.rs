@@ -6,8 +6,6 @@
 
 use std;
 
-/// Iterate over individual bits of a byte source, MSB to LSB.
-pub type Bits<T> = SubByteIter<BitParams, T>;
 /// Iterate over the dibits of a byte source, MSB to LSB.
 pub type Dibits<T> = SubByteIter<DibitParams, T>;
 /// Iterates over the tribits in a byte source, MSB to LSB.
@@ -39,31 +37,6 @@ pub trait IterParams {
         // Maximum buffer size is currently 32 bits.
         assert!(Self::buffer() <= 4);
     }
-}
-
-/// A single bit.
-#[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
-pub struct Bit(u8);
-
-impl Bit {
-    /// Construct a new `Bit` with the given bit in the LSB position.
-    pub fn new(bits: u8) -> Bit {
-        assert!(bits >> 1 == 0);
-        Bit(bits)
-    }
-
-    /// Get the wrapped bit value.
-    pub fn bit(&self) -> u8 { self.0 }
-}
-
-/// Parameters for `Bits` iterator.
-pub struct BitParams;
-
-impl IterParams for BitParams {
-    type IterType = Bit;
-
-    fn bits() -> usize { 1 }
-    fn wrap(bits: u8) -> Bit { Bit::new(bits) }
 }
 
 /// Two bits.
@@ -198,48 +171,8 @@ mod test {
 
     #[test]
     fn validate_params() {
-        BitParams::validate();
         DibitParams::validate();
         TribitParams::validate();
-    }
-
-    #[test]
-    fn test_bits() {
-        const BITS: &'static [u8] = &[
-            0b00011011,
-            0b11001100,
-        ];
-
-        {
-            let mut d = Dibits::new(BITS.iter().cloned());
-
-            assert!(d.next().unwrap().0 == 0b00);
-            assert!(d.next().unwrap().0 == 0b01);
-            assert!(d.next().unwrap().0 == 0b10);
-            assert!(d.next().unwrap().0 == 0b11);
-            assert!(d.next().unwrap().0 == 0b11);
-            assert!(d.next().unwrap().0 == 0b00);
-            assert!(d.next().unwrap().0 == 0b11);
-            assert!(d.next().unwrap().0 == 0b00);
-            assert!(d.next().is_none());
-        }
-
-        {
-            let mut b = Bits::new(BITS.iter().cloned());
-
-            assert!(b.next().unwrap().0 == 0);
-            assert!(b.next().unwrap().0 == 0);
-            assert!(b.next().unwrap().0 == 0);
-            assert!(b.next().unwrap().0 == 1);
-            assert!(b.next().unwrap().0 == 1);
-            assert!(b.next().unwrap().0 == 0);
-            assert!(b.next().unwrap().0 == 1);
-            assert!(b.next().unwrap().0 == 1);
-            assert!(b.next().unwrap().0 == 1);
-            assert!(b.next().unwrap().0 == 1);
-            assert!(b.next().unwrap().0 == 0);
-            assert!(b.next().unwrap().0 == 0);
-        }
     }
 
     #[test]
