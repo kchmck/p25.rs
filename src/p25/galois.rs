@@ -1,5 +1,7 @@
 use std;
 
+use util::CollectSlice;
+
 /// GF(2^6) field characterized by α^6+α+1.as described in P25 specification.
 #[derive(Copy, Clone, Debug)]
 pub struct P25Field;
@@ -311,13 +313,10 @@ pub struct Polynomial<P: PolynomialCoefs> {
 impl<P: PolynomialCoefs> Polynomial<P> {
     /// Construct a new `Polynomial` from the given coefficients, so p(x) = coefs[0] +
     /// coefs[1]*x + ... + coefs[n]*x^n.
-    pub fn new<T: Iterator<Item = P25Codeword>>(init: T) -> Polynomial<P> {
+    pub fn new<T: Iterator<Item = P25Codeword>>(mut init: T) -> Polynomial<P> {
         // Start with all zero coefficients and add in the given ones.
         let mut coefs = P::default();
-
-        for (cur, coef) in coefs.iter_mut().zip(init) {
-            *cur = coef;
-        }
+        init.collect_slice(&mut coefs[..]);
 
         Polynomial {
             coefs: coefs,
