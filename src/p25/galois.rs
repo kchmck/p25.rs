@@ -490,40 +490,40 @@ mod test {
 
     #[test]
     fn test_for_power() {
-        assert_eq!(P25Codeword::for_power(0), 0b000001);
-        assert_eq!(P25Codeword::for_power(62), 0b100001);
-        assert_eq!(P25Codeword::for_power(63), 0b000001);
+        assert!(P25Codeword::for_power(0) == 0b000001);
+        assert!(P25Codeword::for_power(62) == 0b100001);
+        assert!(P25Codeword::for_power(63) == 0b000001);
     }
 
     #[test]
     fn test_add_sub() {
-        assert_eq!((P25Codeword::new(0b100000) + P25Codeword::new(0b010000)), 0b110000);
-        assert_eq!((P25Codeword::new(0b100000) - P25Codeword::new(0b010000)), 0b110000);
-        assert_eq!((P25Codeword::new(0b100001) + P25Codeword::new(0b100001)), 0b000000);
-        assert_eq!((P25Codeword::new(0b100001) - P25Codeword::new(0b100001)), 0b000000);
-        assert_eq!((P25Codeword::new(0b100001) + P25Codeword::new(0b110100)), 0b010101);
-        assert_eq!((P25Codeword::new(0b100001) - P25Codeword::new(0b110100)), 0b010101);
+        assert!((P25Codeword::new(0b100000) + P25Codeword::new(0b010000)) == 0b110000);
+        assert!((P25Codeword::new(0b100000) - P25Codeword::new(0b010000)) == 0b110000);
+        assert!((P25Codeword::new(0b100001) + P25Codeword::new(0b100001)) == 0b000000);
+        assert!((P25Codeword::new(0b100001) - P25Codeword::new(0b100001)) == 0b000000);
+        assert!((P25Codeword::new(0b100001) + P25Codeword::new(0b110100)) == 0b010101);
+        assert!((P25Codeword::new(0b100001) - P25Codeword::new(0b110100)) == 0b010101);
     }
 
     #[test]
     fn test_mul() {
-        assert_eq!((P25Codeword::new(0b000110) * P25Codeword::new(0b000101)), 0b011110);
-        assert_eq!((P25Codeword::new(0b000000) * P25Codeword::new(0b000101)), 0b000000);
-        assert_eq!((P25Codeword::new(0b000110) * P25Codeword::new(0b000000)), 0b000000);
-        assert_eq!((P25Codeword::new(0b000000) * P25Codeword::new(0b000000)), 0b000000);
-        assert_eq!((P25Codeword::new(0b100001) * P25Codeword::new(0b000001)), 0b100001);
-        assert_eq!((P25Codeword::new(0b100001) * P25Codeword::new(0b000010)), 0b000001);
-        assert_eq!((P25Codeword::new(0b110011) * P25Codeword::new(0b110011)), 0b111001);
-        assert_eq!((P25Codeword::new(0b101111) * P25Codeword::new(0b101111)), 0b100110);
+        assert!((P25Codeword::new(0b000110) * P25Codeword::new(0b000101)) == 0b011110);
+        assert!((P25Codeword::new(0b000000) * P25Codeword::new(0b000101)) == 0b000000);
+        assert!((P25Codeword::new(0b000110) * P25Codeword::new(0b000000)) == 0b000000);
+        assert!((P25Codeword::new(0b000000) * P25Codeword::new(0b000000)) == 0b000000);
+        assert!((P25Codeword::new(0b100001) * P25Codeword::new(0b000001)) == 0b100001);
+        assert!((P25Codeword::new(0b100001) * P25Codeword::new(0b000010)) == 0b000001);
+        assert!((P25Codeword::new(0b110011) * P25Codeword::new(0b110011)) == 0b111001);
+        assert!((P25Codeword::new(0b101111) * P25Codeword::new(0b101111)) == 0b100110);
     }
 
 
     #[test]
     fn test_div() {
-        assert_eq!((P25Codeword::new(0b001000) / P25Codeword::new(0b000101)), 0b010111);
-        assert_eq!((P25Codeword::new(0b000000) / P25Codeword::new(0b101000)), 0b000000);
-        assert_eq!((P25Codeword::new(0b011110) / P25Codeword::new(0b000001)), 0b011110);
-        assert_eq!((P25Codeword::new(0b011110) / P25Codeword::new(0b011110)), 0b000001);
+        assert!((P25Codeword::new(0b001000) / P25Codeword::new(0b000101)) == 0b010111);
+        assert!((P25Codeword::new(0b000000) / P25Codeword::new(0b101000)) == 0b000000);
+        assert!((P25Codeword::new(0b011110) / P25Codeword::new(0b000001)) == 0b011110);
+        assert!((P25Codeword::new(0b011110) / P25Codeword::new(0b011110)) == 0b000001);
     }
 
     #[test]
@@ -544,10 +544,10 @@ mod test {
         let p = TestPolynomial::new((0..3).map(|_| {
             P25Codeword::for_power(0)
         }));
-        assert_eq!(p.eval(P25Codeword::for_power(1)), 0b000111);
+        assert!(p.eval(P25Codeword::for_power(1)) == 0b000111);
 
         let p = p.shift();
-        assert_eq!(p.eval(P25Codeword::for_power(1)), 0b000011);
+        assert!(p.eval(P25Codeword::for_power(1)) == 0b000011);
     }
 
     #[test]
@@ -662,9 +662,9 @@ mod test {
 
         let q = p.deriv();
 
-        assert_eq!(q.coefs[0], P25Codeword::for_power(3));
-        assert_eq!(q.coefs[1], P25Codeword::default());
-        assert_eq!(q.coefs[2], P25Codeword::default());
+        assert!(q.coefs[0] == P25Codeword::for_power(3));
+        assert!(q.coefs[1] == P25Codeword::default());
+        assert!(q.coefs[2] == P25Codeword::default());
 
         let p = TestPolynomial::new([
             P25Codeword::for_power(0),
@@ -675,8 +675,8 @@ mod test {
 
         let q = p.shift().deriv();
 
-        assert_eq!(q.coef(0), P25Codeword::for_power(3));
-        assert_eq!(q.coef(1), P25Codeword::default());
-        assert_eq!(q.coef(2), P25Codeword::default());
+        assert!(q.coef(0) == P25Codeword::for_power(3));
+        assert!(q.coef(1) == P25Codeword::default());
+        assert!(q.coef(2) == P25Codeword::default());
     }
 }

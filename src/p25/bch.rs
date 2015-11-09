@@ -166,7 +166,7 @@ mod test {
         assert_eq!(p.len(), 24);
         assert_eq!(p.degree().unwrap(), 0);
         assert_eq!(syndromes(w ^ 1<<60).degree().unwrap(), 22);
-        assert_eq!(p[0], P25Codeword::for_power(0));
+        assert!(p[0] == P25Codeword::for_power(0));
     }
 
     #[test]
@@ -192,8 +192,8 @@ mod test {
 
         let mut locs = Errors::new(coefs, p);
 
-        assert_eq!(locs.next().unwrap(), (61, P25Codeword::for_power(0)));
-        assert_eq!(locs.next().unwrap(), (60, P25Codeword::for_power(0)));
+        assert!(locs.next().unwrap() == (61, P25Codeword::for_power(0)));
+        assert!(locs.next().unwrap() == (60, P25Codeword::for_power(0)));
         assert!(locs.next().is_none());
     }
 

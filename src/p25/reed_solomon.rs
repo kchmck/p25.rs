@@ -191,7 +191,7 @@ fn copy_data<P: PolynomialCoefs>(poly: Polynomial<P>, data: &mut [Hexbit]) -> &[
 }
 
 /// Polynomial coefficients for the short code.
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Default)]
 struct ShortCoefs([P25Codeword; 24]);
 
 impl PolynomialCoefs for ShortCoefs {
@@ -208,7 +208,7 @@ impl std::ops::DerefMut for ShortCoefs {
 }
 
 /// Polynomial coefficients for the medium code.
-#[derive(Copy, Clone, Debug, Default)]
+#[derive(Copy, Clone, Default)]
 struct MedCoefs([P25Codeword; 24]);
 
 impl PolynomialCoefs for MedCoefs {
@@ -230,12 +230,6 @@ struct LongCoefs([P25Codeword; 36]);
 
 impl PolynomialCoefs for LongCoefs {
     fn distance() -> usize { 17 }
-}
-
-impl std::fmt::Debug for LongCoefs {
-    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
-        write!(fmt, "{:?}", &self.0[..])
-    }
 }
 
 impl Clone for LongCoefs {
