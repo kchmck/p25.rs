@@ -9,9 +9,10 @@
 use std;
 
 use bits::Hexbit;
-use bmcf;
-use galois::{P25Codeword, Polynomial, PolynomialCoefs};
 use util::CollectSlice;
+
+use coding::bmcf;
+use coding::galois::{P25Codeword, Polynomial, PolynomialCoefs};
 
 /// Encoding and decoding of the (24, 12, 13) code.
 pub mod short {
@@ -257,7 +258,7 @@ impl std::ops::DerefMut for LongCoefs {
 mod test {
     use super::*;
     use super::{MedCoefs, ShortCoefs, LongCoefs};
-    use galois::{PolynomialCoefs};
+    use coding::galois::{PolynomialCoefs};
     use bits::Hexbit;
     use util::CollectSlice;
 

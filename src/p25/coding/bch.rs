@@ -7,8 +7,8 @@
 
 use std;
 
-use galois::{GaloisField, P25Field, P25Codeword, Polynomial, PolynomialCoefs};
-use bmcf;
+use coding::galois::{GaloisField, P25Field, P25Codeword, Polynomial, PolynomialCoefs};
+use coding::bmcf;
 
 /// Encode the 16 data bits into a 64-bit codeword.
 pub fn encode(word: u16) -> u64 {
@@ -140,8 +140,8 @@ fn syndromes(word: u64) -> BCHPolynomial {
 mod test {
     use super::*;
     use super::{syndromes, BCHDecoder, BCHCoefs, BCHPolynomial};
-    use galois::{P25Codeword, PolynomialCoefs};
-    use bmcf::Errors;
+    use coding::galois::{P25Codeword, PolynomialCoefs};
+    use coding::bmcf::Errors;
 
     #[test]
     fn validate_coefs() {

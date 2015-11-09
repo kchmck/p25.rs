@@ -9,7 +9,7 @@
 
 use std;
 
-use galois::{Polynomial, PolynomialCoefs, P25Codeword, P25Field, GaloisField};
+use coding::galois::{Polynomial, PolynomialCoefs, P25Codeword, P25Field, GaloisField};
 
 /// Implements the iterative part of the Berlekamp-Massey algorithm.
 pub struct BerlMasseyDecoder<P: PolynomialCoefs> {
