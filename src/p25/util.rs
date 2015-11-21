@@ -11,15 +11,16 @@ pub fn div_ceil<T>(a: T, b: T) -> T where
 
 pub trait CollectSlice: Iterator {
     /// Loop through the iterator, writing items into the given slice until either the
-    /// iterator runs out or the slice fills up.
-    fn collect_slice(&mut self, slice: &mut [Self::Item]);
+    /// iterator runs out or the slice fills up. Return the number of items written.
+    fn collect_slice(&mut self, slice: &mut [Self::Item]) -> usize;
 }
 
 impl<T, I: Iterator<Item = T>> CollectSlice for I {
-    fn collect_slice(&mut self, slice: &mut [Self::Item]) {
-        for (s, i) in slice.iter_mut().zip(self) {
+    fn collect_slice(&mut self, slice: &mut [Self::Item]) -> usize {
+        slice.iter_mut().zip(self).fold(0, |count, (s, i)| {
             *s = i;
-        }
+            count + 1
+        })
     }
 }
 
