@@ -1,26 +1,26 @@
 //! Provides a convenience interface for coding symbols into the common 98-dibit buffer.
 
 use bits;
-use data::convo;
+use coding::trellis;
 
 /// Half-rate (dibit) convolutional coder.
-pub type DibitCoder = DataCoder<convo::DibitStates>;
+pub type DibitCoder = DataCoder<trellis::DibitStates>;
 
 /// 3/4-rate (tribit) convolutional coder.
-pub type TribitCoder = DataCoder<convo::TribitStates>;
+pub type TribitCoder = DataCoder<trellis::TribitStates>;
 
-struct DataCoder<S: convo::States> {
+struct DataCoder<S: trellis::States> {
     /// Convolutional state machine.
-    fsm: convo::ConvoFSM<S>,
+    fsm: trellis::TrellisFSM<S>,
     /// Current coded buffer.
     buf: [bits::Dibit; 98],
     /// Current index into `buf`.
     pos: usize,
 }
 
-impl<S: convo::States> DataCoder<S> {
+impl<S: trellis::States> DataCoder<S> {
     /// Construct a new `DataCoder` wrapping the given state machine.
-    fn for_fsm(fsm: convo::ConvoFSM<S>) -> DataCoder<S> {
+    fn for_fsm(fsm: trellis::TrellisFSM<S>) -> DataCoder<S> {
         DataCoder {
             fsm: fsm,
             buf: [bits::Dibit::default(); 98],
@@ -56,7 +56,7 @@ impl<S: convo::States> DataCoder<S> {
 impl DibitCoder {
     /// Construct a new `DibitCoder` for coding a dibit stream.
     pub fn new() -> DibitCoder {
-        Self::for_fsm(convo::DibitFSM::new())
+        Self::for_fsm(trellis::DibitFSM::new())
     }
 
     /// Code the given bytes as dibits.
@@ -72,7 +72,7 @@ impl DibitCoder {
 impl TribitCoder {
     /// Construct a new `TribitCoder` for coding a tribit stream.
     pub fn new() -> TribitCoder {
-        Self::for_fsm(convo::TribitFSM::new())
+        Self::for_fsm(trellis::TribitFSM::new())
     }
 
     /// Code the given bytes as tribits.

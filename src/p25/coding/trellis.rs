@@ -5,10 +5,10 @@ use std;
 use bits;
 
 /// Half-rate convolutional ("trellis") code state machine.
-pub type DibitFSM = ConvoFSM<DibitStates>;
+pub type DibitFSM = TrellisFSM<DibitStates>;
 
 /// 3/4-rate convolutional ("trellis") code state machine.
-pub type TribitFSM = ConvoFSM<TribitStates>;
+pub type TribitFSM = TrellisFSM<TribitStates>;
 
 pub trait States {
     /// Symbol type to use for states and input.
@@ -109,16 +109,16 @@ impl States for TribitStates {
 
 /// Convolutional code finite state machine with the given transition table. Each fed-in
 /// symbol is used as the next state.
-pub struct ConvoFSM<S: States> {
+pub struct TrellisFSM<S: States> {
     states: std::marker::PhantomData<S>,
     /// Current state.
     state: usize,
 }
 
-impl<S: States> ConvoFSM<S> {
-    /// Construct a new `ConvoFSM` at the initial state.
-    pub fn new() -> ConvoFSM<S> {
-        ConvoFSM {
+impl<S: States> TrellisFSM<S> {
+    /// Construct a new `TrellisFSM` at the initial state.
+    pub fn new() -> TrellisFSM<S> {
+        TrellisFSM {
             states: std::marker::PhantomData,
             state: 0,
         }
