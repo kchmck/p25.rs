@@ -1,8 +1,5 @@
 #![feature(zero_one)]
 
-#[macro_use]
-mod macros;
-
 mod util;
 
 pub mod baseband;
