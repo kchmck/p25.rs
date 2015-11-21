@@ -1,7 +1,8 @@
-//! Provides a convenience interface for coding symbols into the common 98-dibit buffer.
+//! Provides a convenience interface for coding symbols into a buffer.
 
 use bits;
 use coding::trellis;
+use data::consts;
 
 /// Half-rate (dibit) convolutional coder.
 pub type DibitCoder = DataCoder<trellis::DibitStates>;
@@ -13,7 +14,7 @@ struct DataCoder<S: trellis::States> {
     /// Convolutional state machine.
     fsm: trellis::TrellisFSM<S>,
     /// Current coded buffer.
-    buf: [bits::Dibit; 98],
+    buf: [bits::Dibit; consts::CODING_DIBITS],
     /// Current index into `buf`.
     pos: usize,
 }
@@ -23,13 +24,13 @@ impl<S: trellis::States> DataCoder<S> {
     fn for_fsm(fsm: trellis::TrellisFSM<S>) -> DataCoder<S> {
         DataCoder {
             fsm: fsm,
-            buf: [bits::Dibit::default(); 98],
+            buf: [bits::Dibit::default(); consts::CODING_DIBITS],
             pos: 0,
         }
     }
 
     /// Flush the state machine and return the coded buffer of dibits.
-    pub fn finish(mut self) -> [bits::Dibit; 98] {
+    pub fn finish(mut self) -> [bits::Dibit; consts::CODING_DIBITS] {
         let pair = self.fsm.finish();
         self.append(pair);
 
