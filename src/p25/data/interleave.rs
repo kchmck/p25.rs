@@ -1,13 +1,9 @@
 //! Interleaving and deinterleaving for data packet payloads.
 
 use std;
+
 use bits;
-
-/// Interleaves a dibit buffer with an iterator interface.
-pub type Interleaver = Redirect<InterleaveRedirector>;
-
-/// Deinterleaves a dibit buffer with an iterator interface.
-pub type Deinterleaver = Redirect<DeinterleaveRedirector>;
+use data::consts;
 
 trait Redirector {
     /// Redirector the given index to another within the buffer.
@@ -19,7 +15,7 @@ struct InterleaveRedirector;
 
 impl Redirector for InterleaveRedirector {
     fn redirect(idx: usize) -> usize {
-        const REDIRECTS: [usize; 98] = [
+        const REDIRECTS: [usize; consts::CODING_DIBITS] = [
             0,
             1,
             8,
@@ -129,7 +125,7 @@ struct DeinterleaveRedirector;
 
 impl Redirector for DeinterleaveRedirector {
     fn redirect(idx: usize) -> usize {
-        const REDIRECTS: [usize; 98] = [
+        const REDIRECTS: [usize; consts::CODING_DIBITS] = [
             0,
             1,
             26,
@@ -230,38 +226,79 @@ impl Redirector for DeinterleaveRedirector {
             25,
         ];
 
-
         REDIRECTS[idx]
     }
 }
 
-/// Wraps a buffer, redirecting sequential indexes with the given redirector.
-struct Redirect<T: Redirector> {
-    redirector: std::marker::PhantomData<T>,
-    /// Wrapped buffer.
-    dibits: [bits::Dibit; 98],
-    /// Index into `dibits`.
-    pos: std::ops::Range<usize>,
+struct Indexes<R: Redirector>(std::ops::Range<usize>, std::marker::PhantomData<R>);
+
+impl<R: Redirector> Indexes<R> {
+    pub fn new() -> Indexes<R> {
+        Indexes(0..consts::CODING_DIBITS, std::marker::PhantomData)
+    }
 }
 
-impl<T: Redirector> Redirect<T> {
-    /// Construct a new `Redirect` over the given buffer.
-    pub fn new(dibits: [bits::Dibit; 98]) -> Redirect<T> {
-        Redirect {
-            redirector: std::marker::PhantomData,
-            dibits: dibits,
-            pos: 0..98,
+impl<R: Redirector> Iterator for Indexes<R> {
+    type Item = usize;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.0.next() {
+            Some(idx) => Some(R::redirect(idx)),
+            None => None,
         }
     }
 }
 
-impl<T: Redirector> Iterator for Redirect<T> {
+/// Takes ownership of a dibit buffer, yielding deinterleaved dibits.
+pub struct Interleaver {
+    /// Wrapped buffer.
+    dibits: [bits::Dibit; consts::CODING_DIBITS],
+    /// Redirected indexes.
+    idx: Indexes<InterleaveRedirector>,
+}
+
+impl Interleaver {
+    /// Construct a new `Interleaver` over the given buffer.
+    pub fn new(dibits: [bits::Dibit; consts::CODING_DIBITS]) -> Interleaver {
+        Interleaver {
+            dibits: dibits,
+            idx: Indexes::new(),
+        }
+    }
+}
+
+impl Iterator for Interleaver {
     type Item = bits::Dibit;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.pos.next() {
-            Some(idx) => Some(self.dibits[T::redirect(idx)]),
+        match self.idx.next() {
+            Some(idx) => Some(self.dibits[idx]),
             None => None
+        }
+    }
+}
+
+pub struct Deinterleaver<'a> {
+    dibits: &'a [bits::Dibit; consts::CODING_DIBITS],
+    idx: Indexes<DeinterleaveRedirector>,
+}
+
+impl<'a> Deinterleaver<'a> {
+    pub fn new(dibits: &'a [bits::Dibit; consts::CODING_DIBITS]) -> Deinterleaver<'a> {
+        Deinterleaver {
+            dibits: dibits,
+            idx: Indexes::new(),
+        }
+    }
+}
+
+impl<'a> Iterator for Deinterleaver<'a> {
+    type Item = bits::Dibit;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.idx.next() {
+            Some(idx) => Some(self.dibits[idx]),
+            None => None,
         }
     }
 }
@@ -318,7 +355,7 @@ mod test {
             out[i] = dibit;
         }
 
-        let mut deint = Deinterleaver::new(out);
+        let mut deint = Deinterleaver::new(&out);
 
         for _ in 0..24 {
             assert_eq!(deint.next().unwrap().bits(), 0b00);
