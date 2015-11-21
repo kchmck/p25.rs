@@ -8,6 +8,7 @@ mod interleave;
 mod params;
 mod payload;
 
+pub mod consts;
 pub mod packet;
 
 pub use self::fragment::{ConfirmedFragments, UnconfirmedFragments};
