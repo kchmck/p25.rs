@@ -10,6 +10,7 @@ mod payload;
 
 pub mod consts;
 pub mod packet;
+pub mod values;
 
 pub use self::fragment::{ConfirmedFragments, UnconfirmedFragments};
 

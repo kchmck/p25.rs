@@ -5,6 +5,7 @@
 
 use std;
 use data::crc;
+use data::values;
 
 use self::DataPacket::*;
 
@@ -119,12 +120,11 @@ impl ByteField for UnconfirmedPreamble {
 }
 
 /// Service access point (SAP) field.
-pub struct ServiceAccessPoint(pub u8);
+pub struct ServiceAccessPoint(pub values::ServiceAccessPoint);
 
 impl ByteField for ServiceAccessPoint {
     fn byte(&self) -> u8 {
-        assert!(self.0 >> 6 == 0);
-        0b11000000 | self.0
+        0b11000000 | self.0.to_bits()
     }
 }
 
@@ -297,6 +297,7 @@ fn bool_to_bit(b: bool) -> u8 {
 mod test {
     use super::*;
     use super::ByteField;
+    use data::values;
 
     #[test]
     fn test_preamble() {
@@ -308,8 +309,8 @@ mod test {
 
     #[test]
     fn test_sap() {
-        let s = ServiceAccessPoint(0b001100);
-        assert_eq!(s.byte(), 0b11001100);
+        let s = ServiceAccessPoint(values::ServiceAccessPoint::ExtendedAddressing);
+        assert_eq!(s.byte(), 0b11011111);
     }
 
     #[test]
@@ -362,7 +363,7 @@ mod test {
     fn test_confirmed_fields() {
         let fields = ConfirmedFields {
             preamble: ConfirmedPreamble::outbound(),
-            sap: ServiceAccessPoint(0x15),
+            sap: ServiceAccessPoint(values::ServiceAccessPoint::Paging),
             mfg: Manufacturer(0x12),
             addr: LogicalLink(0x342134),
             blocks: BlockCount {
@@ -383,7 +384,7 @@ mod test {
 
         assert_eq!(&buf, &[
             0b01110110,
-            0b11010101,
+            0b11100110,
             0b00010010,
             0b00110100,
             0b00100001,
@@ -399,7 +400,7 @@ mod test {
     fn test_confirmed_header() {
         let (fields, checksum) = ConfirmedHeader::new(ConfirmedFields {
             preamble: ConfirmedPreamble::outbound(),
-            sap: ServiceAccessPoint(0x15),
+            sap: ServiceAccessPoint(values::ServiceAccessPoint::PacketData),
             mfg: Manufacturer(0x12),
             addr: LogicalLink(0x342134),
             blocks: BlockCount {
@@ -417,7 +418,7 @@ mod test {
 
         assert_eq!(fields, [
             0b01110110,
-            0b11010101,
+            0b11000100,
             0b00010010,
             0b00110100,
             0b00100001,
@@ -429,15 +430,9 @@ mod test {
         ]);
 
         assert_eq!(checksum, [
-            0b00110010,
-            0b10101111,
+            0b10001010,
+            0b01110010,
         ]);
-    }
-
-    #[test]
-    #[should_panic]
-    fn test_sap_validate() {
-        ServiceAccessPoint(0b11111111).byte();
     }
 
     #[test]
