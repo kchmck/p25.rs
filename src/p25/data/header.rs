@@ -7,8 +7,6 @@ use std;
 use data::crc;
 use data::values;
 
-use self::DataPacket::*;
-
 /// Packet header block for confirmed data packet.
 pub type ConfirmedHeader = Header<ConfirmedFields>;
 
@@ -32,36 +30,6 @@ impl<B: ByteField> BufWrite for B {
     }
 }
 
-/// Type of a data packet.
-pub enum DataPacket {
-    ConfirmedPacket,
-    UnconfirmedPacket,
-    ResponsePacket,
-}
-
-impl DataPacket {
-    /// Convert a symbolic type to its associated identifier.
-    pub fn to_bits(&self) -> u8 {
-        match *self {
-            ConfirmedPacket => 0b10110,
-            UnconfirmedPacket => 0b10101,
-            ResponsePacket => 0b00011,
-        }
-    }
-
-    /// Parse a packet type from the given 5 bits.
-    pub fn from_bits(bits: u8) -> Option<DataPacket> {
-        assert!(bits >> 5 == 0);
-
-        match bits {
-            0b10110 => Some(ConfirmedPacket),
-            0b10101 => Some(UnconfirmedPacket),
-            0b00011 => Some(ResponsePacket),
-            _ => None,
-        }
-    }
-}
-
 /// Preamble header field.
 pub struct HeaderPreamble {
     /// Whether the packet requires confirmation.
@@ -69,7 +37,7 @@ pub struct HeaderPreamble {
     /// Whether the packet is an outbound message.
     pub outbound: bool,
     /// Packet type.
-    pub format: DataPacket,
+    pub format: values::DataPacket,
 }
 
 impl ByteField for HeaderPreamble {
@@ -87,7 +55,7 @@ impl ConfirmedPreamble {
         ConfirmedPreamble(HeaderPreamble {
             confirmed: true,
             outbound: outbound,
-            format: ConfirmedPacket,
+            format: values::DataPacket::ConfirmedPacket,
         })
     }
 
@@ -107,7 +75,7 @@ impl UnconfirmedPreamble {
         UnconfirmedPreamble(HeaderPreamble {
             confirmed: false,
             outbound: outbound,
-            format: UnconfirmedPacket
+            format: values::DataPacket::UnconfirmedPacket
         })
     }
 

@@ -1,3 +1,37 @@
+/// Type of a data packet.
+pub enum DataPacket {
+    ConfirmedPacket,
+    UnconfirmedPacket,
+    ResponsePacket,
+}
+
+impl DataPacket {
+    /// Convert a symbolic type to its associated identifier.
+    pub fn to_bits(&self) -> u8 {
+        use self::DataPacket::*;
+
+        match *self {
+            ConfirmedPacket => 0b10110,
+            UnconfirmedPacket => 0b10101,
+            ResponsePacket => 0b00011,
+        }
+    }
+
+    /// Parse a packet type from the given 5 bits.
+    pub fn from_bits(bits: u8) -> Option<DataPacket> {
+        use self::DataPacket::*;
+
+        assert!(bits >> 5 == 0);
+
+        match bits {
+            0b10110 => Some(ConfirmedPacket),
+            0b10101 => Some(UnconfirmedPacket),
+            0b00011 => Some(ResponsePacket),
+            _ => None,
+        }
+    }
+}
+
 pub enum ServiceAccessPoint {
     UnencryptedUserData,
     EncryptedUserData,
