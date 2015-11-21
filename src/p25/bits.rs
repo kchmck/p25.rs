@@ -65,6 +65,10 @@ impl Dibit {
 
     /// Get the wrapped dibit, which is guaranteed to have only 2 LSBs.
     pub fn bits(&self) -> u8 { self.0 }
+    /// Get the MSB.
+    pub fn hi(&self) -> u8 { self.0 >> 1 }
+    /// Get the LSB.
+    pub fn lo(&self) -> u8 { self.0 & 1 }
 }
 
 /// Parameters for `Dibits` iterator.
