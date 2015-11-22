@@ -15,7 +15,7 @@ pub trait CollectSlice: Iterator {
     fn collect_slice(&mut self, slice: &mut [Self::Item]) -> usize;
 
     /// Perform `collect_slice()` and panic if there weren't enough elements to fill up
-    /// the buffer.
+    /// the buffer or the buffer was too small to hold all the elements.
     fn collect_slice_checked(&mut self, slice: &mut [Self::Item]);
 }
 
@@ -29,6 +29,7 @@ impl<T, I: Iterator<Item = T>> CollectSlice for I {
 
     fn collect_slice_checked(&mut self, slice: &mut [Self::Item]) {
         assert_eq!(self.collect_slice(slice), slice.len());
+        assert!(self.next().is_none());
     }
 }
 
@@ -95,10 +96,20 @@ mod test {
 
     #[test]
     #[should_panic]
-    fn test_collect_slice_checked() {
+    fn test_collect_slice_checked_small() {
         let mut buf = [0; 5];
 
         (0..3).map(|i| {
+            i + 1
+        }).collect_slice_checked(&mut buf[..]);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_collect_slice_checked_big() {
+        let mut buf = [0; 3];
+
+        (0..5).map(|i| {
             i + 1
         }).collect_slice_checked(&mut buf[..]);
     }
