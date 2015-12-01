@@ -1,14 +1,29 @@
-//! Implements the "trellis" convolutional error correcting code specified by P25.
+//! Implements encoding and decoding of the "trellis" convolutional error correcting code
+//! specified by P25. Encoding is done with a state machine and decoding is done with the
+//! Viterbi algorithm, adapted from \[1].
+//!
+//! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
+//! al, 2000
 
 use std;
+use std::ops::{Deref, DerefMut};
 
-use bits;
+use bits::{self, Dibit};
+use util::CollectSlice;
+
+use self::Decision::*;
 
 /// Half-rate convolutional ("trellis") code state machine.
 pub type DibitFSM = TrellisFSM<DibitStates>;
 
 /// 3/4-rate convolutional ("trellis") code state machine.
 pub type TribitFSM = TrellisFSM<TribitStates>;
+
+/// Half-rate convolution ("trellis") code decoder.
+pub type DibitDecoder<T> = ViterbiDecoder<DibitStates, DibitHistory, T>;
+
+/// 3/4-rate convolution ("trellis") code decoder.
+pub type TribitDecoder<T> = ViterbiDecoder<TribitStates, TribitHistory, T>;
 
 pub trait States {
     /// Symbol type to use for states and input.
@@ -141,9 +156,232 @@ impl<S: States> TrellisFSM<S> {
     }
 }
 
+macro_rules! history_type {
+    ($name: ident, $history: expr) => {
+        #[derive(Copy, Clone, Default)]
+        struct $name([Option<usize>; $history]);
+
+        impl Deref for $name {
+            type Target = [Option<usize>];
+            fn deref<'a>(&'a self) -> &'a Self::Target { &self.0[..] }
+        }
+
+        impl DerefMut for $name {
+            fn deref_mut<'a>(&'a mut self) -> &'a mut Self::Target { &mut self.0[..] }
+        }
+
+        impl WalkHistory for $name {
+            fn history() -> usize { $history }
+        }
+    };
+}
+
+history_type!(DibitHistory, 4);
+history_type!(TribitHistory, 4);
+
+pub trait WalkHistory: Copy + Clone + Default +
+    Deref<Target = [Option<usize>]> + DerefMut
+{
+    /// The length of each walk associated with each state. This also determines the delay
+    /// before the first decoded symbol is yielded.
+    fn history() -> usize;
+}
+
+/// Decodes a received convolutional code dibit stream to a nearby codeword using the
+/// truncated Viterbi algorithm.
+pub struct ViterbiDecoder<S, H, T> where
+    S: States, H: WalkHistory, T: Iterator<Item = bits::Dibit>
+{
+    states: std::marker::PhantomData<S>,
+    /// Source of dibits.
+    src: T,
+    /// Walks associated with each state, for the current and previous tick.
+    cur: Vec<Walk<H>>,
+    prev: Vec<Walk<H>>,
+    /// Remaining symbols to yield.
+    remain: usize,
+}
+
+impl<S, H, T> ViterbiDecoder<S, H, T> where
+    S: States, H: WalkHistory, T: Iterator<Item = bits::Dibit>
+{
+    /// Construct a new `ViterbiDecoder` over the given dibit source.
+    pub fn new(src: T) -> ViterbiDecoder<S, H, T> {
+        ViterbiDecoder {
+            states: std::marker::PhantomData,
+            src: src,
+            cur: Self::new_walks(),
+            prev: Self::new_walks(),
+            remain: 0,
+        }.prime()
+    }
+
+    fn new_walks() -> Vec<Walk<H>> { (0..S::size()).map(Walk::new).collect() }
+
+    fn prime(mut self) -> Self {
+        for _ in 0..H::history() - 1 {
+            self.step();
+        }
+
+        self
+    }
+
+    fn switch_walk(&mut self) {
+        std::mem::swap(&mut self.cur, &mut self.prev);
+    }
+
+    fn step(&mut self) -> bool {
+        let input = Edge::new(match (self.src.next(), self.src.next()) {
+            (Some(hi), Some(lo)) => (hi, lo),
+            (Some(_), None) | (None, Some(_)) => panic!("dibits ended on boundary"),
+            (None, None) => return false,
+        });
+
+        self.remain += 1;
+        self.switch_walk();
+
+        for s in 0..S::size() {
+            let (walk, _) = self.search(s, input);
+            self.cur[s].append(walk);
+        }
+
+        true
+    }
+
+    fn search(&self, state: usize, input: Edge) -> (Walk<H>, bool) {
+        self.prev.iter()
+            .enumerate()
+            .map(|(i, w)| (Edge::new(S::pair(i, state)), w))
+            .fold((Walk::default(), false), |(walk, amb), (e, w)| {
+                match w.distance().checked_add(input.distance(e)) {
+                    Some(sum) if sum < walk.distance() => (walk.replace(&w, sum), false),
+                    Some(sum) if sum == walk.distance() => (walk.combine(&w, sum), true),
+                    _ => (walk, amb),
+                }
+            })
+    }
+
+    fn decode(&self) -> Decision {
+        self.cur.iter().fold(Ambiguous(std::usize::MAX), |s, w| {
+            match s {
+                Ambiguous(min) | Definite(min, _) if w.distance() < min =>
+                    Definite(w.distance(), w[self.remain]),
+                Definite(min, state) if w.distance() == min && w[self.remain] != state =>
+                    Ambiguous(w.distance()),
+                _ => s,
+            }
+        })
+    }
+}
+
+impl<S, H, T> Iterator for ViterbiDecoder<S, H, T> where
+    S: States, H: WalkHistory, T: Iterator<Item = bits::Dibit>
+{
+    type Item = Result<S::Symbol, ()>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if !self.step() && self.remain == 0 {
+            return None;
+        }
+
+        self.remain -= 1;
+
+        Some(match self.decode() {
+            Ambiguous(_) | Definite(_, None) => Err(()),
+            Definite(_, Some(state)) => Ok(S::symbol(state)),
+        })
+    }
+}
+
+/// Decoding decision.
+enum Decision {
+    Definite(usize, Option<usize>),
+    Ambiguous(usize),
+}
+
+#[derive(Copy, Clone, Debug)]
+struct Walk<H: WalkHistory>{
+    history: H,
+    distance: usize,
+}
+
+impl<H: WalkHistory> Walk<H> {
+    pub fn new(state: usize) -> Walk<H> {
+        Walk {
+            history: H::default(),
+            distance: if state == 0 {
+                0
+            } else {
+                std::usize::MAX
+            },
+       }.init(state)
+    }
+
+    fn init(mut self, state: usize) -> Self {
+        self.history[0] = Some(state);
+        self
+    }
+
+    pub fn distance(&self) -> usize { self.distance }
+
+    pub fn append(&mut self, other: Self) {
+        self.distance = other.distance;
+
+        for i in 1..self.len() {
+            self[i] = other[i - 1];
+        }
+    }
+
+    pub fn combine(mut self, other: &Self, distance: usize) -> Self {
+        self.distance = distance;
+
+        for (dest, src) in self.iter_mut().zip(other.iter()) {
+            if src != dest {
+                *dest = None;
+            }
+        }
+
+        self
+    }
+
+    pub fn replace(mut self, other: &Self, distance: usize) -> Self {
+        self.distance = distance;
+        other.iter().cloned().collect_slice_checked(&mut self[..]);
+
+        self
+    }
+}
+
+impl<H: WalkHistory> Deref for Walk<H> {
+    type Target = [Option<usize>];
+    fn deref<'a>(&'a self) -> &'a Self::Target { &self.history }
+}
+
+impl<H: WalkHistory> DerefMut for Walk<H> {
+    fn deref_mut<'a>(&'a mut self) -> &'a mut Self::Target { &mut self.history }
+}
+
+impl<H: WalkHistory> Default for Walk<H> {
+    fn default() -> Self { Walk::new(std::usize::MAX) }
+}
+
+#[derive(Copy, Clone)]
+struct Edge(u8);
+
+impl Edge {
+    pub fn new((hi, lo): (bits::Dibit, bits::Dibit)) -> Edge {
+        Edge(hi.bits() << 2 | lo.bits())
+    }
+
+    pub fn distance(&self, other: Edge) -> usize {
+        (self.0 ^ other.0).count_ones() as usize
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+    use super::{Edge};
     use bits::*;
 
     #[test]
@@ -172,5 +410,92 @@ mod test {
         assert_eq!(fsm.feed(Tribit::new(0b111)), (Dibit::new(0b00), Dibit::new(0b01)));
         assert_eq!(fsm.feed(Tribit::new(0b000)), (Dibit::new(0b10), Dibit::new(0b11)));
         assert_eq!(fsm.feed(Tribit::new(0b111)), (Dibit::new(0b01), Dibit::new(0b00)));
+    }
+
+    #[test]
+    fn test_edge() {
+        assert_eq!(Edge::new((
+            Dibit::new(0b11), Dibit::new(0b01)
+        )).distance(Edge::new((
+            Dibit::new(0b11), Dibit::new(0b01)
+        ))), 0);
+
+        assert_eq!(Edge::new((
+            Dibit::new(0b11), Dibit::new(0b01)
+        )).distance(Edge::new((
+            Dibit::new(0b00), Dibit::new(0b10)
+        ))), 4);
+    }
+
+    #[test]
+    fn test_dibit_decoder() {
+        let bits = [1, 2, 2, 2, 2, 1, 3, 3, 0, 2];
+        let stream = bits.iter().map(|&bits| Dibit::new(bits));
+
+        let mut dibits = vec![];
+        let mut fsm = DibitFSM::new();
+
+        for dibit in stream {
+            let (hi, lo) = fsm.feed(dibit);
+            dibits.push(hi);
+            dibits.push(lo);
+        }
+
+        dibits[2] = Dibit::new(0b10);
+        dibits[4] = Dibit::new(0b10);
+
+        let mut dec = DibitDecoder::new(dibits.iter().cloned());
+
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 1);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 2);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 2);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 2);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 2);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 1);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 3);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 3);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 0);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 2);
+    }
+
+    #[test]
+    fn test_tribit_decoder() {
+        let bits = [
+            1, 2, 3, 4, 5, 6, 7, 0,
+            1, 2, 3, 4, 5, 6, 7, 0,
+        ];
+        let stream = bits.iter().map(|&bits| Tribit::new(bits));
+
+        let mut dibits = vec![];
+        let mut fsm = TribitFSM::new();
+
+        for tribit in stream {
+            let (hi, lo) = fsm.feed(tribit);
+            dibits.push(hi);
+            dibits.push(lo);
+        }
+
+        dibits[6] = Dibit::new(0b10);
+        dibits[4] = Dibit::new(0b10);
+        dibits[14] = Dibit::new(0b10);
+
+        let mut dec = TribitDecoder::new(dibits.iter().cloned());
+
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 1);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 2);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 3);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 4);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 5);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 6);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 7);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 0);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 1);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 2);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 3);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 4);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 5);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 6);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 7);
+        assert_eq!(dec.next().unwrap().unwrap().bits(), 0);
     }
 }
