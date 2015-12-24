@@ -3,6 +3,9 @@ name = "p25"
 version = "0.1.0"
 authors = ["Mick Koch <mick@kochm.co>"]
 
+[dependencies]
+collect_slice = "1.0.0"
+
 [lib]
 name = "p25"
 path = "src/p25/lib.rs"

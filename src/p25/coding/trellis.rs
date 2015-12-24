@@ -8,8 +8,9 @@
 use std;
 use std::ops::{Deref, DerefMut};
 
+use collect_slice::CollectSlice;
+
 use bits::{self, Dibit};
-use util::CollectSlice;
 
 use self::Decision::*;
 

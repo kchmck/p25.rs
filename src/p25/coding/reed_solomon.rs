@@ -8,9 +8,9 @@
 
 use std;
 
-use bits::Hexbit;
-use util::CollectSlice;
+use collect_slice::CollectSlice;
 
+use bits::Hexbit;
 use coding::bmcf;
 use coding::galois::{P25Codeword, Polynomial, PolynomialCoefs};
 
@@ -260,7 +260,7 @@ mod test {
     use super::{MedCoefs, ShortCoefs, LongCoefs};
     use coding::galois::{PolynomialCoefs};
     use bits::Hexbit;
-    use util::CollectSlice;
+    use collect_slice::CollectSlice;
 
     #[test]
     fn validate_coefs() {

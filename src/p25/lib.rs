@@ -1,5 +1,7 @@
 #![feature(zero_one)]
 
+extern crate collect_slice;
+
 mod util;
 
 pub mod baseband;

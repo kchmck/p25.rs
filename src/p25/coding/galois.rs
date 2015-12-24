@@ -1,6 +1,6 @@
 use std;
 
-use util::CollectSlice;
+use collect_slice::CollectSlice;
 
 /// GF(2^6) field characterized by α^6+α+1.as described in P25 specification.
 #[derive(Copy, Clone, Debug)]
