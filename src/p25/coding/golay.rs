@@ -246,6 +246,10 @@ mod test {
         assert_eq!(Some((w, 3)), shortened::decode(e^0b011100000000000000));
         assert_eq!(Some((w, 2)), shortened::decode(e^0b001100000000000010));
         assert_eq!(Some((w, 1)), shortened::decode(e^0b001000000000000110));
+
+        for i in 0..1<<6 {
+            assert_eq!(shortened::decode(shortened::encode(i)).unwrap().0, i);
+        }
     }
 
     #[test]
@@ -308,6 +312,10 @@ mod test {
         assert_eq!(Some((w, 1)), standard::decode(e^0b00000100000000000000001));
         assert_eq!(Some((w, 2)), standard::decode(e^0b00000110000000000000001));
         assert_eq!(Some((w, 1)), standard::decode(e^0b00000100000000000000011));
+
+        for i in 0..1<<12 {
+            assert_eq!(standard::decode(standard::encode(i)).unwrap().0, i);
+        }
     }
 
     #[test]
@@ -372,5 +380,9 @@ mod test {
         assert_eq!(Some((w, 1)), extended::decode(e^0b000000100000000000000001));
         assert_eq!(Some((w, 2)), extended::decode(e^0b000000110000000000000001));
         assert_eq!(Some((w, 1)), extended::decode(e^0b000000100000000000000011));
+
+        for i in 0..1<<12 {
+            assert_eq!(extended::decode(extended::encode(i)).unwrap().0, i);
+        }
     }
 }

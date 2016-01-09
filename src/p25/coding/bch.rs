@@ -227,5 +227,9 @@ mod test {
         assert!(decode(encode(0b0000001111111111) ^ 0b11111111111111111111110).is_none());
         assert!(decode(encode(0b0000001111111111) ^
                        0b00100101010101000010001100100010011111111110).is_none());
+
+        for i in 0..1u32<<17 {
+            assert_eq!(decode(encode(i as u16)).unwrap().0, i as u16);
+        }
     }
 }

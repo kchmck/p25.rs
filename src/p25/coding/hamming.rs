@@ -187,6 +187,10 @@ mod test {
         assert_eq!(standard::decode(e^0b001000000000000).unwrap().0, w);
         assert_eq!(standard::decode(e^0b010000000000000).unwrap().0, w);
         assert_eq!(standard::decode(e^0b100000000000000).unwrap().0, w);
+
+        for i in 0..1<<11 {
+            assert_eq!(standard::decode(standard::encode(i)).unwrap().0, i);
+        }
     }
 
     #[test]
@@ -204,5 +208,9 @@ mod test {
         assert_eq!(shortened::decode(e ^ 0b0010000000).unwrap().0, w);
         assert_eq!(shortened::decode(e ^ 0b0100000000).unwrap().0, w);
         assert_eq!(shortened::decode(e ^ 0b1000000000).unwrap().0, w);
+
+        for i in 0..1<<6 {
+            assert_eq!(shortened::decode(shortened::encode(i)).unwrap().0, i);
+        }
     }
 }
