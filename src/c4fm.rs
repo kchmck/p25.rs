@@ -22,7 +22,7 @@ impl<T: Iterator<Item = bits::Dibit>> C4FMImpulses<T> {
 }
 
 impl<T: Iterator<Item = bits::Dibit>> Iterator for C4FMImpulses<T> {
-    type Item = f64;
+    type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
         // Store current sample and move to the next.

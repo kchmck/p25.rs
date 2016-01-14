@@ -20,7 +20,7 @@ impl Decoder {
         }
     }
 
-    pub fn feed(&mut self, s: f64) -> Option<bits::Dibit> {
+    pub fn feed(&mut self, s: f32) -> Option<bits::Dibit> {
         match self.correlator.feed(self.corrector.feed(s)) {
             Some(sum) => {
                 self.correlator.reset(s);
@@ -35,17 +35,17 @@ impl Decoder {
 /// Simply corrects the DC offset in a waveform.
 pub struct DCOffsetCorrector {
     /// Offset to add to each sample.
-    correction: f64,
+    correction: f32,
 }
 
 impl DCOffsetCorrector {
-    pub fn new(correction: f64) -> DCOffsetCorrector {
+    pub fn new(correction: f32) -> DCOffsetCorrector {
         DCOffsetCorrector {
             correction: correction,
         }
     }
 
-    pub fn feed(&self, s: f64) -> f64 {
+    pub fn feed(&self, s: f32) -> f32 {
         s + self.correction
     }
 }
@@ -53,7 +53,7 @@ impl DCOffsetCorrector {
 #[derive(Copy, Clone)]
 pub struct Correlator {
     pos: usize,
-    sum: f64,
+    sum: f32,
 }
 
 impl Correlator {
@@ -64,13 +64,13 @@ impl Correlator {
         }
     }
 
-    pub fn reset(&mut self, s: f64) {
+    pub fn reset(&mut self, s: f32) {
         self.pos = 0;
         self.sum = 0.0;
         self.add(s);
     }
 
-    pub fn feed(&mut self, s: f64) -> Option<f64> {
+    pub fn feed(&mut self, s: f32) -> Option<f32> {
         self.add(s);
 
         if self.pos > consts::PERIOD {
@@ -80,8 +80,8 @@ impl Correlator {
         }
     }
 
-    fn add(&mut self, s: f64) {
-        const MATCHED_FILTER: &'static [f64] = &[
+    fn add(&mut self, s: f32) {
+        const MATCHED_FILTER: &'static [f32] = &[
             0.6290605212918821,
             0.7507772559612889,
             0.8542215065015759,
@@ -101,19 +101,19 @@ impl Correlator {
 }
 
 pub struct Decider {
-    high_thresh: f64,
+    high_thresh: f32,
 }
 
 impl Decider {
-    pub fn new(high_thresh: f64) -> Decider {
-        const FUDGE: f64 = 0.75;
+    pub fn new(high_thresh: f32) -> Decider {
+        const FUDGE: f32 = 0.75;
 
         Decider {
             high_thresh: high_thresh * FUDGE,
         }
     }
 
-    pub fn decide(&self, sum: f64) -> bits::Dibit {
+    pub fn decide(&self, sum: f32) -> bits::Dibit {
         if sum >= self.high_thresh {
             bits::Dibit::new(0b01)
         } else if sum >= 0.0 {

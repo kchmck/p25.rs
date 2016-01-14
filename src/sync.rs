@@ -59,7 +59,7 @@ impl SyncDetector {
 
     /// Take the given sample and sample time and output where the state machine should
     /// move next.
-    fn handle(&mut self, s: f64, t: usize) -> Option<SyncState> {
+    fn handle(&mut self, s: f32, t: usize) -> Option<SyncState> {
         match self.state {
             BootstrapRun(ref mut run) => match run.feed(s) {
                 Some(true) => Some(BigSine(Peaks::new(Maximum, s))),
@@ -133,7 +133,7 @@ impl SyncDetector {
         }
     }
 
-    pub fn feed(&mut self, s: f64, t: usize) -> Option<Result<Decoder, SyncError>> {
+    pub fn feed(&mut self, s: f32, t: usize) -> Option<Result<Decoder, SyncError>> {
         match self.handle(s, t) {
             Some(Error(e)) => Some(Err(e)),
             Some(Locked(d)) => Some(Ok(d)),
@@ -198,7 +198,7 @@ impl Timing {
     fn start(&self) -> usize { self.times[0] }
 
     /// Calculate the timing correction to apply to the impulse clock.
-    fn correction(&self) -> f64 {
+    fn correction(&self) -> f32 {
         // These are the raw expected impulse times relative to the first impulse.
         const EXPECTED_TIMES: &'static [usize] = &[
             0, 1, 2, 3, 4, 5, 6, 11, 12, 13
@@ -217,7 +217,7 @@ impl Timing {
         }).zip(expected).map(|(diff, e)| {
             // Calculate the difference from the expected time.
             (diff - e) as isize
-        }).fold(0, |s, d| s + d) as f64 / expanded.len() as f64
+        }).fold(0, |s, d| s + d) as f32 / expanded.len() as f32
     }
 
     /// Get the corrected impulse clock starting time.
@@ -265,12 +265,12 @@ struct Peaks {
     /// Previous inflection found.
     state: PeakType,
     /// Value of the previous sample.
-    prev: f64,
+    prev: f32,
 }
 
 impl Peaks {
     /// Constructs a new `Peaks` with the given starting state and sample.
-    pub fn new(state: PeakType, start: f64) -> Peaks {
+    pub fn new(state: PeakType, start: f32) -> Peaks {
         Peaks {
             state: state,
             prev: start,
@@ -280,7 +280,7 @@ impl Peaks {
     /// Feed in a sample and check for an inflection. Return `Some(m, p)`, where `m` is
     /// the inflection type and `p` is the value of the previous sample, if the previous
     /// sample was at a peak, and return `None` otherwise.
-    pub fn feed(&mut self, s: f64) -> Option<(PeakType, f64)> {
+    pub fn feed(&mut self, s: f32) -> Option<(PeakType, f32)> {
         let prev = self.prev;
         self.prev = s;
 
@@ -296,7 +296,7 @@ impl Peaks {
     /// Compare the current and previous samples and check if the previous was at an
     /// inflection. Return `Some(m)` with the inflection type `m` if so and `None`
     /// otherwise.
-    fn cmp(&self, prev: f64, cur: f64) -> Option<PeakType> {
+    fn cmp(&self, prev: f32, cur: f32) -> Option<PeakType> {
         match self.state {
             // If we're coming off a maximum, the slope should be headed downwards.
             Maximum if cur <= prev => None,
@@ -337,7 +337,7 @@ impl RunCheck {
     /// Feed the given sample into the current state and return `Some(true)` if it
     /// completes the run, `Some(false)` if the run wasn't the required length, and `None`
     /// if more samples must be fed in.
-    pub fn feed(&mut self, s: f64) -> Option<bool> {
+    pub fn feed(&mut self, s: f32) -> Option<bool> {
         if s > 0.0 {
             self.run += 1;
             None
@@ -359,7 +359,7 @@ impl RunCheck {
 }
 
 struct Sums {
-    sums: [f64; 5],
+    sums: [f32; 5],
     pos: usize,
 }
 
@@ -375,16 +375,16 @@ impl Sums {
         self.pos = 0;
     }
 
-    pub fn add(&mut self, sum: f64) -> bool {
+    pub fn add(&mut self, sum: f32) -> bool {
         self.sums[self.pos] = sum.abs();
         self.pos += 1;
         self.pos == 5
     }
 
-    pub fn min(&self) -> f64 {
+    pub fn min(&self) -> f32 {
         assert!(self.pos == 5);
 
-        self.sums.iter().fold(std::f64::MAX, |s, &x| {
+        self.sums.iter().fold(std::f32::MAX, |s, &x| {
             match s.partial_cmp(&x).unwrap() {
                 std::cmp::Ordering::Less | std::cmp::Ordering::Equal => s,
                 std::cmp::Ordering::Greater => x,
@@ -394,7 +394,7 @@ impl Sums {
 }
 
 struct DCOffset {
-    peaks: [f64; 3],
+    peaks: [f32; 3],
     pos: usize,
 }
 
@@ -410,16 +410,16 @@ impl DCOffset {
         self.pos = 0;
     }
 
-    pub fn add(&mut self, s: f64) {
+    pub fn add(&mut self, s: f32) {
         self.peaks[self.pos] = s;
         self.pos += 1;
     }
 
-    fn min(&self) -> f64 { self.peaks[1] }
-    fn max(&self) -> f64 { (self.peaks[0] + self.peaks[2]) / 2.0 }
+    fn min(&self) -> f32 { self.peaks[1] }
+    fn max(&self) -> f32 { (self.peaks[0] + self.peaks[2]) / 2.0 }
 
-    fn delta(&self) -> f64 {
-        const EXPECTED_DIFF: f64 = 0.032776727;
+    fn delta(&self) -> f32 {
+        const EXPECTED_DIFF: f32 = 0.032776727;
 
         let min = self.min();
         let max = self.max();
@@ -427,7 +427,7 @@ impl DCOffset {
         (max - min) * EXPECTED_DIFF - (max + min)
     }
 
-    pub fn correction(&self) -> f64 {
+    pub fn correction(&self) -> f32 {
         self.delta() / 2.0
     }
 }
@@ -588,6 +588,6 @@ mod test {
         dc.add(-6175.7425637272545);
         dc.add(6542.627695382622);
 
-        assert!(dc.correction().abs() < 0.00001);
+        assert!(dc.correction().abs() < 0.001);
     }
 }

@@ -21,7 +21,7 @@ impl Receiver {
         }
     }
 
-    fn handle(&mut self, s: f64, t: usize) -> Option<ReceiveState> {
+    fn handle(&mut self, s: f32, t: usize) -> Option<ReceiveState> {
         match self.state {
             Syncing(ref mut sync) => match sync.feed(s, t) {
                 Some(Err(_)) => {
@@ -39,7 +39,7 @@ impl Receiver {
         }
     }
 
-    pub fn feed(&mut self, s: f64, t: usize) -> Option<bits::Dibit> {
+    pub fn feed(&mut self, s: f32, t: usize) -> Option<bits::Dibit> {
         match self.handle(s, t) {
             Some(Dibit(d)) => Some(d),
             Some(next) => {
