@@ -1,14 +1,14 @@
 //! This module implements Project 25's data packet specification.
 
 mod coder;
-mod crc;
 mod fragment;
 mod header;
-mod interleave;
 mod params;
 mod payload;
 
 pub mod consts;
+pub mod crc;
+pub mod interleave;
 pub mod packet;
 pub mod values;
 

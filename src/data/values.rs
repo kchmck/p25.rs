@@ -3,6 +3,7 @@ pub enum DataPacket {
     ConfirmedPacket,
     UnconfirmedPacket,
     ResponsePacket,
+    TrunkingPacket,
 }
 
 impl DataPacket {
@@ -14,6 +15,7 @@ impl DataPacket {
             ConfirmedPacket => 0b10110,
             UnconfirmedPacket => 0b10101,
             ResponsePacket => 0b00011,
+            TrunkingPacket => 0b10111,
         }
     }
 
@@ -27,6 +29,7 @@ impl DataPacket {
             0b10110 => Some(ConfirmedPacket),
             0b10101 => Some(UnconfirmedPacket),
             0b00011 => Some(ResponsePacket),
+            0b10111 => Some(TrunkingPacket),
             _ => None,
         }
     }

@@ -21,3 +21,4 @@ pub mod nid;
 pub mod receiver;
 pub mod status;
 pub mod sync;
+pub mod trunking;
