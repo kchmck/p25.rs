@@ -1,8 +1,41 @@
-use super::fir;
+use fir;
+
+pub struct TransmitFilter {
+    rcf: fir::FIRFilter<'static>,
+    shaping: fir::FIRFilter<'static>,
+}
+
+impl TransmitFilter {
+    pub fn new() -> TransmitFilter {
+        TransmitFilter {
+            rcf: raised_cosine(),
+            shaping: shaping(),
+        }
+    }
+
+    pub fn feed(&mut self, s: f64) -> f64 {
+        self.shaping.feed(self.rcf.feed(s))
+    }
+}
+
+pub struct ReceiveFilter {
+    unshaping: fir::FIRFilter<'static>,
+}
+
+impl ReceiveFilter {
+    pub fn new() -> ReceiveFilter {
+        ReceiveFilter {
+            unshaping: unshaping(),
+        }
+    }
+
+    pub fn feed(&mut self, s: f64) -> f64 { self.unshaping.feed(s) }
+}
+
 
 /// Construct a FIR filter approximating the frequency response of the "Nyquist Raised
 /// Cosine" filter described in the P25 standard.
-pub fn raised_cosine() -> fir::FIRFilter<'static> {
+fn raised_cosine() -> fir::FIRFilter<'static> {
     const COEFS: &'static [f64] = &[
         -0.0000000000000000,
         -0.0002914178875877,
@@ -132,7 +165,7 @@ pub fn raised_cosine() -> fir::FIRFilter<'static> {
 
 /// Construct a FIR filter that approximates the frequency response of the "Shaping"
 /// filter described in the P25 standard.
-pub fn shaping() -> fir::FIRFilter<'static> {
+fn shaping() -> fir::FIRFilter<'static> {
     const COEFS: &'static [f64] = &[
         -0.0178961626433530,
         0.0346928432330632,
@@ -180,7 +213,7 @@ pub fn shaping() -> fir::FIRFilter<'static> {
 
 /// Construct a filter that approximates the frequency response of the "Integrate and
 /// Dump" filter described in the P25 standard.
-pub fn unshaping() -> fir::FIRFilter<'static> {
+fn unshaping() -> fir::FIRFilter<'static> {
     const COEFS: &'static [f64] = &[
         -0.0000000279259602,
         -0.0000004257533422,
