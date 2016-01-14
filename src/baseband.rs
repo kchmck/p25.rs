@@ -1,5 +1,3 @@
-use std;
-
 use bits;
 use consts;
 

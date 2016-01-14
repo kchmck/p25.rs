@@ -3,7 +3,6 @@
 //! A header has several user-filled fields followed by a 16-bit checksum over those
 //! fields.
 
-use std;
 use data::crc;
 use data::values;
 
