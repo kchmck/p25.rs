@@ -242,7 +242,7 @@ impl ReceiveFilter {
     pub fn new() -> ReceiveFilter {
         ReceiveFilter {
             unshaping: FIRFilter::new(),
-            dcblock: DCBlocker::new(0.995),
+            dcblock: DCBlocker::new(0.999),
         }
     }
 
