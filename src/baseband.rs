@@ -5,17 +5,13 @@ use consts;
 
 #[derive(Copy, Clone)]
 pub struct Decoder {
-    corrector: DCOffsetCorrector,
     correlator: Correlator,
     decider: Decider,
 }
 
 impl Decoder {
-    pub fn new(corrector: DCOffsetCorrector, correlator: Correlator, decider: Decider)
-        -> Decoder
-    {
+    pub fn new(correlator: Correlator, decider: Decider) -> Decoder {
         Decoder {
-            corrector: corrector,
             correlator: correlator,
             decider: decider,
         }
@@ -26,32 +22,13 @@ impl Decoder {
     }
 
     pub fn feed(&mut self, s: f32) -> Option<bits::Dibit> {
-        match self.correlator.feed(self.corrector.feed(s)) {
+        match self.correlator.feed(s) {
             Some(sum) => {
                 self.reset(s);
                 Some(self.decider.decide(sum))
             },
             None => None,
         }
-    }
-}
-
-#[derive(Copy, Clone)]
-/// Simply corrects the DC offset in a waveform.
-pub struct DCOffsetCorrector {
-    /// Offset to add to each sample.
-    correction: f32,
-}
-
-impl DCOffsetCorrector {
-    pub fn new(correction: f32) -> DCOffsetCorrector {
-        DCOffsetCorrector {
-            correction: correction,
-        }
-    }
-
-    pub fn feed(&self, s: f32) -> f32 {
-        s + self.correction
     }
 }
 

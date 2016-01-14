@@ -1,4 +1,5 @@
-use dsp::fir::{FIRCoefs, FIRFilter};
+use dsp::fir::FIRFilter;
+use dsp::dcblock::DCBlocker;
 
 /// Construct a FIR filter approximating the frequency response of the "Nyquist Raised
 /// Cosine" filter described in the P25 standard.
@@ -234,14 +235,31 @@ impl TransmitFilter {
 
 pub struct ReceiveFilter {
     unshaping: FIRFilter<UnshapingFIR>,
+    dcblock: DCBlocker<f32>,
 }
 
 impl ReceiveFilter {
     pub fn new() -> ReceiveFilter {
         ReceiveFilter {
             unshaping: FIRFilter::new(),
+            dcblock: DCBlocker::new(0.995),
         }
     }
 
-    pub fn feed(&mut self, s: f32) -> f32 { self.unshaping.feed(s) }
+    pub fn feed(&mut self, s: f32) -> f32 {
+        self.unshaping.feed(self.dcblock.feed(s))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use dsp::fir::FIRCoefs;
+
+    #[test]
+    fn verify_symmetry() {
+        RaisedCosineFIR::verify_symmetry();
+        ShapingFIR::verify_symmetry();
+        UnshapingFIR::verify_symmetry();
+    }
 }

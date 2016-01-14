@@ -1,6 +1,6 @@
 use std;
 
-use baseband::{DCOffsetCorrector, Decider, Correlator, Decoder};
+use baseband::{Decider, Correlator, Decoder};
 use consts;
 
 use self::PeakType::*;
@@ -18,7 +18,7 @@ enum SyncState {
     MidRun(RunCheck),
     SmallSine(Peaks),
     LockBoundary(SymbolClock),
-    EndRun(DCOffsetCorrector, Correlator),
+    EndRun(Correlator),
     Locked(Decoder),
     Error(SyncError),
 }
@@ -27,7 +27,6 @@ pub struct SyncDetector {
     state: SyncState,
     timing: Timing,
     sums: Sums,
-    dco: DCOffset,
 }
 
 impl SyncDetector {
@@ -36,7 +35,6 @@ impl SyncDetector {
             state: BootstrapRun(RunCheck::new(4 * consts::PERIOD, None)),
             timing: Timing::new(),
             sums: Sums::new(),
-            dco: DCOffset::new(),
         }
     }
 
@@ -77,7 +75,6 @@ impl SyncDetector {
                 Some(Minimum) if self.timing.pos > 6 || self.timing.pos % 2 == 0 =>
                     Some(Error(InvalidSine)),
                 Some(m) => {
-                    self.dco.add(prev);
                     self.timing.add(t - 1);
 
                     match m {
@@ -90,23 +87,20 @@ impl SyncDetector {
                 None => None,
             },
             LockBoundary(ref mut clock) => if clock.boundary(t + 1) {
-                Some(EndRun(
-                    DCOffsetCorrector::new(self.dco.correction()),
-                    Correlator::new()
-                ))
+                Some(EndRun(Correlator::new()))
             } else {
                 None
             },
-            EndRun(ref dco, ref mut corr) => match corr.feed(dco.feed(s)) {
+            EndRun(ref mut corr) => match corr.feed(s) {
                 Some(sum) if sum > 0.0 => Some(Error(InvalidRun)),
                 Some(sum) => {
                     if self.sums.add(sum) {
                         Some(Locked(
-                            Decoder::new(*dco, Correlator::primed(s),
+                            Decoder::new(Correlator::primed(s),
                                          Decider::new(self.sums.min()))
                         ))
                     } else {
-                        Some(EndRun(*dco, Correlator::primed(s)))
+                        Some(EndRun(Correlator::primed(s)))
                     }
                 },
                 None => None,
@@ -366,48 +360,10 @@ impl Sums {
     }
 }
 
-struct DCOffset {
-    peaks: [f32; 3],
-    pos: usize,
-}
-
-impl DCOffset {
-    pub fn new() -> DCOffset {
-        DCOffset {
-            peaks: [0.0; 3],
-            pos: 0,
-        }
-    }
-
-    pub fn reset(&mut self) {
-        self.pos = 0;
-    }
-
-    pub fn add(&mut self, s: f32) {
-        self.peaks[self.pos] = s;
-        self.pos += 1;
-    }
-
-    fn min(&self) -> f32 { self.peaks[1] }
-    fn max(&self) -> f32 { (self.peaks[0] + self.peaks[2]) / 2.0 }
-
-    fn delta(&self) -> f32 {
-        const EXPECTED_DIFF: f32 = 0.032776727;
-
-        let min = self.min();
-        let max = self.max();
-
-        (max - min) * EXPECTED_DIFF - (max + min)
-    }
-
-    pub fn correction(&self) -> f32 {
-        self.delta() / 2.0
-    }
-}
 
 #[cfg(test)]
 mod test {
-    use super::{Timing, SymbolClock, Peaks, RunCheck, Sums, DCOffset};
+    use super::{Timing, SymbolClock, Peaks, RunCheck, Sums};
     use super::PeakType::*;
 
     #[test]
@@ -551,16 +507,5 @@ mod test {
         s.add(31.0);
         s.add(1.0);
         assert!(s.min() == 0.0);
-    }
-
-    #[test]
-    fn test_dc_offset() {
-        let mut dc = DCOffset::new();
-
-        dc.add(6645.9780238467865);
-        dc.add(-6175.7425637272545);
-        dc.add(6542.627695382622);
-
-        assert!(dc.correction().abs() < 0.001);
     }
 }
