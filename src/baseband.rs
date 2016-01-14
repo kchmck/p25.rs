@@ -3,6 +3,7 @@ use std;
 use bits;
 use consts;
 
+#[derive(Copy, Clone)]
 pub struct Decoder {
     corrector: DCOffsetCorrector,
     correlator: Correlator,
@@ -20,10 +21,14 @@ impl Decoder {
         }
     }
 
+    fn reset(&mut self, s: f32) {
+        self.correlator = Correlator::primed(s);
+    }
+
     pub fn feed(&mut self, s: f32) -> Option<bits::Dibit> {
         match self.correlator.feed(self.corrector.feed(s)) {
             Some(sum) => {
-                self.correlator.reset(s);
+                self.reset(s);
                 Some(self.decider.decide(sum))
             },
             None => None,
@@ -64,10 +69,10 @@ impl Correlator {
         }
     }
 
-    pub fn reset(&mut self, s: f32) {
-        self.pos = 0;
-        self.sum = 0.0;
-        self.add(s);
+    pub fn primed(s: f32) -> Correlator {
+        let mut c = Correlator::new();
+        c.add(s);
+        c
     }
 
     pub fn feed(&mut self, s: f32) -> Option<f32> {
@@ -100,6 +105,7 @@ impl Correlator {
     }
 }
 
+#[derive(Copy, Clone)]
 pub struct Decider {
     high_thresh: f32,
 }

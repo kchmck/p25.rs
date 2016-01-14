@@ -8,7 +8,6 @@ use self::SyncError::*;
 use self::SyncState::*;
 
 pub enum SyncError {
-    Uninitialized,
     InvalidRun,
     InvalidSine,
 }
@@ -34,27 +33,11 @@ pub struct SyncDetector {
 impl SyncDetector {
     pub fn new() -> SyncDetector {
         SyncDetector {
-            state: Error(Uninitialized),
+            state: BootstrapRun(RunCheck::new(4 * consts::PERIOD, None)),
             timing: Timing::new(),
             sums: Sums::new(),
             dco: DCOffset::new(),
-        }.start()
-    }
-
-    pub fn reset(&mut self) {
-        self.init();
-        self.timing.reset();
-        self.sums.reset();
-        self.dco.reset();
-    }
-
-    fn start(mut self) -> Self {
-        self.init();
-        self
-    }
-
-    fn init(&mut self) {
-        self.state = BootstrapRun(RunCheck::new(4 * consts::PERIOD, None))
+        }
     }
 
     /// Take the given sample and sample time and output where the state machine should
@@ -67,11 +50,11 @@ impl SyncDetector {
                 None => None,
             },
             BigSine(ref mut peaks) => match peaks.feed(s) {
-                Some((Maximum, _)) if self.timing.pos > 4 || self.timing.pos % 2 == 0 =>
+                Some(Maximum) if self.timing.pos > 4 || self.timing.pos % 2 == 0 =>
                     Some(Error(InvalidSine)),
-                Some((Minimum, _)) if self.timing.pos > 3 || self.timing.pos % 2 != 0 =>
+                Some(Minimum) if self.timing.pos > 3 || self.timing.pos % 2 != 0 =>
                     Some(Error(InvalidSine)),
-                Some((m, _)) => {
+                Some(m) => {
                     self.timing.add(t - 1);
 
                     match m {
@@ -89,11 +72,11 @@ impl SyncDetector {
                 None => None,
             },
             SmallSine(ref mut peaks) => match peaks.feed(s) {
-                Some((Maximum, _)) if self.timing.pos > 7 || self.timing.pos % 2 != 0 =>
+                Some(Maximum) if self.timing.pos > 7 || self.timing.pos % 2 != 0 =>
                     Some(Error(InvalidSine)),
-                Some((Minimum, _)) if self.timing.pos > 6 || self.timing.pos % 2 == 0 =>
+                Some(Minimum) if self.timing.pos > 6 || self.timing.pos % 2 == 0 =>
                     Some(Error(InvalidSine)),
-                Some((m, prev)) => {
+                Some(m) => {
                     self.dco.add(prev);
                     self.timing.add(t - 1);
 
@@ -117,14 +100,13 @@ impl SyncDetector {
             EndRun(ref dco, ref mut corr) => match corr.feed(dco.feed(s)) {
                 Some(sum) if sum > 0.0 => Some(Error(InvalidRun)),
                 Some(sum) => {
-                    corr.reset(s);
-
                     if self.sums.add(sum) {
                         Some(Locked(
-                            Decoder::new(*dco, *corr, Decider::new(self.sums.min()))
+                            Decoder::new(*dco, Correlator::primed(s),
+                                         Decider::new(self.sums.min()))
                         ))
                     } else {
-                        None
+                        Some(EndRun(*dco, Correlator::primed(s)))
                     }
                 },
                 None => None,
@@ -162,11 +144,6 @@ impl Timing {
             times: [0; 7],
             pos: 0,
         }
-    }
-
-    /// Clear any recorded times to start from scratch.
-    pub fn reset(&mut self) {
-        self.pos = 0;
     }
 
     /// Add a new peak time.
@@ -216,7 +193,7 @@ impl Timing {
             t - self.start()
         }).zip(expected).map(|(diff, e)| {
             // Calculate the difference from the expected time.
-            (diff - e) as isize
+            diff as isize - e as isize
         }).fold(0, |s, d| s + d) as f32 / expanded.len() as f32
     }
 
@@ -280,15 +257,15 @@ impl Peaks {
     /// Feed in a sample and check for an inflection. Return `Some(m, p)`, where `m` is
     /// the inflection type and `p` is the value of the previous sample, if the previous
     /// sample was at a peak, and return `None` otherwise.
-    pub fn feed(&mut self, s: f32) -> Option<(PeakType, f32)> {
+    pub fn feed(&mut self, s: f32) -> Option<PeakType> {
         let prev = self.prev;
         self.prev = s;
 
         match self.cmp(prev, s) {
             Some(st) => {
                 self.state = st;
-                Some((st, prev))
-            }
+                Some(st)
+            },
             None => None,
         }
     }
@@ -369,10 +346,6 @@ impl Sums {
             sums: [0.0; 5],
             pos: 0,
         }
-    }
-
-    pub fn reset(&mut self) {
-        self.pos = 0;
     }
 
     pub fn add(&mut self, sum: f32) -> bool {
@@ -561,11 +534,11 @@ mod test {
         assert!(if let None = p.feed(0.0) { true } else { false });
         assert!(if let None = p.feed(-1.0) { true } else { false });
         assert!(if let None = p.feed(-2.0) { true } else { false });
-        assert!(if let Some((Minimum, _)) = p.feed(-1.0) { true } else { false });
+        assert!(if let Some(Minimum) = p.feed(-1.0) { true } else { false });
         assert!(if let None = p.feed(-1.0) { true } else { false });
         assert!(if let None = p.feed(1.0) { true } else { false });
         assert!(if let None = p.feed(2.0) { true } else { false });
-        assert!(if let Some((Maximum, _)) = p.feed(1.0) { true } else { false });
+        assert!(if let Some(Maximum) = p.feed(1.0) { true } else { false });
         assert!(if let None = p.feed(0.0) { true } else { false });
     }
 

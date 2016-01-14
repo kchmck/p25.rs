@@ -1,52 +1,131 @@
-use bits;
-use sync;
 use baseband::Decoder;
+use error::{P25Error, Result};
+use nid;
+use status::{StreamSymbol, StatusDeinterleaver};
+use sync;
 
-use self::ReceiveState::*;
+use self::State::*;
+use self::StateChange::*;
 
-enum ReceiveState {
-    Syncing(sync::SyncDetector),
-    Receiving(Decoder),
-    Dibit(bits::Dibit),
+pub enum ReceiverEvent {
+    Symbol(StreamSymbol),
+    NetworkID(nid::NetworkID),
 }
 
-pub struct Receiver {
-    state: ReceiveState,
+#[derive(Copy, Clone)]
+struct Receiver {
+    recv: Decoder,
+    status: StatusDeinterleaver,
 }
 
 impl Receiver {
-    pub fn new() -> Receiver {
+    pub fn new(recv: Decoder) -> Receiver {
         Receiver {
-            state: Syncing(sync::SyncDetector::new()),
+            recv: recv,
+            status: StatusDeinterleaver::new(),
         }
     }
 
-    fn handle(&mut self, s: f32, t: usize) -> Option<ReceiveState> {
+    pub fn feed(&mut self, s: f32) -> Option<StreamSymbol> {
+        let dibit = match self.recv.feed(s) {
+            Some(dibit) => dibit,
+            None => return None,
+        };
+
+        Some(self.status.feed(dibit))
+    }
+}
+
+enum State {
+    Sync(sync::SyncDetector),
+    DecodeNID(Receiver, nid::NIDReceiver),
+    DecodePacket(Receiver),
+    FlushPads(Receiver),
+}
+
+enum StateChange {
+    Change(State),
+    Event(ReceiverEvent),
+    EventChange(ReceiverEvent, State),
+    Error(P25Error),
+    NoChange,
+}
+
+impl State {
+    pub fn sync() -> State { Sync(sync::SyncDetector::new()) }
+    pub fn decode_nid(decoder: Decoder) -> State {
+        DecodeNID(Receiver::new(decoder), nid::NIDReceiver::new())
+    }
+    pub fn decode_packet(recv: Receiver) -> State { DecodePacket(recv) }
+    pub fn flush_pads(recv: Receiver) -> State { FlushPads(recv) }
+}
+
+pub struct DataUnitReceiver {
+    state: State,
+}
+
+impl DataUnitReceiver {
+    pub fn new() -> DataUnitReceiver {
+        DataUnitReceiver {
+            state: State::sync(),
+        }
+    }
+
+    pub fn flush_pads(&mut self) {
+        if let DecodePacket(recv) = self.state {
+            self.state = State::flush_pads(recv);
+        } else {
+            panic!("not decoding a packet");
+        }
+    }
+
+    pub fn resync(&mut self) { self.state = State::sync(); }
+
+    fn handle(&mut self, s: f32, t: usize) -> StateChange {
         match self.state {
-            Syncing(ref mut sync) => match sync.feed(s, t) {
-                Some(Err(_)) => {
-                    sync.reset();
-                    None
-                },
-                Some(Ok(decoder)) => Some(Receiving(decoder)),
-                None => None,
+            Sync(ref mut sync) => match sync.feed(s, t) {
+                Some(Err(_)) => Change(State::sync()),
+                Some(Ok(decoder)) => Change(State::decode_nid(decoder)),
+                None => NoChange,
             },
-            Receiving(ref mut decoder) => match decoder.feed(s) {
-                Some(d) => Some(Dibit(d)),
-                None => None,
+            DecodeNID(ref mut recv, ref mut nid) => {
+                let dibit = match recv.feed(s) {
+                    Some(StreamSymbol::Data(d)) => d,
+                    Some(s) => return Event(ReceiverEvent::Symbol(s)),
+                    None => return NoChange,
+                };
+
+                match nid.feed(dibit) {
+                    Some(Ok(nid)) => EventChange(ReceiverEvent::NetworkID(nid),
+                                                 State::decode_packet(*recv)),
+                    Some(Err(e)) => Error(e),
+                    None => NoChange,
+                }
             },
-            Dibit(_) => panic!(),
+            DecodePacket(ref mut recv) => match recv.feed(s) {
+                Some(x) => Event(ReceiverEvent::Symbol(x)),
+                None => NoChange,
+            },
+            FlushPads(ref mut recv) => match recv.feed(s) {
+                Some(StreamSymbol::Status(_)) => Change(State::sync()),
+                _ => NoChange,
+            },
         }
     }
 
-    pub fn feed(&mut self, s: f32, t: usize) -> Option<bits::Dibit> {
+    pub fn feed(&mut self, s: f32, t: usize) -> Option<Result<ReceiverEvent>> {
         match self.handle(s, t) {
-            Some(Dibit(d)) => Some(d),
-            Some(next) => {
-                self.state = next;
+            Change(state) => {
+                self.state = state;
                 None
             },
-            None => None,
+            Event(event) => Some(Ok(event)),
+            EventChange(event, state) => {
+                self.state = state;
+                Some(Ok(event))
+            },
+            Error(err) => Some(Err(err)),
+            NoChange => None,
         }
     }
 }
