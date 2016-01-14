@@ -1,4 +1,5 @@
 #![feature(zero_one)]
+#![feature(const_fn)]
 
 extern crate collect_slice;
 extern crate num;
@@ -22,3 +23,4 @@ pub mod receiver;
 pub mod status;
 pub mod sync;
 pub mod trunking;
+pub mod voice;
