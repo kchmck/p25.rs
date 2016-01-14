@@ -17,4 +17,5 @@ pub mod consts;
 pub mod data;
 pub mod filters;
 pub mod receiver;
+pub mod status;
 pub mod sync;
