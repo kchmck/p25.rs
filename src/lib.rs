@@ -6,6 +6,7 @@ extern crate num;
 #[macro_use]
 extern crate dsp;
 
+mod buffer;
 mod util;
 
 pub mod baseband;
