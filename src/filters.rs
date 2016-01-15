@@ -3,19 +3,19 @@ use dsp::dcblock::DCBlocker;
 
 pub struct TransmitFilter {
     rcf: FIRFilter<RaisedCosineFIR>,
-    shaping: FIRFilter<ShapingFIR>,
+    preemph: FIRFilter<PreemphasisFIR>,
 }
 
 impl TransmitFilter {
     pub fn new() -> TransmitFilter {
         TransmitFilter {
             rcf: FIRFilter::new(),
-            shaping: FIRFilter::new(),
+            preemph: FIRFilter::new(),
         }
     }
 
     pub fn feed(&mut self, s: f32) -> f32 {
-        self.shaping.feed(self.rcf.feed(s))
+        self.preemph.feed(self.rcf.feed(s))
     }
 }
 
@@ -165,7 +165,7 @@ impl_fir!(RaisedCosineFIR, f32, 121, [
 
 /// Construct a FIR filter that approximates the frequency response of the "Shaping"
 /// filter described in the P25 standard.
-impl_fir!(ShapingFIR, f32, 39, [
+impl_fir!(PreemphasisFIR, f32, 39, [
     -0.0178961626433530,
     0.0346928432330632,
     0.0163584472672260,
@@ -259,7 +259,7 @@ mod test {
     #[test]
     fn verify_symmetry() {
         RaisedCosineFIR::verify_symmetry();
-        ShapingFIR::verify_symmetry();
+        PreemphasisFIR::verify_symmetry();
         UnshapingFIR::verify_symmetry();
     }
 }
