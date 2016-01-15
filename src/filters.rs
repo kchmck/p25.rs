@@ -1,6 +1,42 @@
 use dsp::fir::FIRFilter;
 use dsp::dcblock::DCBlocker;
 
+pub struct TransmitFilter {
+    rcf: FIRFilter<RaisedCosineFIR>,
+    shaping: FIRFilter<ShapingFIR>,
+}
+
+impl TransmitFilter {
+    pub fn new() -> TransmitFilter {
+        TransmitFilter {
+            rcf: FIRFilter::new(),
+            shaping: FIRFilter::new(),
+        }
+    }
+
+    pub fn feed(&mut self, s: f32) -> f32 {
+        self.shaping.feed(self.rcf.feed(s))
+    }
+}
+
+pub struct ReceiveFilter {
+    unshaping: FIRFilter<UnshapingFIR>,
+    dcblock: DCBlocker<f32>,
+}
+
+impl ReceiveFilter {
+    pub fn new() -> ReceiveFilter {
+        ReceiveFilter {
+            unshaping: FIRFilter::new(),
+            dcblock: DCBlocker::new(0.999),
+        }
+    }
+
+    pub fn feed(&mut self, s: f32) -> f32 {
+        self.unshaping.feed(self.dcblock.feed(s))
+    }
+}
+
 /// Construct a FIR filter approximating the frequency response of the "Nyquist Raised
 /// Cosine" filter described in the P25 standard.
 impl_fir!(RaisedCosineFIR, f32, 121, [
@@ -214,42 +250,6 @@ impl_fir!(UnshapingFIR, f32, 39, [
     -0.0000004257533422,
     -0.0000000279259602,
 ]);
-
-pub struct TransmitFilter {
-    rcf: FIRFilter<RaisedCosineFIR>,
-    shaping: FIRFilter<ShapingFIR>,
-}
-
-impl TransmitFilter {
-    pub fn new() -> TransmitFilter {
-        TransmitFilter {
-            rcf: FIRFilter::new(),
-            shaping: FIRFilter::new(),
-        }
-    }
-
-    pub fn feed(&mut self, s: f32) -> f32 {
-        self.shaping.feed(self.rcf.feed(s))
-    }
-}
-
-pub struct ReceiveFilter {
-    unshaping: FIRFilter<UnshapingFIR>,
-    dcblock: DCBlocker<f32>,
-}
-
-impl ReceiveFilter {
-    pub fn new() -> ReceiveFilter {
-        ReceiveFilter {
-            unshaping: FIRFilter::new(),
-            dcblock: DCBlocker::new(0.999),
-        }
-    }
-
-    pub fn feed(&mut self, s: f32) -> f32 {
-        self.unshaping.feed(self.dcblock.feed(s))
-    }
-}
 
 #[cfg(test)]
 mod test {
