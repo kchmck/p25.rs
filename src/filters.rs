@@ -20,20 +20,20 @@ impl TransmitFilter {
 }
 
 pub struct ReceiveFilter {
-    unshaping: FIRFilter<UnshapingFIR>,
+    deemph: FIRFilter<DeemphasisFIR>,
     dcblock: DCBlocker<f32>,
 }
 
 impl ReceiveFilter {
     pub fn new() -> ReceiveFilter {
         ReceiveFilter {
-            unshaping: FIRFilter::new(),
+            deemph: FIRFilter::new(),
             dcblock: DCBlocker::new(0.999),
         }
     }
 
     pub fn feed(&mut self, s: f32) -> f32 {
-        self.unshaping.feed(self.dcblock.feed(s))
+        self.deemph.feed(self.dcblock.feed(s))
     }
 }
 
@@ -209,7 +209,7 @@ impl_fir!(PreemphasisFIR, f32, 39, [
 
 /// Construct a filter that approximates the frequency response of the "Integrate and
 /// Dump" filter described in the P25 standard.
-impl_fir!(UnshapingFIR, f32, 39, [
+impl_fir!(DeemphasisFIR, f32, 39, [
     -0.0000000279259602,
     -0.0000004257533422,
     -0.0000032294948985,
@@ -260,6 +260,6 @@ mod test {
     fn verify_symmetry() {
         RaisedCosineFIR::verify_symmetry();
         PreemphasisFIR::verify_symmetry();
-        UnshapingFIR::verify_symmetry();
+        DeemphasisFIR::verify_symmetry();
     }
 }
