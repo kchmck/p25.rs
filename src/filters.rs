@@ -1,5 +1,4 @@
 use dsp::fir::FIRFilter;
-use dsp::dcblock::DCBlocker;
 
 pub struct TransmitFilter {
     rcf: FIRFilter<RaisedCosineFIR>,
@@ -21,19 +20,17 @@ impl TransmitFilter {
 
 pub struct ReceiveFilter {
     deemph: FIRFilter<DeemphasisFIR>,
-    dcblock: DCBlocker<f32>,
 }
 
 impl ReceiveFilter {
     pub fn new() -> ReceiveFilter {
         ReceiveFilter {
             deemph: FIRFilter::new(),
-            dcblock: DCBlocker::new(0.999),
         }
     }
 
     pub fn feed(&mut self, s: f32) -> f32 {
-        self.deemph.feed(self.dcblock.feed(s))
+        self.deemph.feed(s)
     }
 }
 
