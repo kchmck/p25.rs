@@ -35,7 +35,7 @@ pub trait CRCParams {
 }
 
 /// Params for 9-bit CRC.
-struct CRC9Params;
+pub struct CRC9Params;
 
 impl CRCParams for CRC9Params {
     fn gen() -> u64 { 0b1001011001 }
@@ -44,7 +44,7 @@ impl CRCParams for CRC9Params {
 }
 
 /// Params for 16-bit CRC.
-struct CRC16Params;
+pub struct CRC16Params;
 
 impl CRCParams for CRC16Params {
     fn gen() -> u64 { 0b10001000000100001 }
@@ -53,7 +53,7 @@ impl CRCParams for CRC16Params {
 }
 
 /// Params for 32-bit CRC.
-struct CRC32Params;
+pub struct CRC32Params;
 
 impl CRCParams for CRC32Params {
     fn gen() -> u64 { 0b100000100110000010001110110110111 }
@@ -62,7 +62,7 @@ impl CRCParams for CRC32Params {
 }
 
 /// CRC calculator using long division.
-struct CRC<P: CRCParams> {
+pub struct CRC<P: CRCParams> {
     params: std::marker::PhantomData<P>,
     /// Current output of the calculator.
     word: u64
@@ -139,7 +139,6 @@ fn degree(x: u64) -> u32 {
 #[cfg(test)]
 mod test {
     use super::*;
-    use super::{CRC9Params, CRC16Params, CRC32Params, CRC};
 
     struct CRCTest;
 

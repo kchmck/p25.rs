@@ -160,7 +160,7 @@ impl<S: States> TrellisFSM<S> {
 macro_rules! history_type {
     ($name: ident, $history: expr) => {
         #[derive(Copy, Clone, Default)]
-        struct $name([Option<usize>; $history]);
+        pub struct $name([Option<usize>; $history]);
 
         impl Deref for $name {
             type Target = [Option<usize>];

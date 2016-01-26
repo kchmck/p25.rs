@@ -24,7 +24,7 @@ pub trait Extra {
     fn decode_extra(buf: &[Hexbit]) -> Self::Decoder;
 }
 
-struct LinkControlExtra;
+pub struct LinkControlExtra;
 
 impl Extra for LinkControlExtra {
     type Decoder = control::LinkControl;
@@ -41,7 +41,7 @@ impl Extra for LinkControlExtra {
     }
 }
 
-struct CryptoControlExtra;
+pub struct CryptoControlExtra;
 
 impl Extra for CryptoControlExtra {
     type Decoder = crypto::CryptoControlDecoder;

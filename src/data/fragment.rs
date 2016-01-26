@@ -16,7 +16,7 @@ pub type UnconfirmedFragments<'a> = Fragments<'a, UnconfirmedParams>;
 
 /// Iterator over data fragments, yielding fragment-sized data slices to be turned into
 /// payload blocks.
-struct Fragments<'a, P: PacketParams> {
+pub struct Fragments<'a, P: PacketParams> {
     params: std::marker::PhantomData<P>,
     /// data to be split.
     data: &'a [u8],

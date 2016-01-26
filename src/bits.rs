@@ -192,7 +192,7 @@ impl IterParams for HexbitByteParams {
 }
 
 /// An iterator for sub-byte (bit-level) values.
-struct SubByteIter<P, T> where
+pub struct SubByteIter<P, T> where
     P: IterParams, T: Iterator<Item = P::Input>
 {
     params: std::marker::PhantomData<P>,

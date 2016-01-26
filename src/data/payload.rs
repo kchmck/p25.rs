@@ -13,7 +13,7 @@ pub type ConfirmedPayload<'a> = Payload<'a, ConfirmedParams>;
 pub type UnconfirmedPayload<'a> = Payload<'a, UnconfirmedParams>;
 
 /// Wraps a buffer of bytes, splitting them over payload blocks.
-struct Payload<'a, P: PacketParams> {
+pub struct Payload<'a, P: PacketParams> {
     params: std::marker::PhantomData<P>,
     /// Data to split into blocks.
     data: &'a [u8],
@@ -62,7 +62,7 @@ impl<'a, P: PacketParams> Payload<'a, P> {
 }
 
 /// Iterator over the normal (non-tail) blocks in a payload.
-struct PayloadIter<'a, P: PacketParams> {
+pub struct PayloadIter<'a, P: PacketParams> {
     params: std::marker::PhantomData<P>,
     /// Data to split into blocks (not all of it may be used).
     data: &'a [u8],
@@ -97,7 +97,7 @@ impl<'a, P: PacketParams> Iterator for PayloadIter<'a, P> {
 }
 
 /// Normal payload block.
-struct PayloadBlock<'a, P: PacketParams> {
+pub struct PayloadBlock<'a, P: PacketParams> {
     params: std::marker::PhantomData<P>,
     /// Data part of the block.
     data: &'a [u8],
@@ -121,7 +121,7 @@ impl<'a, P: PacketParams> PayloadBlock<'a, P> {
 }
 
 /// Tail payload block, which has the packet checksum.
-struct TailBlock<'a, P: PacketParams> {
+pub struct TailBlock<'a, P: PacketParams> {
     params: std::marker::PhantomData<P>,
     /// Data part of the block.
     data: &'a [u8],
@@ -200,7 +200,6 @@ impl ConfirmedBlockHeader {
 mod test {
     use super::*;
     use data::params::*;
-    use super::Payload;
 
     #[test]
     fn test_iter_nopad() {

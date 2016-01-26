@@ -18,7 +18,7 @@ pub trait BufWrite {
 }
 
 /// Field is only a single byte.
-trait ByteField {
+pub trait ByteField {
     fn byte(&self) -> u8;
 }
 
@@ -220,7 +220,7 @@ impl BufWrite for UnconfirmedFields {
 }
 
 /// Builds a checksummed header based on the given fields.
-struct Header<F: BufWrite>(F);
+pub struct Header<F: BufWrite>(F);
 
 impl<F: BufWrite> Header<F> {
     /// Construct a new `Header` with the given fields.
@@ -263,7 +263,6 @@ fn bool_to_bit(b: bool) -> u8 {
 #[cfg(test)]
 mod test {
     use super::*;
-    use super::ByteField;
     use data::values;
 
     #[test]

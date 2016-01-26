@@ -10,7 +10,7 @@ pub type DibitCoder = DataCoder<trellis::DibitStates>;
 /// 3/4-rate (tribit) convolutional coder.
 pub type TribitCoder = DataCoder<trellis::TribitStates>;
 
-struct DataCoder<S: trellis::States> {
+pub struct DataCoder<S: trellis::States> {
     /// Convolutional state machine.
     fsm: trellis::TrellisFSM<S>,
     /// Current coded buffer.
