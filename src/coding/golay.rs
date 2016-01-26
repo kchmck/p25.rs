@@ -75,7 +75,11 @@ pub mod shortened {
         assert!(word >> 18 == 0);
 
         match extended::decode(word) {
-            Some((data, err)) => Some((data as u8, err)),
+            Some((data, err)) => if data >> 6 != 0 {
+                None
+            } else {
+                Some((data as u8, err))
+            },
             None => None,
         }
     }
