@@ -1,511 +1,309 @@
 use std;
 
-use baseband::{Decider, Correlator, Decoder};
-use consts;
+use dsp::fir::FIRFilter;
 
-use self::PeakType::*;
-use self::SyncError::*;
-use self::SyncState::*;
+// between 0 and 1
+const SMOOTH_WEIGHT: f32 = 0.01;
+// +6dB
+const THRESH_FACTOR: f32 = 4.0;
 
-pub enum SyncError {
-    InvalidRun,
-    InvalidSine,
+pub struct SyncCorrelator {
+    corr: FIRFilter<SyncFingerprint>,
+    avg: f32,
 }
 
-enum SyncState {
-    BootstrapRun(RunCheck),
-    BigSine(Peaks),
-    MidRun(RunCheck),
-    SmallSine(Peaks),
-    LockBoundary(SymbolClock),
-    EndRun(Correlator),
-    Locked(Decoder),
-    Error(SyncError),
+impl SyncCorrelator {
+    pub fn new() -> SyncCorrelator {
+        SyncCorrelator {
+            corr: FIRFilter::new(),
+            avg: 0.0,
+        }
+    }
+
+    pub fn feed(&mut self, sample: f32) -> f32 {
+        // Normalized (1ohm load) energy of correlation.
+        let energy = self.corr.feed(sample);
+        // Average normalized energy (power).
+        self.avg = self.smooth(energy.abs());
+
+        energy
+    }
+
+    pub fn thresh(&self) -> f32 { self.avg * THRESH_FACTOR }
+
+    fn smooth(&self, energy: f32) -> f32 {
+        SMOOTH_WEIGHT * energy + (1.0 - SMOOTH_WEIGHT) * self.avg
+    }
 }
 
+#[derive(Copy, Clone, Debug)]
 pub struct SyncDetector {
-    state: SyncState,
-    timing: Timing,
-    sums: Sums,
+    /// Previous (maximum) energy.
+    prev: f32,
 }
 
 impl SyncDetector {
     pub fn new() -> SyncDetector {
         SyncDetector {
-            state: BootstrapRun(RunCheck::new(4 * consts::PERIOD, None)),
-            timing: Timing::new(),
-            sums: Sums::new(),
+            prev: -std::f32::MAX,
         }
     }
 
-    /// Take the given sample and sample time and output where the state machine should
-    /// move next.
-    fn handle(&mut self, s: f32, t: usize) -> Option<SyncState> {
-        match self.state {
-            BootstrapRun(ref mut run) => match run.feed(s) {
-                Some(true) => Some(BigSine(Peaks::new(Maximum, s))),
-                Some(false) => Some(Error(InvalidRun)),
-                None => None,
-            },
-            BigSine(ref mut peaks) => match peaks.feed(s) {
-                Some(Maximum) if self.timing.pos > 4 || self.timing.pos % 2 == 0 =>
-                    Some(Error(InvalidSine)),
-                Some(Minimum) if self.timing.pos > 3 || self.timing.pos % 2 != 0 =>
-                    Some(Error(InvalidSine)),
-                Some(m) => {
-                    self.timing.add(t - 1);
-
-                    match m {
-                        Maximum if self.timing.pos == 4 => Some(MidRun(
-                            RunCheck::new(3 * consts::PERIOD, Some(consts::PERIOD))
-                        )),
-                        _ => None,
-                    }
-                },
-                None => None,
-            },
-            MidRun(ref mut run) => match run.feed(-s) {
-                Some(true) => Some(SmallSine(Peaks::new(Minimum, s))),
-                Some(false) => Some(Error(InvalidRun)),
-                None => None,
-            },
-            SmallSine(ref mut peaks) => match peaks.feed(s) {
-                Some(Maximum) if self.timing.pos > 7 || self.timing.pos % 2 != 0 =>
-                    Some(Error(InvalidSine)),
-                Some(Minimum) if self.timing.pos > 6 || self.timing.pos % 2 == 0 =>
-                    Some(Error(InvalidSine)),
-                Some(m) => {
-                    self.timing.add(t - 1);
-
-                    match m {
-                        Maximum if self.timing.pos == 7 => Some(LockBoundary(
-                            SymbolClock::new(self.timing.corrected_start())
-                        )),
-                        _ => None,
-                    }
-                },
-                None => None,
-            },
-            LockBoundary(ref mut clock) => if clock.boundary(t + 1) {
-                Some(EndRun(Correlator::new()))
-            } else {
-                None
-            },
-            EndRun(ref mut corr) => match corr.feed(s) {
-                Some(sum) if sum > 0.0 => Some(Error(InvalidRun)),
-                Some(sum) => {
-                    if self.sums.add(sum) {
-                        Some(Locked(
-                            Decoder::new(Correlator::primed(s),
-                                         Decider::new(self.sums.min()))
-                        ))
-                    } else {
-                        Some(EndRun(Correlator::primed(s)))
-                    }
-                },
-                None => None,
-            },
-            Error(_) | Locked(_) => panic!(),
+    pub fn feed(&mut self, energy: f32, thresh: f32) -> Option<f32> {
+        if energy < self.prev {
+            // There are 24 full-energy impulses within the correlation window, so average
+            // by that for the threshold.
+            return Some(self.prev / 24.0);
         }
-    }
 
-    pub fn feed(&mut self, s: f32, t: usize) -> Option<Result<Decoder, SyncError>> {
-        match self.handle(s, t) {
-            Some(Error(e)) => Some(Err(e)),
-            Some(Locked(d)) => Some(Ok(d)),
-            Some(next) => {
-                self.state = next;
-                None
-            },
-            None => None,
+        if energy > thresh {
+            self.prev = energy;
         }
+
+        None
     }
 }
 
-/// Recovers impulse timing from the (positive and negative) peaks of the "big sine" and
-/// "small sine" sections of the frame sync waveform.
-struct Timing {
-    /// Times of the peaks in the waveform.
-    times: [usize; 7],
-    /// Current number of peaks (length of `times`.)
-    pub pos: usize,
-}
-
-impl Timing {
-    /// Construct a new `Timing` with the given symbol period.
-    pub fn new() -> Timing {
-        Timing {
-            times: [0; 7],
-            pos: 0,
-        }
-    }
-
-    /// Add a new peak time.
-    pub fn add(&mut self, t: usize) {
-        self.times[self.pos] = t;
-        self.pos += 1;
-    }
-
-    /// Expand the peak times into impulse times (the big sine peaks are made by two
-    /// impulses.)
-    fn expand(&self) -> [usize; 10] {
-        let half_period = consts::PERIOD / 2;
-
-        [
-            self.times[0],
-            self.times[1] - half_period,
-            self.times[1] + half_period,
-            self.times[2] - half_period,
-            self.times[2] + half_period,
-            self.times[3] - half_period,
-            self.times[3] + half_period,
-            self.times[4],
-            self.times[5],
-            self.times[6],
-        ]
-    }
-
-    /// Get the uncorrected starting time of the impulse clock.
-    fn start(&self) -> usize { self.times[0] }
-
-    /// Calculate the timing correction to apply to the impulse clock.
-    fn correction(&self) -> f32 {
-        // These are the raw expected impulse times relative to the first impulse.
-        const EXPECTED_TIMES: &'static [usize] = &[
-            0, 1, 2, 3, 4, 5, 6, 11, 12, 13
-        ];
-
-        assert!(self.pos == 7);
-
-        // Scale the impulse times by the symbol period.
-        let expected = EXPECTED_TIMES.iter().map(|e| e * consts::PERIOD);
-        let expanded = self.expand();
-
-        // Calculate the average difference between real and expected timings.
-        expanded.iter().map(|t| {
-            // Calculate the times relative to the first impulse.
-            t - self.start()
-        }).zip(expected).map(|(diff, e)| {
-            // Calculate the difference from the expected time.
-            diff as isize - e as isize
-        }).fold(0, |s, d| s + d) as f32 / expanded.len() as f32
-    }
-
-    /// Get the corrected impulse clock starting time.
-    pub fn corrected_start(&self) -> usize {
-        (self.start() as isize + self.correction().round() as isize) as usize
-    }
-}
-
-/// Calculates symbol impulse and boundary times.
-struct SymbolClock {
-    /// Impulse starting time.
-    start: usize,
-}
-
-impl SymbolClock {
-    /// Construct a new `SymbolClock` with the given impulse clock starting time and
-    /// symbol period.
-    pub fn new(start: usize) -> SymbolClock {
-        SymbolClock {
-            start: start,
-        }
-    }
-
-    /// Check if the given time falls on a symbol impulse.
-    pub fn impulse(&self, t: usize) -> bool {
-        (t - self.start) % consts::PERIOD == 0
-    }
-
-    /// Check if the given time falls on a symbol boundary.
-    pub fn boundary(&self, t: usize) -> bool {
-        self.impulse(t + consts::PERIOD / 2)
-    }
-}
-
-#[derive(Copy, Clone)]
-/// A maximum or minimum peak.
-enum PeakType {
-    Maximum,
-    Minimum,
-}
-
-#[derive(Copy, Clone)]
-/// Finds peaks in a waveform.
-struct Peaks {
-    /// Previous inflection found.
-    state: PeakType,
-    /// Value of the previous sample.
-    prev: f32,
-}
-
-impl Peaks {
-    /// Constructs a new `Peaks` with the given starting state and sample.
-    pub fn new(state: PeakType, start: f32) -> Peaks {
-        Peaks {
-            state: state,
-            prev: start,
-        }
-    }
-
-    /// Feed in a sample and check for an inflection. Return `Some(m, p)`, where `m` is
-    /// the inflection type and `p` is the value of the previous sample, if the previous
-    /// sample was at a peak, and return `None` otherwise.
-    pub fn feed(&mut self, s: f32) -> Option<PeakType> {
-        let prev = self.prev;
-        self.prev = s;
-
-        match self.cmp(prev, s) {
-            Some(st) => {
-                self.state = st;
-                Some(st)
-            },
-            None => None,
-        }
-    }
-
-    /// Compare the current and previous samples and check if the previous was at an
-    /// inflection. Return `Some(m)` with the inflection type `m` if so and `None`
-    /// otherwise.
-    fn cmp(&self, prev: f32, cur: f32) -> Option<PeakType> {
-        match self.state {
-            // If we're coming off a maximum, the slope should be headed downwards.
-            Maximum if cur <= prev => None,
-            // Since cur < prev, the previous sample was at a minimum.
-            Maximum => Some(Minimum),
-
-            // If we're coming off a minimum, the slope should be headed upwards.
-            Minimum if cur >= prev => None,
-            // Since cur > prev, the previous sample was at a maximum.
-            Minimum => Some(Maximum),
-        }
-    }
-}
-
-/// Checks for a "run" of impulses of a certain length.
-/// - positive run only
-/// - sample skipping
-struct RunCheck {
-    /// Required length of the run.
-    length: usize,
-    /// (Optional) initial samples remaining that may be skipped.
-    skip_remain: Option<usize>,
-    /// Current length of the run.
-    run: usize,
-}
-
-impl RunCheck {
-    /// Construct a new `RunCheck` with the given required run length and maximum amount
-    /// of initia samples to skip (can be `None` to disable skipping.)
-    pub fn new(length: usize, max_skip: Option<usize>) -> RunCheck {
-        RunCheck {
-            length: length,
-            skip_remain: max_skip,
-            run: 0,
-        }
-    }
-
-    /// Feed the given sample into the current state and return `Some(true)` if it
-    /// completes the run, `Some(false)` if the run wasn't the required length, and `None`
-    /// if more samples must be fed in.
-    pub fn feed(&mut self, s: f32) -> Option<bool> {
-        if s > 0.0 {
-            self.run += 1;
-            None
-        } else if self.run == 0 {
-            match self.skip_remain {
-                Some(0) => Some(false),
-                Some(ref mut remain) => {
-                    *remain -= 1;
-                    None
-                },
-                None => None,
-            }
-        } else if self.run < self.length {
-            Some(false)
-        } else {
-            Some(true)
-        }
-    }
-}
-
-struct Sums {
-    sums: [f32; 5],
-    pos: usize,
-}
-
-impl Sums {
-    pub fn new() -> Sums {
-        Sums {
-            sums: [0.0; 5],
-            pos: 0,
-        }
-    }
-
-    pub fn add(&mut self, sum: f32) -> bool {
-        self.sums[self.pos] = sum.abs();
-        self.pos += 1;
-        self.pos == 5
-    }
-
-    pub fn min(&self) -> f32 {
-        assert!(self.pos == 5);
-
-        self.sums.iter().fold(std::f32::MAX, |s, &x| {
-            match s.partial_cmp(&x).unwrap() {
-                std::cmp::Ordering::Less | std::cmp::Ordering::Equal => s,
-                std::cmp::Ordering::Greater => x,
-            }
-        })
-    }
-}
-
-
-#[cfg(test)]
-mod test {
-    use super::{Timing, SymbolClock, Peaks, RunCheck, Sums};
-    use super::PeakType::*;
-
-    #[test]
-    fn test_timing_perfect() {
-        let mut t = Timing::new();
-        t.add(17);
-        t.add(32);
-        t.add(52);
-        t.add(72);
-        t.add(127);
-        t.add(137);
-        t.add(147);
-
-        let e = t.expand();
-        assert_eq!(e[0], 17);
-        assert_eq!(e[1], 27);
-        assert_eq!(e[2], 37);
-        assert_eq!(e[3], 47);
-        assert_eq!(e[4], 57);
-        assert_eq!(e[5], 67);
-        assert_eq!(e[6], 77);
-        assert_eq!(e[7], 127);
-        assert_eq!(e[8], 137);
-        assert_eq!(e[9], 147);
-
-        assert_eq!(t.start(), 17);
-        assert_eq!(t.correction(), 0.0);
-        assert_eq!(t.corrected_start(), 17);
-    }
-
-    #[test]
-    fn test_timing_jitter() {
-        let mut t = Timing::new();
-        t.add(17);
-        t.add(31);
-        t.add(51);
-        t.add(71);
-        t.add(126);
-        t.add(136);
-        t.add(146);
-
-        assert_eq!(t.correction().round(), -1.0);
-        assert_eq!(t.corrected_start(), 16);
-    }
-
-    #[test]
-    fn test_timing_mixed() {
-        let mut t = Timing::new();
-        t.add(17);
-        t.add(32);
-        t.add(52);
-        t.add(72);
-        t.add(125);
-        t.add(139);
-        t.add(147);
-
-        assert_eq!(t.correction().round(), 0.0);
-        assert_eq!(t.corrected_start(), 17);
-    }
-
-    #[test]
-    fn test_clock() {
-        let s = SymbolClock::new(12);
-        assert!(s.impulse(12));
-        assert!(s.boundary(17));
-        assert!(s.impulse(22));
-        assert!(s.boundary(27));
-        assert!(s.impulse(32));
-        assert!(s.boundary(37));
-    }
-
-    #[test]
-    fn test_run_lenient() {
-        let mut run = RunCheck::new(3, Some(3));
-        assert!(if let None = run.feed(-2.0) { true } else { false });
-        assert!(if let None = run.feed(-1.0) { true } else { false });
-        assert!(if let None = run.feed(0.0) { true } else { false });
-        assert!(if let None = run.feed(1.0) { true } else { false });
-        assert!(if let None = run.feed(1.0) { true } else { false });
-        assert!(if let None = run.feed(2.0) { true } else { false });
-        assert!(if let Some(true) = run.feed(-1.0) { true } else { false });
-    }
-
-    #[test]
-    fn test_run_skip() {
-        let mut run = RunCheck::new(3, Some(3));
-        assert!(if let None = run.feed(-2.0) { true } else { false });
-        assert!(if let None = run.feed(-1.0) { true } else { false });
-        assert!(if let None = run.feed(0.0) { true } else { false });
-        assert!(if let Some(false) = run.feed(0.0) { true } else { false });
-    }
-
-    #[test]
-    fn test_run_detect() {
-        let mut run = RunCheck::new(3, None);
-        assert!(if let None = run.feed(1.0) { true } else { false });
-        assert!(if let None = run.feed(1.0) { true } else { false });
-        assert!(if let None = run.feed(2.0) { true } else { false });
-        assert!(if let Some(true) = run.feed(-3.0) { true } else { false });
-    }
-
-    #[test]
-    fn test_run_interrupt() {
-        let mut run = RunCheck::new(3, None);
-        assert!(if let None = run.feed(1.0) { true } else { false });
-        assert!(if let None = run.feed(1.0) { true } else { false });
-        assert!(if let Some(false) = run.feed(-3.0) { true } else { false });
-    }
-
-    #[test]
-    fn test_run_inverse() {
-        let mut run = RunCheck::new(3, None);
-        assert!(if let None = run.feed(-1.0) { true } else { false });
-        assert!(if let None = run.feed(-0.0) { true } else { false });
-        assert!(if let None = run.feed(1.0) { true } else { false });
-        assert!(if let None = run.feed(1.0) { true } else { false });
-        assert!(if let None = run.feed(2.0) { true } else { false });
-        assert!(if let Some(true) = run.feed(-3.0) { true } else { false });
-    }
-
-    #[test]
-    fn test_inflection() {
-        let mut p = Peaks::new(Maximum, 0.0);
-        assert!(if let None = p.feed(0.0) { true } else { false });
-        assert!(if let None = p.feed(-1.0) { true } else { false });
-        assert!(if let None = p.feed(-2.0) { true } else { false });
-        assert!(if let Some(Minimum) = p.feed(-1.0) { true } else { false });
-        assert!(if let None = p.feed(-1.0) { true } else { false });
-        assert!(if let None = p.feed(1.0) { true } else { false });
-        assert!(if let None = p.feed(2.0) { true } else { false });
-        assert!(if let Some(Maximum) = p.feed(1.0) { true } else { false });
-        assert!(if let None = p.feed(0.0) { true } else { false });
-    }
-
-    #[test]
-    fn test_sums() {
-        let mut s = Sums::new();
-        s.add(0.0);
-        s.add(1.0);
-        s.add(2.0);
-        s.add(31.0);
-        s.add(1.0);
-        assert!(s.min() == 0.0);
-    }
-}
+// Fingerprint of frame sync waveform in volts.
+impl_fir!(SyncFingerprint, f32, 240, [
+    -0.000000000000000024767047999980024726943243520977,
+    0.148455499447166239246342911428655497729778289795,
+    0.290689245162433940183888125829980708658695220947,
+    0.420951433270391917051966856888611800968647003174,
+    0.534393651200517405541745574737433344125747680664,
+    0.627417383308746967607305577985243871808052062988,
+    0.694006965537270814614601022185524925589561462402,
+    0.737873405089441880555511943384772166609764099121,
+    0.760362916004333699859785156149882823228836059570,
+    0.764174624870962881928448950930032879114151000977,
+    0.753059571751972689490628454223042353987693786621,
+    0.731434587900288923911773508734768256545066833496,
+    0.703948973772537511806035581685137003660202026367,
+    0.675046505830593668306960353220347315073013305664,
+    0.648565703132813808906576014123857021331787109375,
+    0.627417383308746967607305577985243871808052062988,
+    0.612435684818294245879144455102505162358283996582,
+    0.604534645652294533313408919639186933636665344238,
+    0.603320258940565845584558246628148481249809265137,
+    0.607483628089006799655180657282471656799316406250,
+    0.615041465518760821495902746391948312520980834961,
+    0.623644241186279368882594553724629804491996765137,
+    0.630917934379320421989234546344960108399391174316,
+    0.634801554262789946569967014511348679661750793457,
+    0.633842689029069372708136143046431243419647216797,
+    0.627417383308746967607305577985243871808052062988,
+    0.618570118932824430935113468876807019114494323730,
+    0.605640778881353036844359394308412447571754455566,
+    0.590526114504008270422730220161611214280128479004,
+    0.575736148150769011522243090439587831497192382812,
+    0.564086075383130269855769256537314504384994506836,
+    0.558334348728949936280230303964344784617424011230,
+    0.560805692250504028706359349598642438650131225586,
+    0.573040089509377015275504163582809269428253173828,
+    0.595506900983130083027106138615636155009269714355,
+    0.627417383308746967607305577985243871808052062988,
+    0.669381417632362474279261732590384781360626220703,
+    0.715103044251503949801929138629930093884468078613,
+    0.759964549739454597876431307668099179863929748535,
+    0.798635631047784011471435405837837606668472290039,
+    0.825500132856798352065652579767629504203796386719,
+    0.835143220692132426385967391979647800326347351074,
+    0.822856586341751627955432013550307601690292358398,
+    0.785116042169913930237612476048525422811508178711,
+    0.719986856491140247982229993795044720172882080078,
+    0.627417383308746967607305577985243871808052062988,
+    0.508455530412939227247193230141419917345046997070,
+    0.367481563912703701468842609756393358111381530762,
+    0.210595641728851312723946875848923809826374053955,
+    0.045502662333271590155980845793237676844000816345,
+    -0.118995208513917635761991675735771423205733299255,
+    -0.273610748955263771708956710426718927919864654541,
+    -0.409238524633506572936170186949311755597591400146,
+    -0.517621147151152372067883788986364379525184631348,
+    -0.591959626125629467807698347314726561307907104492,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.621229756972599633790821371803758665919303894043,
+    -0.574307734772263156486360458075068891048431396484,
+    -0.488992079798628298537011005464592017233371734619,
+    -0.369817854575702209540821741029503755271434783936,
+    -0.223193941796694994561534031163319014012813568115,
+    -0.056960940346837893311082723357685608789324760437,
+    0.120135164250264256380340555097063770517706871033,
+    0.299010650064690186589189124788390472531318664551,
+    0.470808500791156769871292908646864816546440124512,
+    0.627417383308746967607305577985243871808052062988,
+    0.761661589164385532946255352726439014077186584473,
+    0.869050986742786690797402116004377603530883789062,
+    0.945742775724920159419184528815094381570816040039,
+    0.989565988988045042162866593571379780769348144531,
+    1.000000000000000000000000000000000000000000000000,
+    0.978053595016734944600500512024154886603355407715,
+    0.926062859975943952761667787854094058275222778320,
+    0.847430715119439015303726137062767520546913146973,
+    0.746333182217612356446068133664084598422050476074,
+    0.627417383308746967607305577985243871808052062988,
+    0.495266925128496127150867778254905715584754943848,
+    0.355570308278213564889824738202150911092758178711,
+    0.212674949056845419281813747147680260241031646729,
+    0.070391253611467960449310510284703923389315605164,
+    -0.068065612849556783592319675335602369159460067749,
+    -0.200068665522538935430674200688372366130352020264,
+    -0.323519751885222028864319554486428387463092803955,
+    -0.436754660891701784741769643005682155489921569824,
+    -0.538431082773561664467365517339203506708145141602,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.701762894938954273627018665138166397809982299805,
+    -0.760873706487792400565695061231963336467742919922,
+    -0.804044335734102610935281063575530424714088439941,
+    -0.830680397107116608168553284485824406147003173828,
+    -0.840296608087938823317131209478247910737991333008,
+    -0.832535832954243604220323504705447703599929809570,
+    -0.807205650608049940508692543517099693417549133301,
+    -0.764327461702950294863967428682371973991394042969,
+    -0.704192314428485732769047444890020415186882019043,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.534062299654590288966460320807527750730514526367,
+    -0.425912147668139895451133725146064534783363342285,
+    -0.305065834375714384218980512741836719214916229248,
+    -0.174159225221269420291747564988327212631702423096,
+    -0.036307440671605122062270964988783816806972026825,
+    0.104982882642081873370010214330250164493918418884,
+    0.245925817886711722826120762874779757112264633179,
+    0.382586121022393532697947193810250610113143920898,
+    0.511019697024859387290973700146423652768135070801,
+    0.627417383308746967607305577985243871808052062988,
+    0.724341455779262899383752483117859810590744018555,
+    0.802895433299791072556672588689252734184265136719,
+    0.860783586148831436624107027455465868115425109863,
+    0.896294901539796629030831809359369799494743347168,
+    0.908362220937495523642724037927109748125076293945,
+    0.896598740432634988550830712483730167150497436523,
+    0.861311203021697613380069924460258334875106811523,
+    0.803490087504439842724934806028613820672035217285,
+    0.724777911233242533306508903478970751166343688965,
+    0.627417383308746967607305577985243871808052062988,
+    0.516903398124634372301500206958735361695289611816,
+    0.393523678905801477245773867252864874899387359619,
+    0.260641244132383320675216964446008205413818359375,
+    0.121871810192108395720644864468340529128909111023,
+    -0.019022897719294221824393176234480051789432764053,
+    -0.158245067066081740447813785976904910057783126831,
+    -0.292072057684713004555021598207531496882438659668,
+    -0.416967806672303764603526587961823679506778717041,
+    -0.529693597234665358719496452977182343602180480957,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.710542150644141834447964356513693928718566894531,
+    -0.774433328429973921736007014260394498705863952637,
+    -0.817892096838446880369133396015968173742294311523,
+    -0.840519754270848573618479804281378164887428283691,
+    -0.842784675809109096178417530609294772148132324219,
+    -0.826062183174281816633310882025398313999176025391,
+    -0.792638242179432128686755731905577704310417175293,
+    -0.745667656870687811654363486013608053326606750488,
+    -0.689078526999060692048715281998738646507263183594,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.564698640430134624068614357383921742439270019531,
+    -0.506374564568829899080526502075372263789176940918,
+    -0.457579461213525828799930650347960181534290313721,
+    -0.422998233454039029854953923859284259378910064697,
+    -0.406469678714821647247390501433983445167541503906,
+    -0.410605173030440806503094108848017640411853790283,
+    -0.436459880145272427487412869595573283731937408447,
+    -0.483293754617896142988797691941726952791213989258,
+    -0.548455812673680043189960997551679611206054687500,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.710064774246636054577663799136644229292869567871,
+    -0.793098070605158023127501110138837248086929321289,
+    -0.868482064704440892555226128024514764547348022461,
+    -0.927957065169964234740973552106879651546478271484,
+    -0.963718353799664528835933197115082293748855590820,
+    -0.969112873940274788253645965596660971641540527344,
+    -0.939291860996516403403688855178188532590866088867,
+    -0.871757705510715186214554250909714028239250183105,
+    -0.766748810369415889631738991738529875874519348145,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.455867282240839055695857950922800227999687194824,
+    -0.264889160285505576020170792617136612534523010254,
+    -0.065366755161671563634229187300661578774452209473,
+    0.130572759156451390083475416759029030799865722656,
+    0.310456772603930619691681158656137995421886444092,
+    0.462439750740843702470073139920714311301708221436,
+    0.576270073764412305017401649820385500788688659668,
+    0.644167603163179114389436108467634767293930053711,
+    0.661532494983421703871329100365983322262763977051,
+    0.627417383308746967607305577985243871808052062988,
+    0.544466234353681244328981847502291202545166015625,
+    0.420210650178465094928270673335646279156208038330,
+    0.264393264245677828139235998605727218091487884521,
+    0.089203057257269166568924845250876387581229209900,
+    -0.091637779062504490235063769887347007170319557190,
+    -0.263928999289617605139568468075594864785671234131,
+    -0.414104110776012890315911363359191454946994781494,
+    -0.530306831236460052281245225458405911922454833984,
+    -0.603341638723173590008741484780330210924148559570,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.599684825753581063345620805193902924656867980957,
+    -0.522638761577888133480485066684195771813392639160,
+    -0.402513125052427034322732879445538856089115142822,
+    -0.249015371171283500517645848049141932278871536255,
+    -0.074527556348578216649514160963008180260658264160,
+    0.106909468654438510881732327106874436140060424805,
+    0.280740694785094446750406405044486746191978454590,
+    0.433071601609026912704791811847826465964317321777,
+    0.551772225097744817290390528796706348657608032227,
+    0.627417383308746967607305577985243871808052062988,
+    0.653050492300557339220290486991871148347854614258,
+    0.626827908333879912916586363280657678842544555664,
+    0.550658945364800200827914977708132937550544738770,
+    0.430175689014231033002744197801803238689899444580,
+    0.274149331932325601712818752275779843330383300781,
+    0.093660478303876470995703584776492789387702941895,
+    -0.098895643251062009815299802539811935275793075562,
+    -0.290875492101952293211297728703357279300689697266,
+    -0.470427882187705315164549801920657046139240264893,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.753905659762702073933837709773797541856765747070,
+    -0.846050685344436281809521460672840476036071777344,
+    -0.902061355995151581410596008936408907175064086914,
+    -0.923060216751891204900459797499934211373329162598,
+    -0.912762963664034088218102169776102527976036071777,
+    -0.876952349962779931225043128506513312458992004395,
+    -0.822806183140431413036708363506477326154708862305,
+    -0.758149759247082499769021524116396903991699218750,
+    -0.690706570921940654628201627929229289293289184570,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.573640310292200084063551912549883127212524414062,
+    -0.534192806262368313774402395210927352309226989746,
+    -0.510929373621696991669693943549646064639091491699,
+    -0.503715656479205464712833872908959165215492248535,
+    -0.510668411997598825635691355273593217134475708008,
+    -0.528558458305822265188567143923137336969375610352,
+    -0.553324000380810088195460139104397967457771301270,
+    -0.580633014393481694526144565315917134284973144531,
+    -0.606431303280367206554046788369305431842803955078,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.641148679773133056691847286856500431895256042480,
+    -0.647662505693351597813034459250047802925109863281,
+    -0.647265364918737096111556184041546657681465148926,
+    -0.641350652583448810339916690281825140118598937988,
+    -0.632151688232686970181362084986176341772079467773,
+    -0.622397256207341098566132586711319163441658020020,
+    -0.614911244664151812600039193057455122470855712891,
+    -0.612202715310866563136471540929051116108894348145,
+    -0.616092497787886994586870059720240533351898193359,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.648565703132813808906576014123857021331787109375,
+    -0.675046505830593779329262815736001357436180114746,
+    -0.703948973772537622828338044200791046023368835449,
+    -0.731434587900288812889471046219114214181900024414,
+    -0.753059571751972689490628454223042353987693786621,
+    -0.764174624870962881928448950930032879114151000977,
+    -0.760362916004333699859785156149882823228836059570,
+    -0.737873405089441991577814405900426208972930908203,
+    -0.694006965537270814614601022185524925589561462402,
+    -0.627417383308746967607305577985243871808052062988,
+    -0.534393651200517294519443112221779301762580871582,
+    -0.420951433270391972563118088146438822150230407715,
+    -0.290689245162433940183888125829980708658695220947,
+    -0.148455499447166211490767295799741987138986587524,
+]);

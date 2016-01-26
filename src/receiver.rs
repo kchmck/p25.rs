@@ -1,8 +1,8 @@
-use baseband::Decoder;
+use baseband::{Decoder, Decider, Correlator};
 use error::{P25Error, Result};
 use nid;
 use status::{StreamSymbol, StatusDeinterleaver};
-use sync;
+use sync::{SyncCorrelator, SyncDetector};
 
 use self::State::*;
 use self::StateChange::*;
@@ -37,7 +37,8 @@ impl Receiver {
 }
 
 enum State {
-    Sync(sync::SyncDetector),
+    Prime(u32),
+    Sync(SyncDetector),
     DecodeNID(Receiver, nid::NIDReceiver),
     DecodePacket(Receiver),
     FlushPads(Receiver),
@@ -52,7 +53,8 @@ enum StateChange {
 }
 
 impl State {
-    pub fn sync() -> State { Sync(sync::SyncDetector::new()) }
+    pub fn prime() -> State { Prime(0) }
+    pub fn sync() -> State { Sync(SyncDetector::new()) }
     pub fn decode_nid(decoder: Decoder) -> State {
         DecodeNID(Receiver::new(decoder), nid::NIDReceiver::new())
     }
@@ -62,12 +64,16 @@ impl State {
 
 pub struct DataUnitReceiver {
     state: State,
+    corr: SyncCorrelator,
 }
+
+const PRIME_SAMPLES: u32 = 1024;
 
 impl DataUnitReceiver {
     pub fn new() -> DataUnitReceiver {
         DataUnitReceiver {
-            state: State::sync(),
+            state: State::prime(),
+            corr: SyncCorrelator::new(),
         }
     }
 
@@ -81,11 +87,19 @@ impl DataUnitReceiver {
 
     pub fn resync(&mut self) { self.state = State::sync(); }
 
-    fn handle(&mut self, s: f32, t: usize) -> StateChange {
+    fn handle(&mut self, s: f32) -> StateChange {
+        let energy = self.corr.feed(s);
+
         match self.state {
-            Sync(ref mut sync) => match sync.feed(s, t) {
-                Some(Err(_)) => Change(State::sync()),
-                Some(Ok(decoder)) => Change(State::decode_nid(decoder)),
+            Prime(t) => if t == PRIME_SAMPLES - 1 {
+                Change(State::sync())
+            } else {
+                Change(Prime(t + 1))
+            },
+            Sync(ref mut sync) => match sync.feed(energy, self.corr.thresh()) {
+                Some(thresh) => Change(State::decode_nid(
+                    Decoder::new(Correlator::primed(s),
+                    Decider::new(thresh)))),
                 None => NoChange,
             },
             DecodeNID(ref mut recv, ref mut nid) => {
@@ -113,8 +127,8 @@ impl DataUnitReceiver {
         }
     }
 
-    pub fn feed(&mut self, s: f32, t: usize) -> Option<Result<ReceiverEvent>> {
-        match self.handle(s, t) {
+    pub fn feed(&mut self, s: f32) -> Option<Result<ReceiverEvent>> {
+        match self.handle(s) {
             Change(state) => {
                 self.state = state;
                 None
