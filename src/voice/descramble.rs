@@ -18,8 +18,8 @@ const DESCRAMBLERS: [VoiceFrameDescrambler; 8] = [
         ZigZag::hi(1, 21),
     ]),
     VoiceFrameDescrambler(&[
-        ZigZag::lo(1, 20),
         ZigZag::lo(64, 3),
+        ZigZag::lo(1, 20),
     ]),
     VoiceFrameDescrambler(&[
         ZigZag::lo(61, 4),
