@@ -35,10 +35,10 @@ impl<T: Iterator<Item = bits::Dibit>> Iterator for C4FMImpulses<T> {
         // Map the current dibit to a scaled impulse.
         if let Some(dibit) = self.src.next() {
             match dibit.bits() {
-                0b01 => Some(1800.0),
-                0b00 => Some(600.0),
-                0b10 => Some(-600.0),
-                0b11 => Some(-1800.0),
+                0b01 => Some(0.18),
+                0b00 => Some(0.06),
+                0b10 => Some(-0.06),
+                0b11 => Some(-0.18),
                 _ => unreachable!(),
             }
         } else {

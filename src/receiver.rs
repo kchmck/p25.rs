@@ -7,6 +7,7 @@ use sync::{SyncCorrelator, SyncDetector};
 use self::State::*;
 use self::StateChange::*;
 
+#[derive(Debug)]
 pub enum ReceiverEvent {
     Symbol(StreamSymbol),
     NetworkID(nid::NetworkID),
@@ -67,7 +68,7 @@ pub struct DataUnitReceiver {
     corr: SyncCorrelator,
 }
 
-const PRIME_SAMPLES: u32 = 1024;
+const PRIME_SAMPLES: u32 = 1000;
 
 impl DataUnitReceiver {
     pub fn new() -> DataUnitReceiver {
@@ -90,6 +91,8 @@ impl DataUnitReceiver {
     fn handle(&mut self, s: f32) -> StateChange {
         let energy = self.corr.feed(s);
 
+        println!("energy {}", energy);
+
         match self.state {
             Prime(t) => if t == PRIME_SAMPLES - 1 {
                 Change(State::sync())
@@ -97,9 +100,12 @@ impl DataUnitReceiver {
                 Change(Prime(t + 1))
             },
             Sync(ref mut sync) => match sync.feed(energy, self.corr.thresh()) {
-                Some(thresh) => Change(State::decode_nid(
-                    Decoder::new(Correlator::primed(s),
-                    Decider::new(thresh)))),
+                Some(thresh) => {
+                    println!("FOUND SYNC");
+                    self.corr.print();
+                    Change(State::decode_nid(
+                    Decoder::new(Correlator::primed(s), Decider::new(thresh))))
+                },
                 None => NoChange,
             },
             DecodeNID(ref mut recv, ref mut nid) => {

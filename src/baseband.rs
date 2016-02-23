@@ -1,6 +1,8 @@
 use bits;
 use consts;
 
+const DECIDER_HEADROOM: f32 = 0.70;
+
 #[derive(Copy, Clone)]
 pub struct Decoder {
     correlator: Correlator,
@@ -33,14 +35,14 @@ impl Decoder {
 #[derive(Copy, Clone)]
 pub struct Correlator {
     pos: usize,
-    sum: f32,
+    energy: f32,
 }
 
 impl Correlator {
     pub fn new() -> Correlator {
         Correlator {
             pos: 0,
-            sum: 0.0,
+            energy: 0.0,
         }
     }
 
@@ -54,7 +56,7 @@ impl Correlator {
         self.add(s);
 
         if self.pos > consts::PERIOD {
-            Some(self.sum)
+            Some(self.energy)
         } else {
             None
         }
@@ -62,20 +64,24 @@ impl Correlator {
 
     fn add(&mut self, s: f32) {
         const MATCHED_FILTER: &'static [f32] = &[
-            0.6290605212918821,
-            0.7507772559612889,
-            0.8542215065015759,
-            0.933168001531859,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
             0.9827855224082289,
             1.0,
             0.9827855224082289,
-            0.933168001531859,
-            0.8542215065015759,
-            0.7507772559612889,
-            0.6290605212918821,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
         ];
 
-        self.sum += s * MATCHED_FILTER[self.pos];
+        if MATCHED_FILTER[self.pos] != 0.0 {
+            println!("{}", s);
+        }
+
+        self.energy += s * MATCHED_FILTER[self.pos];
         self.pos += 1;
     }
 }
@@ -87,19 +93,19 @@ pub struct Decider {
 
 impl Decider {
     pub fn new(high_thresh: f32) -> Decider {
-        const FUDGE: f32 = 0.75;
-
         Decider {
-            high_thresh: high_thresh * FUDGE,
+            high_thresh: high_thresh * DECIDER_HEADROOM,
         }
     }
 
-    pub fn decide(&self, sum: f32) -> bits::Dibit {
-        if sum >= self.high_thresh {
+    pub fn decide(&self, energy: f32) -> bits::Dibit {
+        // println!("decide {} {}", energy, self.high_thresh);
+
+        if energy >= self.high_thresh {
             bits::Dibit::new(0b01)
-        } else if sum >= 0.0 {
+        } else if energy >= 0.0 {
             bits::Dibit::new(0b00)
-        } else if sum <= -self.high_thresh {
+        } else if energy <= -self.high_thresh {
             bits::Dibit::new(0b11)
         } else {
             bits::Dibit::new(0b10)

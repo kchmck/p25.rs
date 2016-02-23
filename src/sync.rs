@@ -1,6 +1,7 @@
 use std;
 
 use dsp::fir::FIRFilter;
+use collect_slice::CollectSlice;
 
 // between 0 and 1
 const SMOOTH_WEIGHT: f32 = 0.01;
@@ -22,6 +23,7 @@ impl SyncCorrelator {
 
     pub fn feed(&mut self, sample: f32) -> f32 {
         // Normalized (1ohm load) energy of correlation.
+        // println!("FEED CORRELATOR");
         let energy = self.corr.feed(sample);
         // Average normalized energy (power).
         self.avg = self.smooth(energy.abs());
@@ -33,6 +35,42 @@ impl SyncCorrelator {
 
     fn smooth(&self, energy: f32) -> f32 {
         SMOOTH_WEIGHT * energy + (1.0 - SMOOTH_WEIGHT) * self.avg
+    }
+
+    pub fn print(&self) {
+        let (right, left) = self.corr.hist();
+        let mut combined = [0.0; 240];
+
+        left.iter().cloned().chain(right.iter().cloned())
+            .collect_slice_checked(&mut combined[..]);
+
+        for sample in combined.iter() {
+            println!("{}", sample);
+        }
+
+        let mut pos = 0.0;
+        let mut npos = 0;
+
+        let mut neg = 0.0;
+        let mut nneg = 0;
+
+        let mut i = 4;
+        while i < combined.len() {
+            let samp = combined[i];
+
+            if samp > 0.0 {
+                pos += samp;
+                npos += 1;
+            } else {
+                neg += samp;
+                nneg += 1;
+            }
+
+            i += 10;
+        }
+
+        // println!("pos: {} / {} = {}", pos, npos, pos / npos as f32);
+        // println!("neg: {} / {} = {}", neg, nneg, neg / nneg as f32);
     }
 }
 
@@ -50,6 +88,9 @@ impl SyncDetector {
     }
 
     pub fn feed(&mut self, energy: f32, thresh: f32) -> Option<f32> {
+
+        // println!("sync energy {} thresh {}", energy, thresh);
+
         if energy < self.prev {
             // There are 24 full-energy impulses within the correlation window, so average
             // by that for the threshold.
@@ -66,7 +107,7 @@ impl SyncDetector {
 
 // Fingerprint of frame sync waveform in volts.
 impl_fir!(SyncFingerprint, f32, 240, [
-    -0.000000000000000024767047999980024726943243520977,
+    0.0,
     0.148455499447166239246342911428655497729778289795,
     0.290689245162433940183888125829980708658695220947,
     0.420951433270391917051966856888611800968647003174,
@@ -307,3 +348,12 @@ impl_fir!(SyncFingerprint, f32, 240, [
     -0.290689245162433940183888125829980708658695220947,
     -0.148455499447166211490767295799741987138986587524,
 ]);
+
+pub const SYNC_GENERATOR: &'static [u8] = &[
+    0b01010101,
+    0b01110101,
+    0b11110101,
+    0b11111111,
+    0b01110111,
+    0b11111111,
+];
