@@ -7,3 +7,4 @@ authors = ["Mick Koch <mick@kochm.co>"]
 collect_slice = "1.0.0"
 dsp = {version = "1.0.0", path = "../dsp"}
 num = "0.1.30"
+ewma = {version = "1.0.0", path = "../ewma"}

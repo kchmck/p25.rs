@@ -1,6 +1,7 @@
 #![feature(const_fn)]
 
 extern crate collect_slice;
+extern crate ewma;
 extern crate num;
 
 #[macro_use]

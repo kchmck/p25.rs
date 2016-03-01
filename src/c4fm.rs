@@ -94,7 +94,7 @@ mod test {
         let d = bits::Dibits::new(BITS.iter().cloned());
         let mut imp = C4FMImpulses::new(d);
 
-        assert!(imp.next().unwrap() == 600.0);
+        assert!(imp.next().unwrap() == 0.06);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
@@ -104,7 +104,7 @@ mod test {
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
-        assert!(imp.next().unwrap() == 1800.0);
+        assert!(imp.next().unwrap() == 0.18);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
@@ -114,7 +114,7 @@ mod test {
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
-        assert!(imp.next().unwrap() == -600.0);
+        assert!(imp.next().unwrap() == -0.06);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
@@ -124,7 +124,7 @@ mod test {
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
-        assert!(imp.next().unwrap() == -1800.0);
+        assert!(imp.next().unwrap() == -0.18);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);
         assert!(imp.next().unwrap() == 0.0);

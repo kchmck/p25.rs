@@ -1,4 +1,4 @@
-use baseband::{Decoder, Decider, Correlator};
+use baseband::{Decoder, Decider};
 use error::{P25Error, Result};
 use nid;
 use status::{StreamSymbol, StatusDeinterleaver};
@@ -6,6 +6,8 @@ use sync::{SyncCorrelator, SyncDetector};
 
 use self::State::*;
 use self::StateChange::*;
+
+const PRIME_SAMPLES: u32 = 1000;
 
 #[derive(Debug)]
 pub enum ReceiverEvent {
@@ -68,8 +70,6 @@ pub struct DataUnitReceiver {
     corr: SyncCorrelator,
 }
 
-const PRIME_SAMPLES: u32 = 1000;
-
 impl DataUnitReceiver {
     pub fn new() -> DataUnitReceiver {
         DataUnitReceiver {
@@ -91,22 +91,17 @@ impl DataUnitReceiver {
     fn handle(&mut self, s: f32) -> StateChange {
         let energy = self.corr.feed(s);
 
-        println!("energy {}", energy);
-
         match self.state {
             Prime(t) => if t == PRIME_SAMPLES - 1 {
                 Change(State::sync())
             } else {
                 Change(Prime(t + 1))
             },
-            Sync(ref mut sync) => match sync.feed(energy, self.corr.thresh()) {
-                Some(thresh) => {
-                    println!("FOUND SYNC");
-                    self.corr.print();
-                    Change(State::decode_nid(
-                    Decoder::new(Correlator::primed(s), Decider::new(thresh))))
-                },
-                None => NoChange,
+            Sync(ref mut sync) => if sync.feed(energy, self.corr.thresh()) {
+                let (p, m, n) = self.corr.thresholds();
+                Change(State::decode_nid(Decoder::new(Decider::new(p, m, n))))
+            } else {
+                NoChange
             },
             DecodeNID(ref mut recv, ref mut nid) => {
                 let dibit = match recv.feed(s) {

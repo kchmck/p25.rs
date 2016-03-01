@@ -1,114 +1,100 @@
 use bits;
 use consts;
 
-const DECIDER_HEADROOM: f32 = 0.70;
-
 #[derive(Copy, Clone)]
 pub struct Decoder {
-    correlator: Correlator,
+    pos: usize,
     decider: Decider,
 }
 
 impl Decoder {
-    pub fn new(correlator: Correlator, decider: Decider) -> Decoder {
+    pub fn new(decider: Decider) -> Decoder {
         Decoder {
-            correlator: correlator,
+            // Decoder is created after first sample of first symbol after sync has
+            // already been read.
+            pos: 1,
             decider: decider,
         }
     }
 
-    fn reset(&mut self, s: f32) {
-        self.correlator = Correlator::primed(s);
-    }
-
     pub fn feed(&mut self, s: f32) -> Option<bits::Dibit> {
-        match self.correlator.feed(s) {
-            Some(sum) => {
-                self.reset(s);
-                Some(self.decider.decide(sum))
-            },
-            None => None,
-        }
-    }
-}
+        self.pos += 1;
+        self.pos %= consts::PERIOD;
 
-#[derive(Copy, Clone)]
-pub struct Correlator {
-    pos: usize,
-    energy: f32,
-}
-
-impl Correlator {
-    pub fn new() -> Correlator {
-        Correlator {
-            pos: 0,
-            energy: 0.0,
-        }
-    }
-
-    pub fn primed(s: f32) -> Correlator {
-        let mut c = Correlator::new();
-        c.add(s);
-        c
-    }
-
-    pub fn feed(&mut self, s: f32) -> Option<f32> {
-        self.add(s);
-
-        if self.pos > consts::PERIOD {
-            Some(self.energy)
+        if self.pos == 0 {
+            Some(self.decider.decide(s))
         } else {
             None
         }
-    }
-
-    fn add(&mut self, s: f32) {
-        const MATCHED_FILTER: &'static [f32] = &[
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.9827855224082289,
-            1.0,
-            0.9827855224082289,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-        ];
-
-        if MATCHED_FILTER[self.pos] != 0.0 {
-            println!("{}", s);
-        }
-
-        self.energy += s * MATCHED_FILTER[self.pos];
-        self.pos += 1;
     }
 }
 
 #[derive(Copy, Clone)]
 pub struct Decider {
-    high_thresh: f32,
+    pthresh: f32,
+    mthresh: f32,
+    nthresh: f32,
 }
 
 impl Decider {
-    pub fn new(high_thresh: f32) -> Decider {
+    pub fn new(pthresh: f32, mthresh: f32, nthresh: f32) -> Decider {
         Decider {
-            high_thresh: high_thresh * DECIDER_HEADROOM,
+            pthresh: pthresh,
+            mthresh: mthresh,
+            nthresh: nthresh,
         }
     }
 
-    pub fn decide(&self, energy: f32) -> bits::Dibit {
-        // println!("decide {} {}", energy, self.high_thresh);
-
-        if energy >= self.high_thresh {
+    pub fn decide(&self, sample: f32) -> bits::Dibit {
+        if sample >= self.pthresh {
             bits::Dibit::new(0b01)
-        } else if energy >= 0.0 {
+        } else if sample >= self.mthresh && sample < self.pthresh {
             bits::Dibit::new(0b00)
-        } else if energy <= -self.high_thresh {
-            bits::Dibit::new(0b11)
-        } else {
+        } else if sample < self.mthresh && sample >= self.nthresh {
             bits::Dibit::new(0b10)
+        } else {
+            bits::Dibit::new(0b11)
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_decider() {
+        let d = Decider::new(-0.004, -0.1, -0.196);
+
+        assert_eq!(d.decide(0.044).bits(), 0b01);
+        assert_eq!(d.decide(-0.052).bits(), 0b00);
+        assert_eq!(d.decide(-0.148).bits(), 0b10);
+        assert_eq!(d.decide(-0.244).bits(), 0b11);
+    }
+
+    #[test]
+    fn test_decoder() {
+        let mut d = Decoder::new(Decider::new(0.0, 0.0, 0.0));
+
+        assert!(d.feed(0.2099609375000000).is_none());
+        assert!(d.feed(0.2165222167968750).is_none());
+        assert!(d.feed(0.2179870605468750).is_none());
+        assert!(d.feed(0.2152709960937500).is_none());
+        assert!(d.feed(0.2094726562500000).is_none());
+        assert!(d.feed(0.2018737792968750).is_none());
+        assert!(d.feed(0.1937255859375000).is_none());
+        assert!(d.feed(0.1861572265625000).is_none());
+        assert!(d.feed(0.1799926757812500).is_some());
+
+        assert!(d.feed(0.1752929687500000).is_none());
+        assert!(d.feed(0.1726684570312500).is_none());
+        assert!(d.feed(0.1720886230468750).is_none());
+        assert!(d.feed(0.1732177734375000).is_none());
+        assert!(d.feed(0.1754455566406250).is_none());
+        assert!(d.feed(0.1780395507812500).is_none());
+        assert!(d.feed(0.1803588867187500).is_none());
+        assert!(d.feed(0.1817321777343750).is_none());
+        assert!(d.feed(0.1816711425781250).is_none());
+        assert!(d.feed(0.1799926757812500).is_some());
     }
 }
