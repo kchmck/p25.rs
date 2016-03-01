@@ -59,6 +59,36 @@ impl SystemServices {
     pub fn has_auth(&self) -> bool { self.0 & 0x80 != 0 }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct ChannelParams {
+    /// Receive frequency in Hz.
+    pub rx_freq: u64,
+    /// Transmit frequency in Hz.
+    pub tx_freq: u64,
+    /// Channel bandwidth in Hz.
+    pub bandwidth: u64,
+}
+
+impl ChannelParams {
+    pub fn new(base: u32, channel: u8, bandwidth: u16, offset: u16, spacing: u16)
+        -> ChannelParams
+    {
+        let rx = base as u64 * 5 + channel as u64 * spacing as u64 * 125;
+        let off = (offset as u64 & 0xFF) * 250_000;
+        let tx = if offset >> 8 == 0 {
+            rx - off
+        } else {
+            rx + off
+        };
+
+        ChannelParams {
+            rx_freq: rx,
+            tx_freq: tx,
+            bandwidth: bandwidth as u64 * 125,
+        }
+    }
+}
+
 pub fn slice_u16(bytes: &[u8]) -> u16 {
     (bytes[0] as u16) << 8 | bytes[1] as u16
 }
@@ -91,5 +121,13 @@ mod test {
     fn test_slice_u32() {
         assert_eq!(slice_u32(&[0xDE, 0xAD, 0xBE, 0xEF]), 0xDEADBEEF);
         assert_eq!(slice_u32(&[0xDE, 0xAD, 0xBE, 0xEF, 0x12]), 0xDEADBEEF);
+    }
+
+    #[test]
+    fn test_channel_params() {
+        let p = ChannelParams::new(170201250, 0, 0x64, 0b010110100, 0x32);
+        assert_eq!(p.rx_freq, 851_006_250);
+        assert_eq!(p.tx_freq, 806_006_250);
+        assert_eq!(p.bandwidth, 12500);
     }
 }
