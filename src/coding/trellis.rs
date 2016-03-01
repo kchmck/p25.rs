@@ -21,10 +21,10 @@ pub type DibitFSM = TrellisFSM<DibitStates>;
 pub type TribitFSM = TrellisFSM<TribitStates>;
 
 /// Half-rate convolution ("trellis") code decoder.
-pub type DibitDecoder<T> = ViterbiDecoder<DibitStates, DibitHistory, T>;
+pub type DibitDecoder<T> = ViterbiDecoder<DibitStates, DibitHistory, DibitWalks, T>;
 
 /// 3/4-rate convolution ("trellis") code decoder.
-pub type TribitDecoder<T> = ViterbiDecoder<TribitStates, TribitHistory, T>;
+pub type TribitDecoder<T> = ViterbiDecoder<TribitStates, TribitHistory, TribitWalks, T>;
 
 pub trait States {
     /// Symbol type to use for states and input.
@@ -157,6 +157,14 @@ impl<S: States> TrellisFSM<S> {
     }
 }
 
+pub trait WalkHistory: Copy + Clone + Default +
+    Deref<Target = [Option<usize>]> + DerefMut
+{
+    /// The length of each walk associated with each state. This also determines the delay
+    /// before the first decoded symbol is yielded.
+    fn history() -> usize;
+}
+
 macro_rules! history_type {
     ($name: ident, $history: expr) => {
         #[derive(Copy, Clone, Default)]
@@ -180,44 +188,81 @@ macro_rules! history_type {
 history_type!(DibitHistory, 4);
 history_type!(TribitHistory, 4);
 
-pub trait WalkHistory: Copy + Clone + Default +
-    Deref<Target = [Option<usize>]> + DerefMut
+pub trait Walks<H: WalkHistory>: Copy + Clone + Default +
+    Deref<Target = [Walk<H>]> + DerefMut
 {
-    /// The length of each walk associated with each state. This also determines the delay
-    /// before the first decoded symbol is yielded.
-    fn history() -> usize;
+    fn states() -> usize;
 }
+
+macro_rules! impl_walks {
+    ($name:ident, $hist:ident, $states:expr) => {
+        #[derive(Copy, Clone)]
+        pub struct $name([Walk<$hist>; $states]);
+
+        impl Deref for $name {
+            type Target = [Walk<$hist>];
+            fn deref<'a>(&'a self) -> &'a Self::Target { &self.0[..] }
+        }
+
+        impl DerefMut for $name {
+            fn deref_mut<'a>(&'a mut self) -> &'a mut Self::Target { &mut self.0[..] }
+        }
+
+        impl Walks<$hist> for $name {
+            fn states() -> usize { $states }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                let mut walks = [Walk::default(); $states];
+
+                (0..Self::states())
+                    .map(Walk::new)
+                    .collect_slice_checked(&mut walks[..]);
+
+                $name(walks)
+            }
+        }
+    };
+}
+
+impl_walks!(DibitWalks, DibitHistory, 4);
+impl_walks!(TribitWalks, TribitHistory, 8);
 
 /// Decodes a received convolutional code dibit stream to a nearby codeword using the
 /// truncated Viterbi algorithm.
-pub struct ViterbiDecoder<S, H, T> where
-    S: States, H: WalkHistory, T: Iterator<Item = bits::Dibit>
+pub struct ViterbiDecoder<S, H, W, T> where
+    S: States, H: WalkHistory, W: Walks<H>, T: Iterator<Item = bits::Dibit>
 {
     states: std::marker::PhantomData<S>,
+    history: std::marker::PhantomData<H>,
     /// Source of dibits.
     src: T,
     /// Walks associated with each state, for the current and previous tick.
-    cur: Vec<Walk<H>>,
-    prev: Vec<Walk<H>>,
+    cur: usize,
+    prev: usize,
+    walks: [W; 2],
     /// Remaining symbols to yield.
     remain: usize,
 }
 
-impl<S, H, T> ViterbiDecoder<S, H, T> where
-    S: States, H: WalkHistory, T: Iterator<Item = bits::Dibit>
+impl<S, H, W, T> ViterbiDecoder<S, H, W, T> where
+    S: States, H: WalkHistory, W: Walks<H>, T: Iterator<Item = bits::Dibit>
 {
     /// Construct a new `ViterbiDecoder` over the given dibit source.
-    pub fn new(src: T) -> ViterbiDecoder<S, H, T> {
+    pub fn new(src: T) -> ViterbiDecoder<S, H, W, T> {
+        debug_assert!(S::size() == W::states());
+
         ViterbiDecoder {
             states: std::marker::PhantomData,
+            history: std::marker::PhantomData,
             src: src,
-            cur: Self::new_walks(),
-            prev: Self::new_walks(),
+            walks: [W::default(); 2],
+            cur: 1,
+            prev: 0,
             remain: 0,
         }.prime()
     }
-
-    fn new_walks() -> Vec<Walk<H>> { (0..S::size()).map(Walk::new).collect() }
 
     fn prime(mut self) -> Self {
         for _ in 0..H::history() - 1 {
@@ -243,14 +288,14 @@ impl<S, H, T> ViterbiDecoder<S, H, T> where
 
         for s in 0..S::size() {
             let (walk, _) = self.search(s, input);
-            self.cur[s].append(walk);
+            self.walks[self.cur][s].append(walk);
         }
 
         true
     }
 
     fn search(&self, state: usize, input: Edge) -> (Walk<H>, bool) {
-        self.prev.iter()
+        self.walks[self.prev].iter()
             .enumerate()
             .map(|(i, w)| (Edge::new(S::pair(i, state)), w))
             .fold((Walk::default(), false), |(walk, amb), (e, w)| {
@@ -263,7 +308,7 @@ impl<S, H, T> ViterbiDecoder<S, H, T> where
     }
 
     fn decode(&self) -> Decision {
-        self.cur.iter().fold(Ambiguous(std::usize::MAX), |s, w| {
+        self.walks[self.cur].iter().fold(Ambiguous(std::usize::MAX), |s, w| {
             match s {
                 Ambiguous(min) | Definite(min, _) if w.distance() < min =>
                     Definite(w.distance(), w[self.remain]),
@@ -275,8 +320,8 @@ impl<S, H, T> ViterbiDecoder<S, H, T> where
     }
 }
 
-impl<S, H, T> Iterator for ViterbiDecoder<S, H, T> where
-    S: States, H: WalkHistory, T: Iterator<Item = bits::Dibit>
+impl<S, H, W, T> Iterator for ViterbiDecoder<S, H, W, T> where
+    S: States, H: WalkHistory, W: Walks<H>, T: Iterator<Item = bits::Dibit>
 {
     type Item = Result<S::Symbol, ()>;
 
@@ -301,7 +346,7 @@ enum Decision {
 }
 
 #[derive(Copy, Clone, Debug)]
-struct Walk<H: WalkHistory>{
+pub struct Walk<H: WalkHistory>{
     history: H,
     distance: usize,
 }
@@ -327,10 +372,7 @@ impl<H: WalkHistory> Walk<H> {
 
     pub fn append(&mut self, other: Self) {
         self.distance = other.distance;
-
-        for i in 1..self.len() {
-            self[i] = other[i - 1];
-        }
+        other.iter().cloned().collect_slice(&mut self[1..]);
     }
 
     pub fn combine(mut self, other: &Self, distance: usize) -> Self {
