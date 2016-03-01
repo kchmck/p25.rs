@@ -102,28 +102,8 @@ impl NetworkID {
         }
     }
 
-    pub fn to_bits(&self) -> u16 {
-        (self.access_code.to_bits() as u16) << 4 | self.data_unit.to_bits() as u16
-    }
-
     pub fn access_code(&self) -> NetworkAccessCode { self.access_code }
     pub fn data_unit(&self) -> DataUnit { self.data_unit }
-
-    pub fn encode(&self) -> [u8; 8] {
-        let bits = self.to_bits();
-        let e = bch::encode(bits);
-
-        [
-            (e >> 56) as u8,
-            (e >> 48) as u8,
-            (e >> 40) as u8,
-            (e >> 32) as u8,
-            (e >> 24) as u8,
-            (e >> 16) as u8,
-            (e >> 8) as u8,
-            e as u8,
-        ]
-    }
 }
 
 pub struct NIDReceiver {

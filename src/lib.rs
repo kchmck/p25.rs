@@ -1,4 +1,3 @@
-#![feature(zero_one)]
 #![feature(const_fn)]
 
 extern crate collect_slice;
@@ -8,7 +7,6 @@ extern crate num;
 extern crate dsp;
 
 mod buffer;
-mod util;
 
 pub mod baseband;
 pub mod bits;
