@@ -165,7 +165,11 @@ fn decode<P: PolynomialCoefs>(word: &[Hexbit]) -> Option<(Polynomial<P>, usize)>
     let fixed = bmcf::Errors::new(dec, syn)
         .take(errors)
         .fold(0, |count, (loc, val)| {
-            poly[loc] = poly[loc] + val;
+            match (*poly).get_mut(loc) {
+                Some(coef) => *coef = *coef + val,
+                None => {},
+            }
+
             count + 1
         });
 
