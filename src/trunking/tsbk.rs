@@ -311,15 +311,20 @@ pub struct ChannelParamsUpdate(Buf);
 impl ChannelParamsUpdate {
     pub fn new(tsbk: TSBK) -> Self { ChannelParamsUpdate(tsbk.0) }
 
-    pub fn ident(&self) -> u8 { self.0[2] >> 4 }
-    pub fn bandwidth(&self) -> u16 {
+    pub fn params(&self) -> ChannelParams {
+        ChannelParams::new(self.base_freq(), self.channel(), self.bandwidth(),
+                           self.offset(), self.spacing())
+    }
+
+    fn channel(&self) -> u8 { self.0[2] >> 4 }
+    fn bandwidth(&self) -> u16 {
         (self.0[2] as u16 & 0xF) << 5 | (self.0[3] >> 3) as u16
     }
-    pub fn offset(&self) -> u16 {
+    fn offset(&self) -> u16 {
         (self.0[3] as u16 & 0x7) << 6 | (self.0[4] >> 2) as u16
     }
-    pub fn spacing(&self) -> u16 {
+    fn spacing(&self) -> u16 {
         (self.0[4] as u16 & 0x3) << 8 | self.0[5] as u16
     }
-    pub fn base_freq(&self) -> u32 { slice_u32(&self.0[6..]) }
+    fn base_freq(&self) -> u32 { slice_u32(&self.0[6..]) }
 }
