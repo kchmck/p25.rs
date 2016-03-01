@@ -20,28 +20,30 @@ impl TSBKDecoder {
     }
 
     pub fn feed(&mut self, dibit: Dibit) -> Option<Result<TSBK>> {
-        let (count, buf) = {
+        let (count, dibits) = {
             let buf = match self.dibits.feed(dibit) {
                 Some(buf) => buf,
                 None => return None,
             };
 
-            let mut bytes = [0; 12];
-            let count = DibitBytes::new(
-                trellis::DibitDecoder::new(interleave::Deinterleaver::new(buf))
-                    .filter(|x| x.is_ok()).map(|x| x.unwrap())
-            ).collect_slice(&mut bytes[..]);
+            let mut dibits = [Dibit::default(); 48];
+            let count = trellis::DibitDecoder::new(interleave::Deinterleaver::new(buf))
+                .filter(|x| x.is_ok()).map(|x| x.unwrap())
+                .collect_slice(&mut dibits[..]);
 
-            (count, bytes)
+            (count, dibits)
         };
 
         self.dibits.reset();
 
-        Some(if count == buf.len() {
-            Ok(TSBK::new(buf))
-        } else {
-            Err(P25Error::ViterbiUnrecoverable)
-        })
+        if count != dibits.len() {
+            return Some(Err(P25Error::ViterbiUnrecoverable));
+        }
+
+        let mut bytes = [0; 12];
+        DibitBytes::new(dibits.iter().cloned()).collect_slice_checked(&mut bytes[..]);
+
+        Some(Ok(TSBK::new(bytes)))
     }
 }
 
