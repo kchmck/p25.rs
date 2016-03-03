@@ -10,7 +10,7 @@ use std::ops::{Deref, DerefMut};
 
 use collect_slice::CollectSlice;
 
-use bits::{self, Dibit};
+use bits;
 
 use self::Decision::*;
 
