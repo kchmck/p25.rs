@@ -1,10 +1,10 @@
 use trunking::decode::*;
 use voice::crypto;
 
-pub struct VoiceHeaderDecoder([u8; 15]);
+pub struct VoiceHeaderFields([u8; 15]);
 
-impl VoiceHeaderDecoder {
-    pub fn new(buf: [u8; 15]) -> Self { VoiceHeaderDecoder(buf) }
+impl VoiceHeaderFields {
+    pub fn new(buf: [u8; 15]) -> Self { VoiceHeaderFields(buf) }
 
     pub fn crypto_init(&self) -> &[u8] { &self.0[..9] }
     pub fn mfg(&self) -> u8 { self.0[9] }
@@ -28,7 +28,7 @@ mod test {
 
     #[test]
     fn test_header() {
-        let h = VoiceHeaderDecoder::new([
+        let h = VoiceHeaderFields::new([
             1, 2, 3, 4, 5, 6, 7, 8, 9,
             0b00000000,
             0b10000000,

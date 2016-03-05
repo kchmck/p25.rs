@@ -5,8 +5,8 @@ use buffer::{Buffer, DibitStorage, VoiceHeaderStorage, VoiceExtraStorage};
 use coding::{reed_solomon, golay};
 use error::Result;
 
-use voice::header::VoiceHeaderDecoder;
-use voice::control::LinkControl;
+use voice::header::VoiceHeaderFields;
+use voice::control::LinkControlFields;
 
 use error::P25Error::*;
 
@@ -23,7 +23,7 @@ impl VoiceHeaderReceiver {
         }
     }
 
-    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<VoiceHeaderDecoder>> {
+    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<VoiceHeaderFields>> {
         let buf = match self.dibits.feed(dibit) {
             Some(buf) => *buf as u32,
             None => return None,
@@ -48,7 +48,7 @@ impl VoiceHeaderReceiver {
         HexbitBytes::new(data.iter().cloned())
             .collect_slice_checked(&mut bytes[..]);
 
-        Some(Ok(VoiceHeaderDecoder::new(bytes)))
+        Some(Ok(VoiceHeaderFields::new(bytes)))
     }
 }
 
@@ -65,7 +65,7 @@ impl VoiceLCTerminatorReceiver {
         }
     }
 
-    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<LinkControl>> {
+    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<LinkControlFields>> {
         let buf = match self.outer.feed(dibit) {
             Some(buf) => buf,
             None => return None,
@@ -92,6 +92,6 @@ impl VoiceLCTerminatorReceiver {
         HexbitBytes::new(data.iter().cloned())
             .collect_slice_checked(&mut bytes[..]);
 
-        Some(Ok(LinkControl::new(bytes)))
+        Some(Ok(LinkControlFields::new(bytes)))
     }
 }

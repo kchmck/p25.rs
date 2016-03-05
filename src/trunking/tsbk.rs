@@ -8,18 +8,18 @@ use error::{Result, P25Error};
 
 use trunking::decode::*;
 
-pub struct TSBKDecoder {
+pub struct TSBKReceiver {
     dibits: Buffer<DataPayloadStorage>,
 }
 
-impl TSBKDecoder {
-    pub fn new() -> TSBKDecoder {
-        TSBKDecoder {
+impl TSBKReceiver {
+    pub fn new() -> TSBKReceiver {
+        TSBKReceiver {
             dibits: Buffer::new(DataPayloadStorage::new()),
         }
     }
 
-    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<TSBK>> {
+    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<TSBKFields>> {
         let (count, dibits) = {
             let buf = match self.dibits.feed(dibit) {
                 Some(buf) => buf,
@@ -43,7 +43,7 @@ impl TSBKDecoder {
         let mut bytes = [0; 12];
         DibitBytes::new(dibits.iter().cloned()).collect_slice_checked(&mut bytes[..]);
 
-        Some(Ok(TSBK::new(bytes)))
+        Some(Ok(TSBKFields::new(bytes)))
     }
 }
 
@@ -162,10 +162,10 @@ impl TSBKOpcode {
 pub type Buf = [u8; 12];
 
 #[derive(Copy, Clone)]
-pub struct TSBK(Buf);
+pub struct TSBKFields(Buf);
 
-impl TSBK {
-    pub fn new(buf: Buf) -> TSBK { TSBK(buf) }
+impl TSBKFields {
+    pub fn new(buf: Buf) -> TSBKFields { TSBKFields(buf) }
 
     pub fn is_tail(&self) -> bool { self.0[0] >> 7 == 1 }
     pub fn protected(&self) -> bool { self.0[0] >> 6 & 1 == 1 }
@@ -183,7 +183,7 @@ impl TSBK {
 pub struct GroupVoiceGrant(Buf);
 
 impl GroupVoiceGrant {
-    pub fn new(tsbk: TSBK) -> Self { GroupVoiceGrant(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { GroupVoiceGrant(tsbk.0) }
 
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
     pub fn talk_group(&self) -> TalkGroup { TalkGroup::new(&self.0[5..]) }
@@ -193,7 +193,7 @@ impl GroupVoiceGrant {
 pub struct GroupVoiceUpdate(Buf);
 
 impl GroupVoiceUpdate {
-    pub fn new(tsbk: TSBK) -> Self { GroupVoiceUpdate(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { GroupVoiceUpdate(tsbk.0) }
 
     pub fn channel_a(&self) -> Channel { Channel::new(&self.0[2..]) }
     pub fn talk_group_a(&self) -> TalkGroup { TalkGroup::new(&self.0[4..]) }
@@ -204,7 +204,7 @@ impl GroupVoiceUpdate {
 pub struct GroupVoiceUpdateExplicit(Buf);
 
 impl GroupVoiceUpdateExplicit {
-    pub fn new(tsbk: TSBK) -> Self { GroupVoiceUpdateExplicit(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { GroupVoiceUpdateExplicit(tsbk.0) }
 
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
     pub fn tx_channel(&self) -> Channel { Channel::new(&self.0[4..]) }
@@ -215,7 +215,7 @@ impl GroupVoiceUpdateExplicit {
 pub struct UnitVoiceGrant(Buf);
 
 impl UnitVoiceGrant {
-    pub fn new(tsbk: TSBK) -> Self { UnitVoiceGrant(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { UnitVoiceGrant(tsbk.0) }
 
     pub fn channel(&self) -> Channel { Channel::new(&self.0[2..]) }
     pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[4..]) }
@@ -225,7 +225,7 @@ impl UnitVoiceGrant {
 pub struct UnitCallRequest(Buf);
 
 impl UnitCallRequest {
-    pub fn new(tsbk: TSBK) -> Self { UnitCallRequest(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { UnitCallRequest(tsbk.0) }
 
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
     pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[4..]) }
@@ -235,7 +235,7 @@ impl UnitCallRequest {
 pub struct UnitVoiceUpdate(Buf);
 
 impl UnitVoiceUpdate {
-    pub fn new(tsbk: TSBK) -> Self { UnitVoiceUpdate(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { UnitVoiceUpdate(tsbk.0) }
 
     pub fn channel(&self) -> Channel { Channel::new(&self.0[2..]) }
     pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[4..]) }
@@ -245,7 +245,7 @@ impl UnitVoiceUpdate {
 pub struct PhoneGrant(Buf);
 
 impl PhoneGrant {
-    pub fn new(tsbk: TSBK) -> Self { PhoneGrant(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { PhoneGrant(tsbk.0) }
 
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
     pub fn channel(&self) -> Channel { Channel::new(&self.0[3..]) }
@@ -256,7 +256,7 @@ impl PhoneGrant {
 pub struct UnitDataGrant(Buf);
 
 impl UnitDataGrant {
-    pub fn new(tsbk: TSBK) -> Self { UnitDataGrant(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { UnitDataGrant(tsbk.0) }
 
     pub fn channel(&self) -> Channel { Channel::new(&self.0[2..]) }
     pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[4..]) }
@@ -265,7 +265,7 @@ impl UnitDataGrant {
 pub struct AltControlBroadcast(Buf);
 
 impl AltControlBroadcast {
-    pub fn new(tsbk: TSBK) -> Self { AltControlBroadcast(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { AltControlBroadcast(tsbk.0) }
 
     pub fn rfss(&self) -> u8 { self.0[2] }
     pub fn site(&self) -> u8 { self.0[3] }
@@ -280,7 +280,7 @@ impl AltControlBroadcast {
 pub struct NetworkStatusBroadcast(Buf);
 
 impl NetworkStatusBroadcast {
-    pub fn new(tsbk: TSBK) -> Self { NetworkStatusBroadcast(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { NetworkStatusBroadcast(tsbk.0) }
 
     pub fn area(&self) -> u8 { self.0[2] }
     pub fn wacn(&self) -> u32 { slice_u24(&self.0[3..]) >> 4 }
@@ -292,7 +292,7 @@ impl NetworkStatusBroadcast {
 pub struct SiteStatusBroadcast(Buf);
 
 impl SiteStatusBroadcast {
-    pub fn new(tsbk: TSBK) -> Self { SiteStatusBroadcast(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { SiteStatusBroadcast(tsbk.0) }
 
     pub fn area(&self) -> u8 { self.0[2] }
     pub fn is_conventional(&self) -> bool { self.0[3] & 0x80 != 0 }
@@ -309,7 +309,7 @@ impl SiteStatusBroadcast {
 pub struct ChannelParamsUpdate(Buf);
 
 impl ChannelParamsUpdate {
-    pub fn new(tsbk: TSBK) -> Self { ChannelParamsUpdate(tsbk.0) }
+    pub fn new(tsbk: TSBKFields) -> Self { ChannelParamsUpdate(tsbk.0) }
 
     pub fn params(&self) -> ChannelParams {
         ChannelParams::new(self.base_freq(), self.channel(), self.bandwidth(),

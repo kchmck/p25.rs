@@ -1,9 +1,9 @@
 use trunking::decode::*;
 
-pub struct CryptoControlDecoder([u8; 12]);
+pub struct CryptoControlFields([u8; 12]);
 
-impl CryptoControlDecoder {
-    pub fn new(buf: [u8; 12]) -> Self { CryptoControlDecoder(buf) }
+impl CryptoControlFields {
+    pub fn new(buf: [u8; 12]) -> Self { CryptoControlFields(buf) }
 
     pub fn crypto_init(&self) -> &[u8] { &self.0[..9] }
 
@@ -55,7 +55,7 @@ mod test {
 
     #[test]
     fn test_cypto() {
-        let c = CryptoControlDecoder::new([
+        let c = CryptoControlFields::new([
             0, 0, 0, 1, 0, 0, 0, 2, 0,
             0b10000100,
             0xDE, 0xAD,

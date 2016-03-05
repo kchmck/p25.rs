@@ -18,43 +18,43 @@ pub type VoiceLCFrameGroupReceiver = FrameGroupReceiver<LinkControlExtra>;
 pub type VoiceCCFrameGroupReceiver = FrameGroupReceiver<CryptoControlExtra>;
 
 pub trait Extra {
-    type Decoder;
+    type Fields;
 
     fn decode_rs(buf: &mut [Hexbit; 24]) -> Option<(&[Hexbit], usize)>;
-    fn decode_extra(buf: &[Hexbit]) -> Self::Decoder;
+    fn decode_extra(buf: &[Hexbit]) -> Self::Fields;
 }
 
 pub struct LinkControlExtra;
 
 impl Extra for LinkControlExtra {
-    type Decoder = control::LinkControl;
+    type Fields = control::LinkControlFields;
 
     fn decode_rs(buf: &mut [Hexbit; 24]) -> Option<(&[Hexbit], usize)> {
         reed_solomon::short::decode(buf)
     }
 
-    fn decode_extra(buf: &[Hexbit]) -> Self::Decoder {
+    fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
         let mut bytes = [0; 9];
         HexbitBytes::new(buf.iter().cloned()).collect_slice_checked(&mut bytes[..]);
 
-        control::LinkControl::new(bytes)
+        control::LinkControlFields::new(bytes)
     }
 }
 
 pub struct CryptoControlExtra;
 
 impl Extra for CryptoControlExtra {
-    type Decoder = crypto::CryptoControlDecoder;
+    type Fields = crypto::CryptoControlFields;
 
     fn decode_rs(buf: &mut [Hexbit; 24]) -> Option<(&[Hexbit], usize)> {
         reed_solomon::medium::decode(buf)
     }
 
-    fn decode_extra(buf: &[Hexbit]) -> Self::Decoder {
+    fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
         let mut bytes = [0; 12];
         HexbitBytes::new(buf.iter().cloned()).collect_slice_checked(&mut bytes[..]);
 
-        crypto::CryptoControlDecoder::new(bytes)
+        crypto::CryptoControlFields::new(bytes)
     }
 }
 
@@ -80,7 +80,7 @@ enum StateChange<E: Extra> {
 
 pub enum FrameGroupEvent<E: Extra> {
     VoiceFrame(VoiceFrame),
-    Extra(E::Decoder),
+    Extra(E::Fields),
     DataFragment(u32),
 }
 
@@ -196,7 +196,7 @@ impl<E: Extra> ExtraReceiver<E> {
 
     pub fn piece_done(&self) -> bool { self.dibit % 20 == 0 }
 
-    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<E::Decoder>> {
+    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<E::Fields>> {
         self.dibit += 1;
 
         let buf = match self.dibits.feed(dibit) {

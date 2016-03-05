@@ -72,10 +72,10 @@ impl LinkControlOpcode {
     }
 }
 
-pub struct LinkControl(Buf);
+pub struct LinkControlFields(Buf);
 
-impl LinkControl {
-    pub fn new(buf: Buf) -> Self { LinkControl(buf) }
+impl LinkControlFields {
+    pub fn new(buf: Buf) -> Self { LinkControlFields(buf) }
 
     pub fn protected(&self) -> bool { self.0[0] >> 7 == 1 }
 
@@ -87,7 +87,7 @@ impl LinkControl {
 pub struct GroupVoiceTraffic(Buf);
 
 impl GroupVoiceTraffic {
-    pub fn new(lc: LinkControl) -> Self { GroupVoiceTraffic(lc.0) }
+    pub fn new(lc: LinkControlFields) -> Self { GroupVoiceTraffic(lc.0) }
 
     pub fn mfg(&self) -> u8 { self.0[1] }
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
@@ -98,7 +98,7 @@ impl GroupVoiceTraffic {
 pub struct GroupVoiceChannel(Buf);
 
 impl GroupVoiceChannel {
-    pub fn new(lc: LinkControl) -> Self { GroupVoiceChannel(lc.0) }
+    pub fn new(lc: LinkControlFields) -> Self { GroupVoiceChannel(lc.0) }
 
     pub fn channel_a(&self) -> Channel { Channel::new(&self.0[1..]) }
     pub fn talk_group_a(&self) -> TalkGroup { TalkGroup::new(&self.0[3..]) }
@@ -110,7 +110,7 @@ impl GroupVoiceChannel {
 pub struct UnitVoiceTraffic(Buf);
 
 impl UnitVoiceTraffic {
-    pub fn new(lc: LinkControl) -> Self { UnitVoiceTraffic(lc.0) }
+    pub fn new(lc: LinkControlFields) -> Self { UnitVoiceTraffic(lc.0) }
 
     pub fn mfg(&self) -> u8 { self.0[1] }
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
@@ -121,14 +121,14 @@ impl UnitVoiceTraffic {
 pub struct CallTermination(Buf);
 
 impl CallTermination {
-    pub fn new(lc: LinkControl) -> Self { CallTermination(lc.0) }
+    pub fn new(lc: LinkControlFields) -> Self { CallTermination(lc.0) }
     pub fn unit(&self) -> u32 { slice_u24(&self.0[6..]) }
 }
 
 pub struct AdjacentSiteBroadcast(Buf);
 
 impl AdjacentSiteBroadcast {
-    pub fn new(lc: LinkControl) -> Self { AdjacentSiteBroadcast(lc.0) }
+    pub fn new(lc: LinkControlFields) -> Self { AdjacentSiteBroadcast(lc.0) }
     pub fn area(&self) -> u8 { self.0[1] }
     pub fn system(&self) -> u16 { slice_u16(&self.0[2..]) & 0xFFF }
     pub fn rfss(&self) -> u8 { self.0[4] }
@@ -144,7 +144,7 @@ mod test {
 
     #[test]
     fn test_lc() {
-        let lc = LinkControl::new([
+        let lc = LinkControlFields::new([
             0b00000000,
             0b00000000,
             0b10110101, 0b00000000,
