@@ -17,6 +17,7 @@ pub mod consts;
 pub mod data;
 pub mod error;
 pub mod filters;
+pub mod message;
 pub mod nid;
 pub mod receiver;
 pub mod status;
