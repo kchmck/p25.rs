@@ -7,7 +7,7 @@ use sync::{SyncCorrelator, SyncDetector};
 use self::State::*;
 use self::StateChange::*;
 
-const PRIME_SAMPLES: u32 = 1000;
+const PRIME_SAMPLES: u32 = 6000;
 
 #[derive(Debug)]
 pub enum ReceiverEvent {
@@ -56,7 +56,7 @@ enum StateChange {
 }
 
 impl State {
-    pub fn prime() -> State { Prime(0) }
+    pub fn prime() -> State { Prime(1) }
     pub fn sync() -> State { Sync(SyncDetector::new()) }
     pub fn decode_nid(decoder: Decoder) -> State {
         DecodeNID(Receiver::new(decoder), nid::NIDReceiver::new())
@@ -89,15 +89,15 @@ impl DataUnitReceiver {
     pub fn resync(&mut self) { self.state = State::sync(); }
 
     fn handle(&mut self, s: f32) -> StateChange {
-        let energy = self.corr.feed(s);
+        let (power, thresh) = self.corr.feed(s);
 
         match self.state {
-            Prime(t) => if t == PRIME_SAMPLES - 1 {
+            Prime(t) => if t == PRIME_SAMPLES {
                 Change(State::sync())
             } else {
                 Change(Prime(t + 1))
             },
-            Sync(ref mut sync) => if sync.feed(energy, self.corr.thresh()) {
+            Sync(ref mut sync) => if sync.feed(power, thresh) {
                 let (p, m, n) = self.corr.thresholds();
                 Change(State::decode_nid(Decoder::new(Decider::new(p, m, n))))
             } else {

@@ -2,38 +2,33 @@ use dsp::fir::FIRFilter;
 use collect_slice::CollectSlice;
 use ewma::{MovingAverageWeight, MovingAverage};
 
-// +6dB
-const THRESH_FACTOR: f32 = 7.0;
+const THRESH_FACTOR: f32 = 0.15864156639393093;
 
-struct CorrSmoothing;
+struct PowerSmoothing;
 
-impl MovingAverageWeight for CorrSmoothing {
-    fn weight() -> f32 { 0.001 }
+impl MovingAverageWeight for PowerSmoothing {
+    fn weight() -> f32 { 0.0005 }
 }
 
 pub struct SyncCorrelator {
     corr: FIRFilter<SyncFingerprint>,
-    avg: MovingAverage<CorrSmoothing>,
+    power: MovingAverage<PowerSmoothing>
 }
 
 impl SyncCorrelator {
     pub fn new() -> SyncCorrelator {
         SyncCorrelator {
             corr: FIRFilter::new(),
-            avg: MovingAverage::new(0.0),
+            power: MovingAverage::new(0.0),
         }
     }
 
-    pub fn feed(&mut self, sample: f32) -> f32 {
-        // Normalized (1ohm load) energy of correlation.
-        let energy = self.corr.feed(sample);
-        // Average normalized energy (power).
-        self.avg.add(energy.abs());
+    pub fn feed(&mut self, sample: f32) -> (f32, f32) {
+        let power = self.corr.feed(sample) / 231.0;
+        let avg = self.power.add(sample * sample);
 
-        energy
+        (power, avg.sqrt() * THRESH_FACTOR)
     }
-
-    pub fn thresh(&self) -> f32 { self.avg.get() * THRESH_FACTOR }
 
     pub fn thresholds(&self) -> (f32, f32, f32) {
         let mut combined = [0.0; 231];
@@ -59,8 +54,8 @@ impl SyncCorrelator {
             NEG.len() as f32;
 
         let mthresh = (pavg + navg) / 2.0;
-        let pthresh = mthresh + (pavg - mthresh) * 2.0 / 3.0;
-        let nthresh = mthresh + (navg - mthresh) * 2.0 / 3.0;
+        let pthresh = mthresh + (pavg - mthresh) * (2.0 / 3.0);
+        let nthresh = mthresh + (navg - mthresh) * (2.0 / 3.0);
 
         (pthresh, mthresh, nthresh)
     }
@@ -68,7 +63,7 @@ impl SyncCorrelator {
 
 #[derive(Copy, Clone, Debug)]
 pub struct SyncDetector {
-    /// Previous (maximum) energy.
+    /// Previous (maximum) power.
     prev: Option<f32>,
 }
 
@@ -79,15 +74,15 @@ impl SyncDetector {
         }
     }
 
-    pub fn feed(&mut self, energy: f32, thresh: f32) -> bool {
+    pub fn feed(&mut self, power: f32, thresh: f32) -> bool {
         match self.prev {
-            Some(p) => if energy < p {
+            Some(p) => if power < p {
                 return true
             } else {
-                self.prev = Some(energy);
+                self.prev = Some(power);
             },
-            None => if energy > thresh {
-                self.prev = Some(energy);
+            None => if power > thresh {
+                self.prev = Some(power);
             },
         }
 
