@@ -46,11 +46,11 @@ impl Decider {
     }
 
     pub fn decide(&self, sample: f32) -> bits::Dibit {
-        if sample >= self.pthresh {
+        if sample > self.pthresh {
             bits::Dibit::new(0b01)
-        } else if sample >= self.mthresh && sample < self.pthresh {
+        } else if sample > self.mthresh && sample <= self.pthresh {
             bits::Dibit::new(0b00)
-        } else if sample < self.mthresh && sample >= self.nthresh {
+        } else if sample <= self.mthresh && sample > self.nthresh {
             bits::Dibit::new(0b10)
         } else {
             bits::Dibit::new(0b11)
