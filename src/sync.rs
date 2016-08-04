@@ -2,7 +2,7 @@ use dsp::fir::FIRFilter;
 use collect_slice::CollectSlice;
 use ewma::{MovingAverageWeight, MovingAverage};
 
-const THRESH_FACTOR: f32 = 0.15864156639393093;
+const THRESH_FACTOR: f32 = 0.1206734989540087;
 
 struct PowerSmoothing;
 
