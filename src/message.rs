@@ -1,5 +1,4 @@
 use error::P25Error;
-use filters::ReceiveFilter;
 use nid::NetworkID;
 use receiver::DataUnitReceiver;
 use status::StreamSymbol;
@@ -40,7 +39,6 @@ enum State {
 
 pub struct MessageReceiver {
     recv: DataUnitReceiver,
-    filt: ReceiveFilter,
     state: State,
 }
 
@@ -48,7 +46,6 @@ impl MessageReceiver {
     pub fn new() -> MessageReceiver {
         MessageReceiver {
             recv: DataUnitReceiver::new(),
-            filt: ReceiveFilter::new(),
             state: State::Idle,
         }
     }
@@ -58,7 +55,7 @@ impl MessageReceiver {
         use nid::DataUnit::*;
         use receiver::ReceiverEvent;
 
-        let event = match self.recv.feed(self.filt.feed(s)) {
+        let event = match self.recv.feed(s) {
             Some(Ok(event)) => event,
             Some(Err(err)) => {
                 handler.handle_error(err);
