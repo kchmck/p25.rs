@@ -15,7 +15,7 @@ pub struct Channel(u16);
 impl Channel {
     pub fn new(bytes: &[u8]) -> Channel { Channel(slice_u16(bytes)) }
 
-    pub fn band(&self) -> u8 { (self.0 >> 12) as u8 }
+    pub fn id(&self) -> u8 { (self.0 >> 12) as u8 }
     pub fn number(&self) -> u16 { self.0 & 0xFFF }
 }
 
@@ -59,33 +59,42 @@ impl SystemServices {
     pub fn has_auth(&self) -> bool { self.0 & 0x80 != 0 }
 }
 
+/// Map channel identifier (maximum 16 per control channel) to its parameters.
+pub type ChannelParamsMap = [Option<ChannelParams>; 16];
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ChannelParams {
-    /// Receive frequency in Hz.
-    pub rx_freq: u64,
-    /// Transmit frequency in Hz.
-    pub tx_freq: u64,
+    /// Base frequency in Hz.
+    base: u32,
+    /// Channel spacing in Hz.
+    spacing: u32,
+    /// Transmit frequency offset in Hz.
+    offset: i32,
     /// Channel bandwidth in Hz.
-    pub bandwidth: u64,
+    pub bandwidth: u32,
 }
 
 impl ChannelParams {
-    pub fn new(base: u32, channel: u8, bandwidth: u16, offset: u16, spacing: u16)
-        -> ChannelParams
-    {
-        let rx = base as u64 * 5 + channel as u64 * spacing as u64 * 125;
-        let off = (offset as u64 & 0xFF) * 250_000;
-        let tx = if offset >> 8 == 0 {
-            rx - off
-        } else {
-            rx + off
-        };
+    pub fn new(base: u32, bandwidth: u16, offset: u16, spacing: u16) -> ChannelParams {
+        // The MSB denotes the sign and the lower byte is the actual offset.
+        let off = (offset as i32 & 0xFF) * 250_000;
 
         ChannelParams {
-            rx_freq: rx,
-            tx_freq: tx,
-            bandwidth: bandwidth as u64 * 125,
+            base: base * 5,
+            spacing: spacing as u32 * 125,
+            offset: if offset >> 8 == 0 { -off } else { off },
+            bandwidth: bandwidth as u32 * 125,
         }
+    }
+
+    /// Receive frequency for the given channel number in Hz.
+    pub fn rx_freq(&self, ch: u16) -> u32 {
+        self.base + self.spacing * ch as u32
+    }
+
+    /// Transmit frequency for the given channel number in Hz.
+    pub fn tx_freq(&self, ch: u16) -> u32 {
+        self.rx_freq(ch) + self.offset as u32
     }
 }
 
@@ -125,9 +134,12 @@ mod test {
 
     #[test]
     fn test_channel_params() {
-        let p = ChannelParams::new(170201250, 0, 0x64, 0b010110100, 0x32);
-        assert_eq!(p.rx_freq, 851_006_250);
-        assert_eq!(p.tx_freq, 806_006_250);
-        assert_eq!(p.bandwidth, 12500);
+        // Example from the standard.
+        let p = ChannelParams::new(170201250, 0x64, 0b010110100, 0x32);
+        assert_eq!(p.base, 851_006_250);
+        assert_eq!(p.spacing, 6_250);
+        assert_eq!(p.offset, -45_000_000);
+        assert_eq!(p.bandwidth, 12_500);
+        assert_eq!(p.rx_freq(0b1001), 851_062_500);
     }
 }
