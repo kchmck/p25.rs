@@ -2,14 +2,21 @@ use bits;
 use data;
 use voice;
 
+/// Backing storage for a Buffer.
 pub trait Storage {
+    /// Type of item stored.
     type Input: Copy;
+    /// Type of backing storage.
     type Buf;
 
+    /// Number of items that can be stored.
     fn size(&self) -> usize;
+    /// Get the storage buffer.
     fn buf(&mut self) -> &mut Self::Buf;
+    /// Add an item to the buffer at the given position.
     fn add(&mut self, item: Self::Input, pos: usize);
-    fn reset(&mut self) {}
+    /// Reset buffer to "empty" state.
+    fn reset(&mut self);
 }
 
 macro_rules! storage_type {
@@ -27,6 +34,8 @@ macro_rules! storage_type {
             fn size(&self) -> usize { $size }
             fn buf(&mut self) -> &mut Self::Buf { &mut self.0 }
             fn add(&mut self, item: Self::Input, pos: usize) { self.0[pos] = item; }
+            // No need to reset because the buffer won't be seen in a non-full state.
+            fn reset(&mut self) {}
         }
     };
 }
@@ -82,7 +91,7 @@ impl<S: Storage> Buffer<S> {
 
     pub fn reset(&mut self) { self.pos = 0; }
 
-    /// the buffer is reset once `Some` is returned.
+    /// Add the given item to the buffer and return the buffer if it's completed.
     pub fn feed(&mut self, item: S::Input) -> Option<&mut S::Buf> {
         if self.pos == 0 {
             self.storage.reset();
