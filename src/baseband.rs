@@ -1,6 +1,7 @@
 use bits;
 use consts;
 
+/// Decodes symbol from sample at each symbol instant.
 #[derive(Copy, Clone)]
 pub struct Decoder {
     pos: usize,
@@ -8,6 +9,7 @@ pub struct Decoder {
 }
 
 impl Decoder {
+    /// Create a new Decoder with the given symbol decider.
     pub fn new(decider: Decider) -> Decoder {
         Decoder {
             // Decoder is created after first sample of first symbol after sync has
@@ -17,6 +19,8 @@ impl Decoder {
         }
     }
 
+    /// Examine the given sample and, based on the symbol clock, decode it a symbol or
+    /// do nothing.
     pub fn feed(&mut self, s: f32) -> Option<bits::Dibit> {
         self.pos += 1;
         self.pos %= consts::PERIOD;
@@ -29,6 +33,7 @@ impl Decoder {
     }
 }
 
+/// Decides which symbol a sample represents with a threshold method.
 #[derive(Copy, Clone)]
 pub struct Decider {
     pthresh: f32,
@@ -37,6 +42,8 @@ pub struct Decider {
 }
 
 impl Decider {
+    /// Create a new Decider with the given positive threshold, mid threshold, and
+    /// negative threshold.
     pub fn new(pthresh: f32, mthresh: f32, nthresh: f32) -> Decider {
         Decider {
             pthresh: pthresh,
@@ -45,6 +52,7 @@ impl Decider {
         }
     }
 
+    /// Decide with symbol the given sample looks closest to.
     pub fn decide(&self, sample: f32) -> bits::Dibit {
         if sample > self.pthresh {
             bits::Dibit::new(0b01)
