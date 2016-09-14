@@ -7,6 +7,7 @@ use data::{crc, interleave};
 use error::{Result, P25Error};
 
 use trunking::decode::*;
+use trunking::consts::{TSBK_DIBITS, TSBK_BYTES};
 
 pub struct TSBKReceiver {
     dibits: Buffer<DataPayloadStorage>,
@@ -26,7 +27,7 @@ impl TSBKReceiver {
                 None => return None,
             };
 
-            let mut dibits = [Dibit::default(); 48];
+            let mut dibits = [Dibit::default(); TSBK_DIBITS];
             let count = trellis::DibitDecoder::new(interleave::Deinterleaver::new(buf))
                 .filter_map(|x| x.ok())
                 .collect_slice(&mut dibits[..]);
@@ -40,7 +41,7 @@ impl TSBKReceiver {
             return Some(Err(P25Error::ViterbiUnrecoverable));
         }
 
-        let mut bytes = [0; 12];
+        let mut bytes = [0; TSBK_BYTES];
         DibitBytes::new(dibits.iter().cloned()).collect_slice_checked(&mut bytes[..]);
 
         Some(Ok(TSBKFields::new(bytes)))
@@ -159,7 +160,7 @@ impl TSBKOpcode {
     }
 }
 
-pub type Buf = [u8; 12];
+pub type Buf = [u8; TSBK_BYTES];
 
 #[derive(Copy, Clone)]
 pub struct TSBKFields(Buf);
