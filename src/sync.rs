@@ -12,7 +12,7 @@ impl MovingAverageWeight for PowerSmoothing {
 
 pub struct SyncCorrelator {
     corr: FIRFilter<SyncFingerprint>,
-    power: MovingAverage<PowerSmoothing>
+    power: MovingAverage<PowerSmoothing>,
 }
 
 impl SyncCorrelator {
