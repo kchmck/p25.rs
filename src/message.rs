@@ -17,15 +17,15 @@ use voice::{
 };
 
 pub trait MessageHandler {
-    fn handle_error(&mut self, err: P25Error);
-    fn handle_nid(&mut self, nid: NetworkID);
-    fn handle_header(&mut self, header: VoiceHeaderFields);
-    fn handle_frame(&mut self, frame: VoiceFrame);
-    fn handle_lc(&mut self, lc: LinkControlFields);
-    fn handle_cc(&mut self, cc: CryptoControlFields);
-    fn handle_data_frag(&mut self, data: u32);
-    fn handle_tsbk(&mut self, tsbk: TSBKFields) -> bool;
-    fn handle_term(&mut self);
+    fn handle_error(&mut self, recv: &mut DataUnitReceiver, err: P25Error);
+    fn handle_nid(&mut self, recv: &mut DataUnitReceiver, nid: NetworkID);
+    fn handle_header(&mut self, recv: &mut DataUnitReceiver, header: VoiceHeaderFields);
+    fn handle_frame(&mut self, recv: &mut DataUnitReceiver, frame: VoiceFrame);
+    fn handle_lc(&mut self, recv: &mut DataUnitReceiver, lc: LinkControlFields);
+    fn handle_cc(&mut self, recv: &mut DataUnitReceiver, cc: CryptoControlFields);
+    fn handle_data_frag(&mut self, recv: &mut DataUnitReceiver, data: u32);
+    fn handle_tsbk(&mut self, recv: &mut DataUnitReceiver, tsbk: TSBKFields);
+    fn handle_term(&mut self, recv: &mut DataUnitReceiver);
 }
 
 enum State {
@@ -58,7 +58,7 @@ impl MessageReceiver {
         let event = match self.recv.feed(s) {
             Some(Ok(event)) => event,
             Some(Err(err)) => {
-                handler.handle_error(err);
+                handler.handle_error(&mut self.recv, err);
                 self.recv.resync();
 
                 return;
@@ -68,13 +68,13 @@ impl MessageReceiver {
 
         let dibit = match event {
             ReceiverEvent::NetworkID(nid) => {
-                handler.handle_nid(nid);
+                handler.handle_nid(&mut self.recv, nid);
 
                 self.state = match nid.data_unit() {
                     VoiceHeader =>
                         DecodeHeader(VoiceHeaderReceiver::new()),
                     VoiceSimpleTerminator => {
-                        handler.handle_term();
+                        handler.handle_term(&mut self.recv);
                         self.recv.flush_pads();
                         Idle
                     },
@@ -101,11 +101,11 @@ impl MessageReceiver {
         match self.state {
             DecodeHeader(ref mut head) => match head.feed(dibit) {
                 Some(Ok(h)) => {
-                    handler.handle_header(h);
+                    handler.handle_header(&mut self.recv, h);
                     self.recv.flush_pads();
                 },
                 Some(Err(err)) => {
-                    handler.handle_error(err);
+                    handler.handle_error(&mut self.recv, err);
                     self.recv.resync();
                 },
                 None => {},
@@ -113,17 +113,17 @@ impl MessageReceiver {
             DecodeLCFrameGroup(ref mut fg) => match fg.feed(dibit) {
                 Some(Ok(event)) => match event {
                     FrameGroupEvent::VoiceFrame(vf) => {
-                        handler.handle_frame(vf);
+                        handler.handle_frame(&mut self.recv, vf);
 
                         if fg.done() {
                             self.recv.flush_pads();
                         }
                     },
-                    FrameGroupEvent::Extra(lc) => handler.handle_lc(lc),
-                    FrameGroupEvent::DataFragment(data) => handler.handle_data_frag(data),
+                    FrameGroupEvent::Extra(lc) => handler.handle_lc(&mut self.recv, lc),
+                    FrameGroupEvent::DataFragment(data) => handler.handle_data_frag(&mut self.recv, data),
                 },
                 Some(Err(err)) => {
-                    handler.handle_error(err);
+                    handler.handle_error(&mut self.recv, err);
                     self.recv.resync();
                 },
                 None => {},
@@ -131,43 +131,44 @@ impl MessageReceiver {
             DecodeCCFrameGroup(ref mut fg) => match fg.feed(dibit) {
                 Some(Ok(event)) => match event {
                     FrameGroupEvent::VoiceFrame(vf) => {
-                        handler.handle_frame(vf);
+                        handler.handle_frame(&mut self.recv, vf);
 
                         if fg.done() {
                             self.recv.flush_pads();
                         }
                     },
-                    FrameGroupEvent::Extra(cc) => handler.handle_cc(cc),
-                    FrameGroupEvent::DataFragment(data) => handler.handle_data_frag(data),
+                    FrameGroupEvent::Extra(cc) => handler.handle_cc(&mut self.recv, cc),
+                    FrameGroupEvent::DataFragment(data) =>
+                        handler.handle_data_frag(&mut self.recv, data),
                 },
                 Some(Err(err)) => {
-                    handler.handle_error(err);
+                    handler.handle_error(&mut self.recv, err);
                     self.recv.resync();
                 },
                 None => {},
             },
             DecodeLCTerminator(ref mut term) => match term.feed(dibit) {
                 Some(Ok(lc)) => {
-                    handler.handle_lc(lc);
-                    handler.handle_term();
+                    handler.handle_lc(&mut self.recv, lc);
+                    handler.handle_term(&mut self.recv);
                     self.recv.flush_pads();
                 },
                 Some(Err(err)) => {
-                    handler.handle_error(err);
+                    handler.handle_error(&mut self.recv, err);
                     self.recv.resync();
                 },
                 None => {},
             },
             DecodeTSBK(ref mut dec) => match dec.feed(dibit) {
                 Some(Ok(tsbk)) => {
-                    if handler.handle_tsbk(tsbk) {
-                        self.recv.resync();
-                    } else if tsbk.is_tail() {
+                    handler.handle_tsbk(&mut self.recv, tsbk);
+
+                    if tsbk.is_tail() {
                         self.recv.flush_pads();
                     }
                 },
                 Some(Err(err)) => {
-                    handler.handle_error(err);
+                    handler.handle_error(&mut self.recv, err);
                     self.recv.resync();
                 },
                 None => {},
