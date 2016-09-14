@@ -5,7 +5,7 @@ extern crate ewma;
 extern crate num;
 
 #[macro_use]
-extern crate dsp;
+extern crate static_fir;
 
 mod buffer;
 

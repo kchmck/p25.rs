@@ -1,4 +1,4 @@
-use dsp::fir::FIRFilter;
+use static_fir::FIRFilter;
 use collect_slice::CollectSlice;
 use ewma::{MovingAverageWeight, MovingAverage};
 
