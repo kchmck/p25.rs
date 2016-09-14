@@ -35,8 +35,6 @@ impl TSBKReceiver {
             (count, dibits)
         };
 
-        self.dibits.reset();
-
         if count != dibits.len() {
             return Some(Err(P25Error::ViterbiUnrecoverable));
         }

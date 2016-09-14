@@ -143,8 +143,6 @@ impl NIDReceiver {
             None => return None,
         };
 
-        self.dibits.reset();
-
         let data = match bch::decode(buf) {
             Some((data, err)) => data,
             None => return Some(Err(P25Error::BCHUnrecoverable)),

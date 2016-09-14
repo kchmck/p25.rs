@@ -89,7 +89,7 @@ impl<S: Storage> Buffer<S> {
         }
     }
 
-    pub fn reset(&mut self) { self.pos = 0; }
+    fn reset(&mut self) { self.pos = 0; }
 
     /// Add the given item to the buffer and return the buffer if it's completed.
     pub fn feed(&mut self, item: S::Input) -> Option<&mut S::Buf> {
