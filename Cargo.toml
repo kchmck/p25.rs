@@ -7,4 +7,4 @@ authors = ["Mick Koch <mick@kochm.co>"]
 collect_slice = "^1.0.0"
 static_fir = {version = "^1.0.0", path = "../static_fir"}
 num = "^0.1.34"
-ewma = {version = "^1.0.0", path = "../ewma"}
+static_ewma = {version = "^1.0.0", path = "../static_ewma"}

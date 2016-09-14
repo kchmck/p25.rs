@@ -1,6 +1,6 @@
 use static_fir::FIRFilter;
 use collect_slice::CollectSlice;
-use ewma::{MovingAverageWeight, MovingAverage};
+use static_ewma::{MovingAverageWeight, MovingAverage};
 
 const THRESH_FACTOR: f32 = 0.1206734989540087;
 
