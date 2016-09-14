@@ -90,7 +90,7 @@ impl SyncDetector {
     }
 }
 
-// Fingerprint of frame sync waveform in volts. Includes all 24 impulses.
+// Fingerprint of frame sync waveform in "volts". Includes all 24 symbol impulses.
 impl_fir!(SyncFingerprint, f32, 231, [
     0.1800000071525574,
     0.1978198289871216,
