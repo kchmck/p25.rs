@@ -1,6 +1,7 @@
 use trunking::decode::*;
+use voice::consts::LINK_CONTROL_BYTES;
 
-pub type Buf = [u8; 9];
+pub type Buf = [u8; LINK_CONTROL_BYTES];
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum LinkControlOpcode {

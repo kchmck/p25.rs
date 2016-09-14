@@ -1,6 +1,7 @@
 use trunking::decode::*;
+use voice::consts::CRYPTO_CONTROL_BYTES;
 
-pub struct CryptoControlFields([u8; 12]);
+pub struct CryptoControlFields([u8; CRYPTO_CONTROL_BYTES]);
 
 impl CryptoControlFields {
     pub fn new(buf: [u8; 12]) -> Self { CryptoControlFields(buf) }

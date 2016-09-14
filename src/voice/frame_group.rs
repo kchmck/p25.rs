@@ -9,7 +9,7 @@ use error::{P25Error, Result};
 
 use voice::{control, crypto};
 use voice::frame::VoiceFrame;
-use voice::consts::EXTRA_HEXBITS;
+use voice::consts::{EXTRA_HEXBITS, LINK_CONTROL_BYTES, CRYPTO_CONTROL_BYTES};
 
 use error::P25Error::*;
 use self::State::*;
@@ -35,7 +35,7 @@ impl Extra for LinkControlExtra {
     }
 
     fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
-        let mut bytes = [0; 9];
+        let mut bytes = [0; LINK_CONTROL_BYTES];
         HexbitBytes::new(buf.iter().cloned()).collect_slice_checked(&mut bytes[..]);
 
         control::LinkControlFields::new(bytes)
@@ -52,7 +52,7 @@ impl Extra for CryptoControlExtra {
     }
 
     fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
-        let mut bytes = [0; 12];
+        let mut bytes = [0; CRYPTO_CONTROL_BYTES];
         HexbitBytes::new(buf.iter().cloned()).collect_slice_checked(&mut bytes[..]);
 
         crypto::CryptoControlFields::new(bytes)
