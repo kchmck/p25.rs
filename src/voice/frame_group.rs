@@ -9,7 +9,13 @@ use error::{P25Error, Result};
 
 use voice::{control, crypto};
 use voice::frame::VoiceFrame;
-use voice::consts::{EXTRA_HEXBITS, LINK_CONTROL_BYTES, CRYPTO_CONTROL_BYTES};
+
+use voice::consts::{
+    EXTRA_HEXBITS,
+    EXTRA_PIECE_DIBITS,
+    LINK_CONTROL_BYTES,
+    CRYPTO_CONTROL_BYTES,
+};
 
 use error::P25Error::*;
 use self::State::*;
@@ -195,7 +201,7 @@ impl<E: Extra> ExtraReceiver<E> {
         }
     }
 
-    pub fn piece_done(&self) -> bool { self.dibit % 20 == 0 }
+    pub fn piece_done(&self) -> bool { self.dibit % EXTRA_PIECE_DIBITS == 0 }
 
     pub fn feed(&mut self, dibit: Dibit) -> Option<Result<E::Fields>> {
         self.dibit += 1;
