@@ -9,6 +9,7 @@ use error::{P25Error, Result};
 
 use voice::{control, crypto};
 use voice::frame::VoiceFrame;
+use voice::consts::EXTRA_HEXBITS;
 
 use error::P25Error::*;
 use self::State::*;
@@ -20,7 +21,7 @@ pub type VoiceCCFrameGroupReceiver = FrameGroupReceiver<CryptoControlExtra>;
 pub trait Extra {
     type Fields;
 
-    fn decode_rs(buf: &mut [Hexbit; 24]) -> Option<(&[Hexbit], usize)>;
+    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)>;
     fn decode_extra(buf: &[Hexbit]) -> Self::Fields;
 }
 
@@ -29,7 +30,7 @@ pub struct LinkControlExtra;
 impl Extra for LinkControlExtra {
     type Fields = control::LinkControlFields;
 
-    fn decode_rs(buf: &mut [Hexbit; 24]) -> Option<(&[Hexbit], usize)> {
+    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)> {
         reed_solomon::short::decode(buf)
     }
 
@@ -46,7 +47,7 @@ pub struct CryptoControlExtra;
 impl Extra for CryptoControlExtra {
     type Fields = crypto::CryptoControlFields;
 
-    fn decode_rs(buf: &mut [Hexbit; 24]) -> Option<(&[Hexbit], usize)> {
+    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)> {
         reed_solomon::medium::decode(buf)
     }
 

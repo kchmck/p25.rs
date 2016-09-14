@@ -40,9 +40,9 @@ macro_rules! storage_type {
     };
 }
 
-storage_type!(VoiceHeaderStorage, [bits::Hexbit; 36]);
+storage_type!(VoiceHeaderStorage, [bits::Hexbit; voice::consts::HEADER_HEXBITS]);
 storage_type!(VoiceFrameStorage, [bits::Dibit; voice::consts::FRAME_DIBITS]);
-storage_type!(VoiceExtraStorage, [bits::Hexbit; 24]);
+storage_type!(VoiceExtraStorage, [bits::Hexbit; voice::consts::EXTRA_HEXBITS]);
 storage_type!(DataPayloadStorage, [bits::Dibit; data::consts::CODING_DIBITS]);
 
 pub struct DibitStorage {
