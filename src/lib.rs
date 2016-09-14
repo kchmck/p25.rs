@@ -8,6 +8,7 @@ extern crate num;
 extern crate static_fir;
 
 mod buffer;
+mod util;
 
 pub mod baseband;
 pub mod bits;
