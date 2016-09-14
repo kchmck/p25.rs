@@ -7,6 +7,7 @@ use error::Result;
 
 use voice::header::VoiceHeaderFields;
 use voice::control::LinkControlFields;
+use voice::consts::HEADER_BYTES;
 
 use error::P25Error::*;
 
@@ -44,7 +45,7 @@ impl VoiceHeaderReceiver {
             None => return Some(Err(ReedSolomonUnrecoverable)),
         };
 
-        let mut bytes = [0; 15];
+        let mut bytes = [0; HEADER_BYTES];
         HexbitBytes::new(data.iter().cloned())
             .collect_slice_checked(&mut bytes[..]);
 
