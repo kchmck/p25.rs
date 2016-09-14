@@ -72,7 +72,7 @@ fn syndrome(word: u32) -> u8 {
 
 /// Find the error pattern associated with the syndrome.
 ///
-/// One of the benefits of the cyclic algorithm is we only have to store error patters
+/// One of the benefits of the cyclic algorithm is we only have to store error patterns
 /// with the LSB set.
 fn pattern(syn: u8) -> Option<u32> {
     match syn {
