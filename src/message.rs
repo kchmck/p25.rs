@@ -24,7 +24,7 @@ pub trait MessageHandler {
     fn handle_lc(&mut self, lc: LinkControlFields);
     fn handle_cc(&mut self, cc: CryptoControlFields);
     fn handle_data_frag(&mut self, data: u32);
-    fn handle_tsbk(&mut self, tsbk: TSBKFields);
+    fn handle_tsbk(&mut self, tsbk: TSBKFields) -> bool;
     fn handle_term(&mut self);
 }
 
@@ -160,9 +160,9 @@ impl MessageReceiver {
             },
             DecodeTSBK(ref mut dec) => match dec.feed(dibit) {
                 Some(Ok(tsbk)) => {
-                    handler.handle_tsbk(tsbk);
-
-                    if tsbk.is_tail() {
+                    if handler.handle_tsbk(tsbk) {
+                        self.recv.resync();
+                    } else if tsbk.is_tail() {
                         self.recv.flush_pads();
                     }
                 },
