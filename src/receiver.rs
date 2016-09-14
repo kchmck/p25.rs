@@ -79,10 +79,10 @@ impl DataUnitReceiver {
     }
 
     pub fn flush_pads(&mut self) {
-        if let DecodePacket(recv) = self.state {
-            self.state = State::flush_pads(recv);
-        } else {
-            panic!("not decoding a packet");
+        match self.state {
+            DecodePacket(recv) => self.state = State::flush_pads(recv),
+            Sync(_) => {},
+            _ => panic!("not decoding a packet"),
         }
     }
 
