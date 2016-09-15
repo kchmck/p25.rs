@@ -30,12 +30,10 @@ impl Receiver {
     }
 
     pub fn feed(&mut self, s: f32) -> Option<StreamSymbol> {
-        let dibit = match self.recv.feed(s) {
-            Some(dibit) => dibit,
-            None => return None,
-        };
-
-        Some(self.status.feed(dibit))
+        match self.recv.feed(s) {
+            Some(dibit) => Some(self.status.feed(dibit)),
+            None => None,
+        }
     }
 }
 
