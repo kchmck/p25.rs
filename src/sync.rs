@@ -39,28 +39,43 @@ impl SyncCorrelator {
         left.iter().cloned().chain(right.iter().cloned())
             .collect_slice_checked(&mut combined[..]);
 
-        const POS: [usize; 10] = [
-            0, 10, 20, 30, 50, 60, 90, 100, 150, 170,
-        ];
+        let (pavg, navg) = calc_averages(&combined);
 
-        const NEG: [usize; 13] = [
-            40, 70, 80, 110, 120, 130, 140, 160, 180, 190, 200, 210, 220,
-        ];
-
-        let samples = &combined[9..];
-
-        let pavg = POS.iter().fold(0.0, |s, &idx| s + samples[idx]) /
-            POS.len() as f32;
-
-        let navg = NEG.iter().fold(0.0, |s, &idx| s + samples[idx]) /
-            NEG.len() as f32;
-
-        let mthresh = (pavg + navg) / 2.0;
-        let pthresh = mthresh + (pavg - mthresh) * (2.0 / 3.0);
-        let nthresh = mthresh + (navg - mthresh) * (2.0 / 3.0);
-
-        (pthresh, mthresh, nthresh)
+        calc_thresholds(pavg, navg)
     }
+}
+
+/// Calculate the average positive and negative sample value at each symbol instant in the
+/// given samples.
+fn calc_averages(samples: &[f32; FINGERPRINT_SAMPS]) -> (f32, f32) {
+    const POS: [usize; 10] = [
+        0, 10, 20, 30, 50, 60, 90, 100, 150, 170,
+    ];
+
+    const NEG: [usize; 13] = [
+        40, 70, 80, 110, 120, 130, 140, 160, 180, 190, 200, 210, 220,
+    ];
+
+    // First fingerprint symbol has been shifted off, so start at the second one.
+    let samples = &samples[9..];
+
+    let pavg = POS.iter().fold(0.0, |s, &idx| s + samples[idx]) /
+        POS.len() as f32;
+
+    let navg = NEG.iter().fold(0.0, |s, &idx| s + samples[idx]) /
+        NEG.len() as f32;
+
+    (pavg, navg)
+}
+
+/// Calculate the upper, mid, and lower thresholds for symbol decisions from the given
+/// positive and negative sample values.
+fn calc_thresholds(pavg: f32, navg: f32) -> (f32, f32, f32) {
+    let mthresh = (pavg + navg) / 2.0;
+    let pthresh = mthresh + (pavg - mthresh) * (2.0 / 3.0);
+    let nthresh = mthresh + (navg - mthresh) * (2.0 / 3.0);
+
+    (pthresh, mthresh, nthresh)
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -338,8 +353,68 @@ pub const SYNC_GENERATOR: &'static [u8] = &[
 
 #[cfg(test)]
 mod test {
-    use super::SyncFingerprint;
+    use super::{SyncFingerprint, calc_averages, calc_thresholds};
     use static_fir::FIRFilter;
+
+    #[test]
+    fn test_calc_averages() {
+        let (pavg, navg) = calc_averages(&[
+                 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0, 42.0,
+            -1.0, 42.0,
+        ]);
+
+        assert!((pavg - 1.0).abs() < 0.000000001);
+        assert!((navg - -1.0).abs() < 0.000000001);
+    }
+
+    #[test]
+    fn test_calc_thresholds() {
+        // Ideal
+        let (p, m, n) = calc_thresholds(0.18, -0.18);
+        assert!((p - 0.12).abs() < 0.000001);
+        assert!((m - 0.0).abs() < 0.000001);
+        assert!((n - -0.12).abs() < 0.000001);
+
+        // Scaling
+        let (p, m, n) = calc_thresholds(0.072, -0.072);
+        assert!((p - 0.048).abs() < 0.000001);
+        assert!((m - 0.0).abs() < 0.000001);
+        assert!((n - -0.048).abs() < 0.000001);
+
+        // DC bias
+        let (p, m, n) = calc_thresholds(0.15, -0.21);
+        assert!((p - 0.09).abs() < 0.000001);
+        assert!((m - -0.03).abs() < 0.000001);
+        assert!((n - -0.15).abs() < 0.000001);
+
+        // Scaling and DC bias
+        let (p, m, n) = calc_thresholds(0.042, -0.102);
+        assert!((p - 0.018).abs() < 0.000001);
+        assert!((m - -0.030).abs() < 0.000001);
+        assert!((n - -0.078).abs() < 0.000001);
+    }
 
     #[test]
     fn test_corr_self() {
