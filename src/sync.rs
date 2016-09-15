@@ -3,6 +3,8 @@ use collect_slice::CollectSlice;
 use static_ewma::{MovingAverageWeight, MovingAverage};
 
 const THRESH_FACTOR: f32 = 0.1206734989540087;
+/// Number of samples in the frame sync fingerprint.
+const FINGERPRINT_SAMPS: usize = 231;
 
 struct PowerSmoothing;
 
@@ -24,14 +26,14 @@ impl SyncCorrelator {
     }
 
     pub fn feed(&mut self, sample: f32) -> (f32, f32) {
-        let power = self.corr.feed(sample) / 231.0;
+        let power = self.corr.feed(sample) / FINGERPRINT_SAMPS as f32;
         let avg = self.power.add(sample * sample);
 
         (power, avg.sqrt() * THRESH_FACTOR)
     }
 
     pub fn thresholds(&self) -> (f32, f32, f32) {
-        let mut combined = [0.0; 231];
+        let mut combined = [0.0; FINGERPRINT_SAMPS];
 
         let (right, left) = self.corr.hist();
         left.iter().cloned().chain(right.iter().cloned())
@@ -91,7 +93,7 @@ impl SyncDetector {
 }
 
 // Fingerprint of frame sync waveform in "volts". Includes all 24 symbol impulses.
-impl_fir!(SyncFingerprint, f32, 231, [
+impl_fir!(SyncFingerprint, f32, FINGERPRINT_SAMPS, [
     0.1800000071525574,
     0.1978198289871216,
     0.2099689990282059,
