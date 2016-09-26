@@ -22,7 +22,7 @@ pub fn decode(word: u16) -> Option<(u8, usize)> {
     // position. The word is expanded to 32 bits so it can be treated as the 17-bit word
     // the shortened code is derived from.
     let (fixed, word) = (0..17).fold((Some(0), word as u32), |(fixed, word), _| {
-        let syn = syndrome(word);
+        let syn = matrix_mul!(word, PAR, u8);
 
         if syn == 0 {
             return (fixed, rotate_17(word));
@@ -64,11 +64,6 @@ const PAR: [u32; 8] = [
     0b00000010011110010,
     0b00000001001111001,
 ];
-
-/// Calculate the syndrome of the given word.
-fn syndrome(word: u32) -> u8 {
-    matrix_mul!(word, PAR, u8)
-}
 
 /// Find the error pattern associated with the syndrome.
 ///
