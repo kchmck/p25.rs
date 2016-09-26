@@ -92,7 +92,7 @@ fn pattern(syn: u8) -> Option<u32> {
     }
 }
 
-/// Cyclically rotate the word as if it was 17 bits long.
+/// Cyclically rotate the word right as if it was 17 bits long.
 fn rotate_17(word: u32) -> u32 {
     let lsb = word & 1;
     word >> 1 | lsb << 16
@@ -101,6 +101,7 @@ fn rotate_17(word: u32) -> u32 {
 #[cfg(test)]
 mod test {
     use super::*;
+    use super::rotate_17;
 
     #[test]
     fn test_decode() {
@@ -135,5 +136,36 @@ mod test {
         for i in 0..1u16<<8 {
             assert_eq!(decode(encode(i as u8)).unwrap().0, i as u8);
         }
+    }
+
+    #[test]
+    fn test_rotate_17() {
+        assert_eq!(rotate_17(0b00000000000000000), 0b00000000000000000);
+        assert_eq!(rotate_17(0b10000000000000000), 0b01000000000000000);
+        assert_eq!(rotate_17(0b01000000000000000), 0b00100000000000000);
+        assert_eq!(rotate_17(0b00100000000000000), 0b00010000000000000);
+        assert_eq!(rotate_17(0b00010000000000000), 0b00001000000000000);
+        assert_eq!(rotate_17(0b00001000000000000), 0b00000100000000000);
+        assert_eq!(rotate_17(0b00000100000000000), 0b00000010000000000);
+        assert_eq!(rotate_17(0b00000010000000000), 0b00000001000000000);
+        assert_eq!(rotate_17(0b00000001000000000), 0b00000000100000000);
+        assert_eq!(rotate_17(0b00000000100000000), 0b00000000010000000);
+        assert_eq!(rotate_17(0b00000000010000000), 0b00000000001000000);
+        assert_eq!(rotate_17(0b00000000001000000), 0b00000000000100000);
+        assert_eq!(rotate_17(0b00000000000100000), 0b00000000000010000);
+        assert_eq!(rotate_17(0b00000000000010000), 0b00000000000001000);
+        assert_eq!(rotate_17(0b00000000000001000), 0b00000000000000100);
+        assert_eq!(rotate_17(0b00000000000000100), 0b00000000000000010);
+        assert_eq!(rotate_17(0b00000000000000010), 0b00000000000000001);
+        assert_eq!(rotate_17(0b00000000000000001), 0b10000000000000000);
+        assert_eq!(rotate_17(0b01111111111111111), 0b10111111111111111);
+
+        let mut word = 0b11100011001010101;
+
+        for _ in 0..17 {
+            word = rotate_17(word);
+        }
+
+        assert_eq!(word, 0b11100011001010101);
     }
 }
