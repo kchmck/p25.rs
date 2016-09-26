@@ -22,13 +22,13 @@ pub fn decode(word: u16) -> Option<(u8, usize)> {
     // position. The word is expanded to 32 bits so it can be treated as the 17-bit word
     // the shortened code is derived from.
     let (fixed, word) = (0..17).fold((Some(0), word as u32), |(fixed, word), _| {
-        let syn = matrix_mul!(word, PAR, u8);
+        let syndrome = matrix_mul!(word, PAR, u8);
 
-        if syn == 0 {
+        if syndrome == 0 {
             return (fixed, rotate_17(word));
         }
 
-        match pattern(syn) {
+        match pattern(syndrome) {
             Some(pat) => (Some(pat.count_ones()), rotate_17(word ^ pat)),
             None => (None, rotate_17(word)),
         }
