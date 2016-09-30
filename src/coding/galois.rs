@@ -2,7 +2,7 @@ use std;
 
 use collect_slice::CollectSlice;
 
-/// GF(2^6) field characterized by α^6+α+1.as described in P25 specification.
+/// GF(2^6) field characterized by α^6+α+1, as described in P25 specification.
 #[derive(Copy, Clone, Debug)]
 pub struct P25Field;
 
