@@ -166,7 +166,7 @@ pub trait WalkHistory: Copy + Clone + Default +
 }
 
 macro_rules! history_type {
-    ($name: ident, $history: expr) => {
+    ($name:ident, $history:expr) => {
         #[derive(Copy, Clone, Default)]
         pub struct $name([Option<usize>; $history]);
 

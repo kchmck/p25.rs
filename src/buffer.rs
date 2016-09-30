@@ -20,7 +20,7 @@ pub trait Storage {
 }
 
 macro_rules! storage_type {
-    ($name: ident, [$input: ty; $size: expr]) => {
+    ($name:ident, [$input:ty; $size:expr]) => {
         pub struct $name([$input; $size]);
 
         impl $name {
