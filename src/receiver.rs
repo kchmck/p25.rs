@@ -1,4 +1,4 @@
-use baseband::{Decoder, Decider};
+use baseband::decode::{Decoder, Decider};
 use error::{P25Error, Result};
 use nid;
 use status::{StreamSymbol, StatusDeinterleaver};

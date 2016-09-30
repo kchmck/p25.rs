@@ -12,7 +12,6 @@ mod util;
 
 pub mod baseband;
 pub mod bits;
-pub mod c4fm;
 pub mod coding;
 pub mod consts;
 pub mod data;

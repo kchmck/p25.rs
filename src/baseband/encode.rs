@@ -83,7 +83,7 @@ impl Iterator for C4FMDeviationDibits {
 #[cfg(test)]
 mod test {
     use super::*;
-    use super::super::bits;
+    use bits;
 
     #[test]
     fn test_impulses() {
