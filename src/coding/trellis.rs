@@ -33,7 +33,7 @@ pub trait States {
     /// Number of rows/columns in the state machine.
     fn size() -> usize;
 
-    /// Get the "constallation point" on the transition from the current state to the next
+    /// Get the "constellation point" on the transition from the current state to the next
     /// state.
     fn pair_idx(cur: usize, next: usize) -> usize;
 
