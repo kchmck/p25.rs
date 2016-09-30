@@ -131,8 +131,8 @@ pub mod long {
 
 /// Encode the given data with the given generator matrix and place the resulting parity
 /// symbols in the given destination.
-fn encode<'g, G>(data: &[Hexbit], parity: &mut [Hexbit], gen: G) where
-    G: Iterator<Item = &'g [u8]>
+fn encode<'g, G>(data: &[Hexbit], parity: &mut [Hexbit], gen: G)
+    where G: Iterator<Item = &'g [u8]>
 {
     for (p, row) in parity.iter_mut().zip(gen) {
         *p = Hexbit::new(
