@@ -8,6 +8,8 @@
 
 /// Encoding and decoding of the (15, 11, 3) code.
 pub mod standard {
+    use super::HammingDecoder;
+
     /// Encode the 11 bits of data to a 15-bit codeword.
     pub fn encode(data: u16) -> u16 {
         assert!(data >> 11 == 0);
@@ -19,7 +21,7 @@ pub mod standard {
     /// number of errors, on success and `None` on an unrecoverable error.
     pub fn decode(word: u16) -> Option<(u16, usize)> {
         assert!(word >> 15 == 0);
-        super::decode_hamming::<StandardHamming>(word)
+        StandardHamming::decode(word)
     }
 
     /// Generator patterns for 4 parity bits.
@@ -71,6 +73,8 @@ pub mod standard {
 
 /// Encoding and decoding of the (10, 6, 3) code.
 pub mod shortened {
+    use super::HammingDecoder;
+
     /// Encode the 6 data bits to a 10-bit codeword.
     pub fn encode(data: u8) -> u16 {
         assert!(data >> 6 == 0);
@@ -82,7 +86,7 @@ pub mod shortened {
     /// number of errors, on success and `None` on an unrecoverable error.
     pub fn decode(word: u16) -> Option<(u8, usize)> {
         assert!(word >> 10 == 0);
-        super::decode_hamming::<ShortHamming>(word)
+        ShortHamming::decode(word)
     }
 
     const GEN: [u8; 4] = [
@@ -142,24 +146,24 @@ trait HammingDecoder {
 
     /// Return the syndrome-error location map.
     fn locs() -> [u16; 16];
-}
 
-/// Use the given decoder to decode the given word.
-fn decode_hamming<H: HammingDecoder>(word: u16) -> Option<(H::Data, usize)> {
-    // Compute the 4-bit syndrome.
-    let s = matrix_mul!(word, H::par(), u8);
+    /// Use the current decoder to decode the given word.
+    fn decode(word: u16) -> Option<(Self::Data, usize)> {
+        // Compute the 4-bit syndrome.
+        let s = matrix_mul!(word, Self::par(), u8);
 
-    // A zero syndrome means it's a valid codeword (possibly different from the
-    // transmitted codeword.)
-    if s == 0 {
-        return Some((H::data(word), 0));
-    }
+        // A zero syndrome means it's a valid codeword (possibly different from the
+        // transmitted codeword.)
+        if s == 0 {
+            return Some((Self::data(word), 0));
+        }
 
-    match H::locs().get(s as usize) {
-        // More than one error/unrecoverable error.
-        Some(&0) | None => None,
-        // Valid location means the error can be corrected.
-        Some(&loc) => Some((H::data(word ^ loc), 1)),
+        match Self::locs().get(s as usize) {
+            // More than one error/unrecoverable error.
+            Some(&0) | None => None,
+            // Valid location means the error can be corrected.
+            Some(&loc) => Some((Self::data(word ^ loc), 1)),
+        }
     }
 }
 
