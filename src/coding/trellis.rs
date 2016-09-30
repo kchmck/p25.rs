@@ -265,7 +265,7 @@ impl<S, H, W, T> ViterbiDecoder<S, H, W, T> where
     }
 
     fn prime(mut self) -> Self {
-        for _ in 0..H::history() - 1 {
+        for _ in 1..H::history() {
             self.step();
         }
 
