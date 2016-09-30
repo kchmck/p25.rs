@@ -235,7 +235,7 @@ impl PolynomialCoefs for LongCoefs {
 impl Clone for LongCoefs {
     fn clone(&self) -> Self {
         let mut coefs = [P25Codeword::default(); 36];
-        self.0.iter().cloned().collect_slice(&mut coefs[..]);
+        coefs.copy_from_slice(&self.0[..]);
         LongCoefs(coefs)
     }
 }
