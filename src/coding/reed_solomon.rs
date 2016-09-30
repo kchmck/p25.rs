@@ -7,6 +7,7 @@
 //! al, 2000
 
 use std;
+use std::ops::{Deref, DerefMut};
 
 use collect_slice::CollectSlice;
 
@@ -203,12 +204,12 @@ impl PolynomialCoefs for ShortCoefs {
     fn distance() -> usize { 13 }
 }
 
-impl std::ops::Deref for ShortCoefs {
+impl Deref for ShortCoefs {
     type Target = [P25Codeword];
     fn deref(&self) -> &Self::Target { &self.0[..] }
 }
 
-impl std::ops::DerefMut for ShortCoefs {
+impl DerefMut for ShortCoefs {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
 }
 
@@ -220,12 +221,12 @@ impl PolynomialCoefs for MedCoefs {
     fn distance() -> usize { 9 }
 }
 
-impl std::ops::Deref for MedCoefs {
+impl Deref for MedCoefs {
     type Target = [P25Codeword];
     fn deref(&self) -> &Self::Target { &self.0[..] }
 }
 
-impl std::ops::DerefMut for MedCoefs {
+impl DerefMut for MedCoefs {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
 }
 
@@ -249,12 +250,12 @@ impl Default for LongCoefs {
     fn default() -> LongCoefs { LongCoefs([P25Codeword::default(); 36]) }
 }
 
-impl std::ops::Deref for LongCoefs {
+impl Deref for LongCoefs {
     type Target = [P25Codeword];
     fn deref(&self) -> &Self::Target { &self.0[..] }
 }
 
-impl std::ops::DerefMut for LongCoefs {
+impl DerefMut for LongCoefs {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
 }
 
