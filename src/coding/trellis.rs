@@ -279,8 +279,8 @@ impl<S, H, W, T> ViterbiDecoder<S, H, W, T> where
     fn step(&mut self) -> bool {
         let input = Edge::new(match (self.src.next(), self.src.next()) {
             (Some(hi), Some(lo)) => (hi, lo),
-            (Some(_), None) | (None, Some(_)) => panic!("dibits ended on boundary"),
             (None, None) => return false,
+            _ => panic!("dibits ended on boundary"),
         });
 
         self.remain += 1;
