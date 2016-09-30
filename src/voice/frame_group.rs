@@ -3,7 +3,8 @@ use std;
 use collect_slice::CollectSlice;
 
 use bits::{Hexbit, HexbitBytes, Dibit};
-use buffer::{Buffer, VoiceExtraStorage, VoiceFrameStorage, DibitStorage};
+use buffer::{Buffer, VoiceExtraStorage, VoiceFrameStorage, VoiceExtraWordStorage,
+             VoiceDataFragStorage};
 use coding::{cyclic, hamming, reed_solomon};
 use error::{P25Error, Result};
 
@@ -186,7 +187,7 @@ impl VoiceFrameReceiver {
 
 struct ExtraReceiver<E: Extra> {
     extra: std::marker::PhantomData<E>,
-    dibits: Buffer<DibitStorage>,
+    dibits: Buffer<VoiceExtraWordStorage>,
     hexbits: Buffer<VoiceExtraStorage>,
     dibit: usize,
 }
@@ -195,7 +196,7 @@ impl<E: Extra> ExtraReceiver<E> {
     pub fn new() -> ExtraReceiver<E> {
         ExtraReceiver {
             extra: std::marker::PhantomData,
-            dibits: Buffer::new(DibitStorage::new(5)),
+            dibits: Buffer::new(VoiceExtraWordStorage::new()),
             hexbits: Buffer::new(VoiceExtraStorage::new()),
             dibit: 0,
         }
@@ -231,7 +232,7 @@ impl<E: Extra> ExtraReceiver<E> {
 }
 
 struct DataFragmentReceiver {
-    dibits: Buffer<DibitStorage>,
+    dibits: Buffer<VoiceDataFragStorage>,
     dibit: usize,
     data: u32,
 }
@@ -239,7 +240,7 @@ struct DataFragmentReceiver {
 impl DataFragmentReceiver {
     pub fn new() -> DataFragmentReceiver {
         DataFragmentReceiver {
-            dibits: Buffer::new(DibitStorage::new(8)),
+            dibits: Buffer::new(VoiceDataFragStorage::new()),
             dibit: 0,
             data: 0,
         }

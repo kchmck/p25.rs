@@ -3,6 +3,9 @@ use buffer;
 use coding::bch;
 use error::{Result, P25Error};
 
+/// Number of dibits in a coded NID word.
+pub const NID_DIBITS: usize = 32;
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum NetworkAccessCode {
     Default,
@@ -127,13 +130,13 @@ impl NetworkID {
 }
 
 pub struct NIDReceiver {
-    dibits: buffer::Buffer<buffer::DibitStorage>,
+    dibits: buffer::Buffer<buffer::NIDStorage>,
 }
 
 impl NIDReceiver {
     pub fn new() -> NIDReceiver {
         NIDReceiver {
-            dibits: buffer::Buffer::new(buffer::DibitStorage::new(32)),
+            dibits: buffer::Buffer::new(buffer::NIDStorage::new()),
         }
     }
 

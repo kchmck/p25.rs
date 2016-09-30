@@ -10,7 +10,7 @@ pub trait Storage {
     type Buf;
 
     /// Number of items that can be stored.
-    fn size(&self) -> usize;
+    fn size() -> usize;
     /// Get the storage buffer.
     fn buf(&mut self) -> &mut Self::Buf;
     /// Add an item to the buffer at the given position.
@@ -31,7 +31,7 @@ macro_rules! storage_type {
             type Input = $input;
             type Buf = [$input; $size];
 
-            fn size(&self) -> usize { $size }
+            fn size() -> usize { $size }
             fn buf(&mut self) -> &mut Self::Buf { &mut self.0 }
             fn add(&mut self, item: Self::Input, pos: usize) { self.0[pos] = item; }
             // No need to reset because the buffer won't be seen in a non-full state.
@@ -40,41 +40,53 @@ macro_rules! storage_type {
     };
 }
 
-storage_type!(VoiceHeaderStorage, [bits::Hexbit; voice::consts::HEADER_HEXBITS]);
-storage_type!(VoiceFrameStorage, [bits::Dibit; voice::consts::FRAME_DIBITS]);
-storage_type!(VoiceExtraStorage, [bits::Hexbit; voice::consts::EXTRA_HEXBITS]);
-storage_type!(DataPayloadStorage, [bits::Dibit; data::consts::CODING_DIBITS]);
+/// Create a storage buffer for buffers smaller than 32 dibits.
+macro_rules! small_storage_type {
+    ($name:ident, $size:expr) => {
+        pub struct $name(u64);
 
-pub struct DibitStorage {
-    buf: u64,
-    size: usize,
-}
-
-impl DibitStorage {
-    pub fn new(size: usize) -> DibitStorage {
-        assert!(size <= 32);
-
-        DibitStorage {
-            buf: 0,
-            size: size,
+        impl $name {
+            pub fn new() -> Self {
+                assert!(Self::size() <= 32);
+                $name(0)
+            }
         }
-    }
+
+        impl Storage for $name {
+            type Input = bits::Dibit;
+            type Buf = u64;
+
+            fn size() -> usize { $size }
+            fn buf(&mut self) -> &mut u64 { &mut self.0 }
+
+            fn add(&mut self, item: Self::Input, _: usize) {
+                self.0 <<= 2;
+                self.0 |= item.bits() as u64;
+            }
+
+            fn reset(&mut self) { self.0 = 0; }
+        }
+    };
 }
 
-impl Storage for DibitStorage {
-    type Input = bits::Dibit;
-    type Buf = u64;
-
-    fn size(&self) -> usize { self.size }
-    fn buf(&mut self) -> &mut u64 { &mut self.buf }
-
-    fn add(&mut self, item: Self::Input, _: usize) {
-        self.buf <<= 2;
-        self.buf |= item.bits() as u64;
-    }
-
-    fn reset(&mut self) { self.buf = 0; }
-}
+/// Stores hexbits that make up a voice header packet.
+storage_type!(VoiceHeaderStorage, [bits::Hexbit; voice::consts::HEADER_HEXBITS]);
+/// Stores dibits that make up a voice frame packet.
+storage_type!(VoiceFrameStorage, [bits::Dibit; voice::consts::FRAME_DIBITS]);
+/// Stores hexbits that make up a voice extra packet.
+storage_type!(VoiceExtraStorage, [bits::Hexbit; voice::consts::EXTRA_HEXBITS]);
+/// Stores dibits that make up a data/TSBK payload packet.
+storage_type!(DataPayloadStorage, [bits::Dibit; data::consts::CODING_DIBITS]);
+/// Stores dibits that make up the NID word.
+small_storage_type!(NIDStorage, super::nid::NID_DIBITS);
+/// Stores dibits that make up each coded word in a voice extra component.
+small_storage_type!(VoiceExtraWordStorage, voice::consts::EXTRA_WORD_DIBITS);
+/// Stores dibits that make up a voice data fragment.
+small_storage_type!(VoiceDataFragStorage, voice::consts::DATA_FRAG_DIBITS);
+/// Stores dibits that make up a coded word in a voice header packet.
+small_storage_type!(VoiceHeaderWordStorage, voice::consts::HEADER_WORD_DIBITS);
+/// Stores dibits that make up a coded word in a voice LC terminator packet.
+small_storage_type!(VoiceLCTermWordStorage, voice::consts::LC_TERM_WORD_DIBITS);
 
 pub struct Buffer<S: Storage> {
     storage: S,
@@ -100,7 +112,7 @@ impl<S: Storage> Buffer<S> {
         self.storage.add(item, self.pos);
         self.pos += 1;
 
-        if self.pos == self.storage.size() {
+        if self.pos == S::size() {
             self.reset();
             Some(self.storage.buf())
         } else {

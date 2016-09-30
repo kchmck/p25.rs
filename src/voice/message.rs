@@ -1,7 +1,8 @@
 use collect_slice::CollectSlice;
 
 use bits::{Dibit, Hexbit, HexbitBytes};
-use buffer::{Buffer, DibitStorage, VoiceHeaderStorage, VoiceExtraStorage};
+use buffer::{Buffer, VoiceLCTermWordStorage, VoiceHeaderWordStorage, VoiceHeaderStorage,
+             VoiceExtraStorage};
 use coding::{reed_solomon, golay};
 use error::Result;
 
@@ -12,14 +13,14 @@ use voice::consts::{HEADER_BYTES, LINK_CONTROL_BYTES};
 use error::P25Error::*;
 
 pub struct VoiceHeaderReceiver {
-    dibits: Buffer<DibitStorage>,
+    dibits: Buffer<VoiceHeaderWordStorage>,
     hexbits: Buffer<VoiceHeaderStorage>,
 }
 
 impl VoiceHeaderReceiver {
     pub fn new() -> VoiceHeaderReceiver {
         VoiceHeaderReceiver {
-            dibits: Buffer::new(DibitStorage::new(9)),
+            dibits: Buffer::new(VoiceHeaderWordStorage::new()),
             hexbits: Buffer::new(VoiceHeaderStorage::new()),
         }
     }
@@ -54,14 +55,14 @@ impl VoiceHeaderReceiver {
 }
 
 pub struct VoiceLCTerminatorReceiver {
-    outer: Buffer<DibitStorage>,
+    outer: Buffer<VoiceLCTermWordStorage>,
     inner: Buffer<VoiceExtraStorage>,
 }
 
 impl VoiceLCTerminatorReceiver {
     pub fn new() -> VoiceLCTerminatorReceiver {
         VoiceLCTerminatorReceiver {
-            outer: Buffer::new(DibitStorage::new(12)),
+            outer: Buffer::new(VoiceLCTermWordStorage::new()),
             inner: Buffer::new(VoiceExtraStorage::new()),
         }
     }
