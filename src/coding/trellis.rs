@@ -294,26 +294,28 @@ impl<S, H, W, T> ViterbiDecoder<S, H, W, T> where
         true
     }
 
+    ///
     fn search(&self, state: usize, input: Edge) -> (Walk<H>, bool) {
         self.walks[self.prev].iter()
             .enumerate()
             .map(|(i, w)| (Edge::new(S::pair(i, state)), w))
             .fold((Walk::default(), false), |(walk, amb), (e, w)| {
-                match w.distance().checked_add(input.distance(e)) {
-                    Some(sum) if sum < walk.distance() => (walk.replace(&w, sum), false),
-                    Some(sum) if sum == walk.distance() => (walk.combine(&w, sum), true),
+                match w.distance.checked_add(input.distance(e)) {
+                    Some(sum) if sum < walk.distance => (walk.replace(&w, sum), false),
+                    Some(sum) if sum == walk.distance => (walk.combine(&w, sum), true),
                     _ => (walk, amb),
                 }
             })
     }
 
+    ///
     fn decode(&self) -> Decision {
         self.walks[self.cur].iter().fold(Ambiguous(std::usize::MAX), |s, w| {
             match s {
-                Ambiguous(min) | Definite(min, _) if w.distance() < min =>
-                    Definite(w.distance(), w[self.remain]),
-                Definite(min, state) if w.distance() == min && w[self.remain] != state =>
-                    Ambiguous(w.distance()),
+                Ambiguous(min) | Definite(min, _) if w.distance < min =>
+                    Definite(w.distance, w[self.remain]),
+                Definite(min, state) if w.distance == min && w[self.remain] != state =>
+                    Ambiguous(w.distance),
                 _ => s,
             }
         })
@@ -348,7 +350,7 @@ enum Decision {
 #[derive(Copy, Clone, Debug)]
 pub struct Walk<H: WalkHistory>{
     history: H,
-    distance: usize,
+    pub distance: usize,
 }
 
 impl<H: WalkHistory> Walk<H> {
@@ -367,8 +369,6 @@ impl<H: WalkHistory> Walk<H> {
         self.history[0] = Some(state);
         self
     }
-
-    pub fn distance(&self) -> usize { self.distance }
 
     pub fn append(&mut self, other: Self) {
         self.distance = other.distance;
