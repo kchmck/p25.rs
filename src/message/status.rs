@@ -4,8 +4,8 @@ use baseband::consts::SYNC_SYMBOLS;
 use self::StatusCode::*;
 use self::StreamSymbol::*;
 
-/// Number of dibits output before the 2-bit status symbol.
-const DIBITS_PER_UPDATE: u32 = 70 / 2;
+/// Number of dibits output per status period, including the status symbol.
+const DIBITS_PER_UPDATE: u32 = 70 / 2 + 1;
 
 pub trait StatusSource {
     fn status(&mut self) -> StatusCode;
@@ -43,12 +43,12 @@ impl<T, S> Iterator for StatusInterleaver<T, S> where
     type Item = bits::Dibit;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.pos == DIBITS_PER_UPDATE {
-            self.pos = 0;
+        self.pos += 1;
+        self.pos %= DIBITS_PER_UPDATE;
+
+        if self.pos == 0 {
             return Some(self.status.status().to_dibit());
         }
-
-        self.pos += 1;
 
         match self.src.next() {
             Some(d) => Some(d),
@@ -116,11 +116,12 @@ impl StatusDeinterleaver {
     }
 
     pub fn feed(&mut self, d: bits::Dibit) -> StreamSymbol {
-        if self.pos == DIBITS_PER_UPDATE {
-            self.pos = 0;
+        self.pos += 1;
+        self.pos %= DIBITS_PER_UPDATE;
+
+        if self.pos == 0 {
             Status(StatusCode::from_dibit(d))
         } else {
-            self.pos += 1;
             Data(d)
         }
     }
