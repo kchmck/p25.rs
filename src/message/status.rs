@@ -130,6 +130,30 @@ impl StatusDeinterleaver {
 mod test {
     use bits;
     use super::*;
+    use std;
+
+    #[test]
+    fn test_interleave() {
+        struct TestSource;
+        impl StatusSource for TestSource {
+            fn status(&mut self) -> StatusCode { StatusCode::InboundBusy }
+        }
+
+        let src = std::iter::repeat(bits::Dibit::new(0b10));
+        let mut i = StatusInterleaver::new(src, TestSource);
+
+        for _ in 0..35 {
+            assert_eq!(i.next(), Some(bits::Dibit::new(0b10)));
+        }
+
+        assert_eq!(i.next(), Some(bits::Dibit::new(0b01)));
+
+        for _ in 0..35 {
+            assert_eq!(i.next(), Some(bits::Dibit::new(0b10)));
+        }
+
+        assert_eq!(i.next(), Some(bits::Dibit::new(0b01)));
+    }
 
     #[test]
     fn test_deinterleave() {
