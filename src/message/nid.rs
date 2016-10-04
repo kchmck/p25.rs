@@ -83,8 +83,8 @@ impl DataUnit {
 
 #[derive(Copy, Clone, Debug)]
 pub struct NetworkID {
-    access_code: NetworkAccessCode,
-    data_unit: DataUnit,
+    pub access_code: NetworkAccessCode,
+    pub data_unit: DataUnit,
 }
 
 impl NetworkID {
@@ -105,9 +105,6 @@ impl NetworkID {
     pub fn to_bits(&self) -> u16 {
         (self.access_code.to_bits() as u16) << 4 | self.data_unit.to_bits() as u16
     }
-
-    pub fn access_code(&self) -> NetworkAccessCode { self.access_code }
-    pub fn data_unit(&self) -> DataUnit { self.data_unit }
 
     pub fn encode(&self) -> [u8; 8] {
         let bits = self.to_bits();

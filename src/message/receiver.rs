@@ -70,7 +70,7 @@ impl MessageReceiver {
             ReceiverEvent::NetworkID(nid) => {
                 handler.handle_nid(&mut self.recv, nid);
 
-                self.state = match nid.data_unit() {
+                self.state = match nid.data_unit {
                     VoiceHeader =>
                         DecodeHeader(VoiceHeaderReceiver::new()),
                     VoiceSimpleTerminator => {
