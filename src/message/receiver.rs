@@ -1,12 +1,12 @@
 use error::P25Error;
-use nid::NetworkID;
-use receiver::DataUnitReceiver;
-use status::StreamSymbol;
+use message::nid::NetworkID;
+use message::status::StreamSymbol;
 use trunking::tsbk::{TSBKFields, TSBKReceiver};
 use voice::control::LinkControlFields;
 use voice::crypto::CryptoControlFields;
 use voice::frame::VoiceFrame;
 use voice::header::VoiceHeaderFields;
+use message::data_unit::DataUnitReceiver;
 
 use voice::{
     FrameGroupEvent,
@@ -52,8 +52,8 @@ impl MessageReceiver {
 
     pub fn feed<H: MessageHandler>(&mut self, s: f32, handler: &mut H) {
         use self::State::*;
-        use nid::DataUnit::*;
-        use receiver::ReceiverEvent;
+        use message::nid::DataUnit::*;
+        use message::data_unit::ReceiverEvent;
 
         let event = match self.recv.feed(s) {
             Some(Ok(event)) => event,

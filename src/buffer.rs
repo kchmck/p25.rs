@@ -1,5 +1,6 @@
 use bits;
 use data;
+use message;
 use voice;
 
 /// Backing storage for a Buffer.
@@ -78,7 +79,7 @@ storage_type!(VoiceExtraStorage, [bits::Hexbit; voice::consts::EXTRA_HEXBITS]);
 /// Stores dibits that make up a data/TSBK payload packet.
 storage_type!(DataPayloadStorage, [bits::Dibit; data::consts::CODING_DIBITS]);
 /// Stores dibits that make up the NID word.
-small_storage_type!(NIDStorage, super::nid::NID_DIBITS);
+small_storage_type!(NIDStorage, message::consts::NID_DIBITS);
 /// Stores dibits that make up each coded word in a voice extra component.
 small_storage_type!(VoiceExtraWordStorage, voice::consts::EXTRA_WORD_DIBITS);
 /// Stores dibits that make up a voice data fragment.
