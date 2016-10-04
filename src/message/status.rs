@@ -1,3 +1,5 @@
+//! Status symbol interleaving and deinterleaving.
+
 use bits;
 use baseband::consts::SYNC_SYMBOLS;
 
@@ -7,10 +9,13 @@ use self::StreamSymbol::*;
 /// Number of dibits output per status period, including the status symbol.
 const DIBITS_PER_UPDATE: u32 = 70 / 2 + 1;
 
+/// A source of status symbols.
 pub trait StatusSource {
+    /// The current status.
     fn status(&mut self) -> StatusCode;
 }
 
+/// Interleaves status symbols into a stream of dibits.
 pub struct StatusInterleaver<T, S> where
     T: Iterator<Item = bits::Dibit>,
     S: StatusSource
@@ -60,6 +65,7 @@ impl<T, S> Iterator for StatusInterleaver<T, S> where
     }
 }
 
+/// A P25 status symbol.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum StatusCode {
     /// Used by a repeater when the inbound channel is idle.
@@ -73,6 +79,7 @@ pub enum StatusCode {
 }
 
 impl StatusCode {
+    /// Parse a status code from the given dibit.
     pub fn from_dibit(d: bits::Dibit) -> StatusCode {
         match d.bits() {
             0b01 => InboundBusy,
@@ -83,6 +90,7 @@ impl StatusCode {
         }
     }
 
+    /// Convert the current status code into a dibit.
     pub fn to_dibit(&self) -> bits::Dibit {
         bits::Dibit::new(match *self {
             InboundBusy => 0b01,
@@ -105,16 +113,23 @@ pub enum StreamSymbol {
 /// Deinterleave a P25 transmitted stream into status codes and data symbols.
 #[derive(Copy, Clone)]
 pub struct StatusDeinterleaver {
+    /// Current dibit position in current status period.
     pos: u32,
 }
 
 impl StatusDeinterleaver {
+    /// Create a new `StatusDeinterleaver` for deinterlacing immediately after the frame sync
+    /// sequence.
     pub fn new() -> StatusDeinterleaver {
         StatusDeinterleaver {
+            // Since stream deinterleaving is started after the frame sync, and the frame sync
+            // symbols count towards the first status symbol period, start the counter with those
+            // symbols taken into account.
             pos: SYNC_SYMBOLS as u32,
         }
     }
 
+    /// Parse the given symbol as a status or data symbol.
     pub fn feed(&mut self, d: bits::Dibit) -> StreamSymbol {
         self.pos += 1;
         self.pos %= DIBITS_PER_UPDATE;
