@@ -30,7 +30,7 @@ impl<T: Iterator<Item = bits::Dibit>> Iterator for C4FMImpulses<T> {
         self.sample += 1;
 
         // Impulse is only output at the beginning of a symbol period.
-        if s % consts::PERIOD != 0 {
+        if s % consts::SYMBOL_PERIOD != 0 {
             return Some(0.0);
         }
 

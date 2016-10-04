@@ -29,7 +29,7 @@ impl Decoder {
     /// do nothing.
     pub fn feed(&mut self, s: f32) -> Option<bits::Dibit> {
         self.pos += 1;
-        self.pos %= consts::PERIOD;
+        self.pos %= consts::SYMBOL_PERIOD;
 
         if self.pos == 0 {
             Some(self.decider.decide(s))
