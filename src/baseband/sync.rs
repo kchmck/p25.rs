@@ -1,23 +1,38 @@
-use static_fir::FIRFilter;
+//! Utilities for detecting the frame synchronization sequence and extracting symbol
+//! decoding thresholds from it.
+
 use collect_slice::CollectSlice;
 use static_ewma::{MovingAverageWeight, MovingAverage};
+use static_fir::FIRFilter;
 
+/// Empirically-determined power threshold for detecting correlation power with
+/// fingerprint, scaled by average power of signal under test.
 const THRESH_FACTOR: f32 = 0.1506734989540087;
-/// Number of samples in the frame sync fingerprint.
+/// Number of samples in the frame sync fingerprint, from first impulse to last, at 48kHz
+/// sample rate.
 const FINGERPRINT_SAMPS: usize = 231;
 
+/// Smoothing factor for signal power EWMA.
 struct PowerSmoothing;
 
 impl MovingAverageWeight for PowerSmoothing {
-    fn weight() -> f32 { 0.0005 }
+    fn weight() -> f32 {
+        // This weight was shown to smooth well and has an initial adjustment time of
+        // around 6000 samples.
+        0.0005
+    }
 }
 
+/// Continuously cross-correlates input signal with frame sync fingerprint.
 pub struct SyncCorrelator {
+    /// Fingerprint correlator.
     corr: FIRFilter<SyncFingerprint>,
+    /// Moving average power of input signal.
     power: MovingAverage<PowerSmoothing>,
 }
 
 impl SyncCorrelator {
+    /// Create a new `SyncCorrelator` with default state.
     pub fn new() -> SyncCorrelator {
         SyncCorrelator {
             corr: FIRFilter::new(),
@@ -25,6 +40,8 @@ impl SyncCorrelator {
         }
     }
 
+    /// Cross-correlate with the given sample and return the current correlation power and
+    /// scaled correlation power threshold.
     pub fn feed(&mut self, sample: f32) -> (f32, f32) {
         let power = self.corr.feed(sample) / FINGERPRINT_SAMPS as f32;
         let avg = self.power.add(sample * sample);
@@ -32,9 +49,12 @@ impl SyncCorrelator {
         (power, avg.sqrt() * THRESH_FACTOR)
     }
 
+    /// Calculate `(upper, mid, lower)` thresholds for symbol decoding from current signal
+    /// stored in correlation history.
     pub fn thresholds(&mut self) -> (f32, f32, f32) {
+        // Since the history is stored as a ring buffer, recreate a continuous signal by
+        // concatenating the parts on either side of the split.
         let mut combined = [0.0; FINGERPRINT_SAMPS];
-
         let (right, left) = self.corr.hist();
         left.iter().cloned().chain(right.iter().cloned())
             .collect_slice_checked(&mut combined[..]);
@@ -45,13 +65,15 @@ impl SyncCorrelator {
     }
 }
 
-/// Calculate the average positive and negative sample value at each symbol instant in the
-/// given samples.
+/// Calculate the average positive (symbol 01) and negative (symbol 11) sample value at
+/// each symbol instant in the given samples.
 fn calc_averages(samples: &[f32; FINGERPRINT_SAMPS]) -> (f32, f32) {
+    /// Indexes of symbol instants for symbol 01.
     const POS: [usize; 10] = [
         0, 10, 20, 30, 50, 60, 90, 100, 150, 170,
     ];
 
+    /// Indexes of symbol instants for symbol 11.
     const NEG: [usize; 13] = [
         40, 70, 80, 110, 120, 130, 140, 160, 180, 190, 200, 210, 220,
     ];
@@ -78,19 +100,25 @@ fn calc_thresholds(pavg: f32, navg: f32) -> (f32, f32, f32) {
     (pthresh, mthresh, nthresh)
 }
 
+/// State machine that detects a peak power above an instantaneous threshold. Once the power goes
+/// above the threshold, further thresholds are ignored and power is tracked until it peaks.
 #[derive(Copy, Clone, Debug)]
 pub struct SyncDetector {
-    /// Previous (maximum) power.
+    /// Previous maximum power above the threshold, `None` if no power above threshold has been
+    /// seen.
     prev: Option<f32>,
 }
 
 impl SyncDetector {
+    /// Create a new `SyncDetector` in the default state.
     pub fn new() -> SyncDetector {
         SyncDetector {
             prev: None,
         }
     }
 
+    /// Consider the given power related to the given instantaneous power threshold. Return `true`
+    /// if the power peaked above threshold in the previous sample and `false` otherwise.
     pub fn feed(&mut self, power: f32, thresh: f32) -> bool {
         match self.prev {
             Some(p) => if power < p {
@@ -107,7 +135,7 @@ impl SyncDetector {
     }
 }
 
-// Fingerprint of frame sync waveform in "volts". Includes all 24 symbol impulses.
+/// Fingerprint of 24-symbol frame sync waveform in "volts".
 impl_fir!(SyncFingerprint, f32, FINGERPRINT_SAMPS, [
     0.1800000071525574,
     0.1978198289871216,
@@ -342,6 +370,7 @@ impl_fir!(SyncFingerprint, f32, FINGERPRINT_SAMPS, [
     -0.1800000071525574,
 ]);
 
+/// Symbols that make up the frame sync fingerprint.
 pub const SYNC_GENERATOR: &'static [u8] = &[
     0b01010101,
     0b01110101,
