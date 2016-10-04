@@ -2,7 +2,7 @@ use static_fir::FIRFilter;
 use collect_slice::CollectSlice;
 use static_ewma::{MovingAverageWeight, MovingAverage};
 
-const THRESH_FACTOR: f32 = 0.1206734989540087;
+const THRESH_FACTOR: f32 = 0.1506734989540087;
 /// Number of samples in the frame sync fingerprint.
 const FINGERPRINT_SAMPS: usize = 231;
 
@@ -32,7 +32,7 @@ impl SyncCorrelator {
         (power, avg.sqrt() * THRESH_FACTOR)
     }
 
-    pub fn thresholds(&self) -> (f32, f32, f32) {
+    pub fn thresholds(&mut self) -> (f32, f32, f32) {
         let mut combined = [0.0; FINGERPRINT_SAMPS];
 
         let (right, left) = self.corr.hist();

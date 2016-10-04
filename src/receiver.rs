@@ -1,8 +1,8 @@
 use baseband::decode::{Decoder, Decider};
+use baseband::sync::{SyncCorrelator, SyncDetector};
 use error::{P25Error, Result};
 use nid;
 use status::{StreamSymbol, StatusDeinterleaver};
-use sync::{SyncCorrelator, SyncDetector};
 
 use self::State::*;
 use self::StateChange::*;
