@@ -3,7 +3,6 @@ mod frame_group;
 mod message;
 mod rand;
 
-pub mod consts;
 pub mod control;
 pub mod crypto;
 pub mod frame;

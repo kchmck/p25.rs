@@ -4,11 +4,11 @@ use bits::{Dibit, Hexbit, HexbitBytes};
 use buffer::{Buffer, VoiceLCTermWordStorage, VoiceHeaderWordStorage, VoiceHeaderStorage,
              VoiceExtraStorage};
 use coding::{reed_solomon, golay};
+use consts::{HEADER_BYTES, LINK_CONTROL_BYTES};
 use error::Result;
 
 use voice::header::VoiceHeaderFields;
 use voice::control::LinkControlFields;
-use voice::consts::{HEADER_BYTES, LINK_CONTROL_BYTES};
 
 use error::P25Error::*;
 

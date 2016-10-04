@@ -1,9 +1,10 @@
 use bits::Dibit;
 use coding::{golay, hamming};
+use consts;
 use error::Result;
 
 use voice::descramble::descramble;
-use voice::{consts, rand};
+use voice::rand;
 
 use error::P25Error::*;
 

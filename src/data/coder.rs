@@ -2,7 +2,7 @@
 
 use bits;
 use coding::trellis;
-use data::consts;
+use consts;
 
 /// Half-rate (dibit) convolutional coder.
 pub type DibitCoder = DataCoder<trellis::DibitStates>;

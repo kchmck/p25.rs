@@ -1,5 +1,5 @@
 use trunking::decode::*;
-use voice::consts::CRYPTO_CONTROL_BYTES;
+use consts::CRYPTO_CONTROL_BYTES;
 
 pub struct CryptoControlFields([u8; CRYPTO_CONTROL_BYTES]);
 

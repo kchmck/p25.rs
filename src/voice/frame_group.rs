@@ -8,15 +8,15 @@ use buffer::{Buffer, VoiceExtraStorage, VoiceFrameStorage, VoiceExtraWordStorage
 use coding::{cyclic, hamming, reed_solomon};
 use error::{P25Error, Result};
 
-use voice::{control, crypto};
-use voice::frame::VoiceFrame;
-
-use voice::consts::{
+use consts::{
     EXTRA_HEXBITS,
     EXTRA_PIECE_DIBITS,
     LINK_CONTROL_BYTES,
     CRYPTO_CONTROL_BYTES,
 };
+
+use voice::{control, crypto};
+use voice::frame::VoiceFrame;
 
 use error::P25Error::*;
 use self::State::*;

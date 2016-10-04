@@ -6,7 +6,6 @@ mod header;
 mod params;
 mod payload;
 
-pub mod consts;
 pub mod crc;
 pub mod interleave;
 pub mod packet;

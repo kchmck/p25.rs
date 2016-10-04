@@ -1,7 +1,7 @@
 //! Status symbol interleaving and deinterleaving.
 
 use bits;
-use baseband::consts::SYNC_SYMBOLS;
+use consts::SYNC_SYMBOLS;
 
 use self::StatusCode::*;
 use self::StreamSymbol::*;

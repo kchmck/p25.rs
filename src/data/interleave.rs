@@ -3,7 +3,7 @@
 use std;
 
 use bits;
-use data::consts;
+use consts;
 
 trait Redirector {
     /// Redirector the given index to another within the buffer.

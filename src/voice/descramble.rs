@@ -1,5 +1,5 @@
 use bits::Dibit;
-use voice::consts;
+use consts;
 
 pub fn descramble(dibits: &[Dibit; consts::FRAME_DIBITS], idx: usize) -> u32 {
     DESCRAMBLERS[idx].descramble(dibits)
@@ -99,7 +99,7 @@ impl Iterator for ZigZag {
 #[cfg(test)]
 mod test {
     use super::DESCRAMBLERS;
-    use voice::consts;
+    use consts;
 
     #[test]
     fn test_steps_exhaustive() {

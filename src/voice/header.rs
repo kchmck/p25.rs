@@ -1,6 +1,6 @@
 use trunking::decode::*;
 use voice::crypto;
-use voice::consts::HEADER_BYTES;
+use consts::HEADER_BYTES;
 
 pub struct VoiceHeaderFields([u8; HEADER_BYTES]);
 

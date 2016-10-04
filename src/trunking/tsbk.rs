@@ -3,11 +3,11 @@ use collect_slice::CollectSlice;
 use bits::{Dibit, DibitBytes};
 use buffer::{Buffer, DataPayloadStorage};
 use coding::trellis;
+use consts::{TSBK_DIBITS, TSBK_BYTES};
 use data::{crc, interleave};
 use error::{Result, P25Error};
 
 use trunking::decode::*;
-use trunking::consts::{TSBK_DIBITS, TSBK_BYTES};
 
 pub struct TSBKReceiver {
     dibits: Buffer<DataPayloadStorage>,
