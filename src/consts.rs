@@ -14,11 +14,11 @@ pub const CODING_DIBITS: usize = 98;
 pub const TSBK_DIBITS: usize = 48;
 /// Number of bytes in an uncoded TSBK packet.
 pub const TSBK_BYTES: usize = TSBK_DIBITS / 4;
-/// Number of dibits in a coded frame.
+/// Number of dibits in a coded voice frame.
 pub const FRAME_DIBITS: usize = 72;
-/// Number of hexbits in a coded header packet.
+/// Number of hexbits in a coded voice header packet.
 pub const HEADER_HEXBITS: usize = 36;
-/// Number of bytes in an uncoded header packet.
+/// Number of bytes in an uncoded voice header packet.
 pub const HEADER_BYTES: usize = 15;
 /// Number of hexbits in a coded voice extra packet.
 pub const EXTRA_HEXBITS: usize = 24;
