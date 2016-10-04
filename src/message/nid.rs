@@ -88,16 +88,16 @@ pub struct NetworkID {
 }
 
 impl NetworkID {
-    pub fn new(access_code: u16, data_unit: DataUnit) -> NetworkID {
+    pub fn new(access_code: NetworkAccessCode, data_unit: DataUnit) -> NetworkID {
         NetworkID {
-            access_code: NetworkAccessCode::from_bits(access_code),
+            access_code: access_code,
             data_unit: data_unit,
         }
     }
 
     pub fn from_bits(bits: u16) -> Option<NetworkID> {
         match DataUnit::from_bits(bits as u8 & 0b1111) {
-            Some(du) => Some(NetworkID::new(bits >> 4, du)),
+            Some(du) => Some(NetworkID::new(NetworkAccessCode::from_bits(bits >> 4), du)),
             None => None,
         }
     }
