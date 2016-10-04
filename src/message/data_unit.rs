@@ -17,20 +17,20 @@ pub enum ReceiverEvent {
 
 #[derive(Copy, Clone)]
 struct Receiver {
-    recv: Decoder,
+    decoder: Decoder,
     status: StatusDeinterleaver,
 }
 
 impl Receiver {
-    pub fn new(recv: Decoder) -> Receiver {
+    pub fn new(decoder: Decoder) -> Receiver {
         Receiver {
-            recv: recv,
+            decoder: decoder,
             status: StatusDeinterleaver::new(),
         }
     }
 
     pub fn feed(&mut self, s: f32) -> Option<StreamSymbol> {
-        match self.recv.feed(s) {
+        match self.decoder.feed(s) {
             Some(dibit) => Some(self.status.feed(dibit)),
             None => None,
         }
