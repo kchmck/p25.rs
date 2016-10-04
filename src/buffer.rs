@@ -1,3 +1,5 @@
+//! State machine for buffering items until a buffer is full.
+
 use bits;
 use data;
 use message;
@@ -20,6 +22,7 @@ pub trait Storage {
     fn reset(&mut self);
 }
 
+/// Create a storage buffer backed by a fixed array.
 macro_rules! storage_type {
     ($name:ident, [$input:ty; $size:expr]) => {
         pub struct $name([$input; $size]);
@@ -89,12 +92,17 @@ small_storage_type!(VoiceHeaderWordStorage, voice::consts::HEADER_WORD_DIBITS);
 /// Stores dibits that make up a coded word in a voice LC terminator packet.
 small_storage_type!(VoiceLCTermWordStorage, voice::consts::LC_TERM_WORD_DIBITS);
 
+/// Implements a state machine that buffers items to a backing store and notifies the caller when
+/// the buffer is full.
 pub struct Buffer<S: Storage> {
+    /// Backing storage.
     storage: S,
+    /// Current number of buffered items.
     pos: usize,
 }
 
 impl<S: Storage> Buffer<S> {
+    /// Create a new `Buffer` with the given backing storage.
     pub fn new(storage: S) -> Buffer<S> {
         Buffer {
             storage: storage,
@@ -117,5 +125,74 @@ impl<S: Storage> Buffer<S> {
         } else {
             None
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::{Buffer, Storage};
+    use bits;
+
+    storage_type!(TestStorage, [u8; 5]);
+    small_storage_type!(TestSmallStorage, 7);
+
+    #[test]
+    fn test_storage() {
+        assert_eq!(TestStorage::size(), 5);
+        let mut s = TestStorage::new();
+        s.add(42, 0);
+        assert_eq!(s.buf()[0], 42);
+        s.add(37, 0);
+        s.add(64, 4);
+        assert_eq!(s.buf()[0], 37);
+        assert_eq!(s.buf()[4], 64);
+    }
+
+    #[test]
+    fn test_small_storage() {
+        assert_eq!(TestSmallStorage::size(), 7);
+        let mut s = TestSmallStorage::new();
+        assert_eq!(s.buf(), &0);
+        s.add(bits::Dibit::new(0b11), 0);
+        s.add(bits::Dibit::new(0b01), 1);
+        // Doesn't take position into account.
+        s.add(bits::Dibit::new(0b10), 0);
+        assert_eq!(s.buf(), &0b110110);
+    }
+
+    #[test]
+    fn test_buffer_storage() {
+        let mut b = Buffer::new(TestStorage::new());
+        assert_eq!(b.feed(13), None);
+        assert_eq!(b.feed(17), None);
+        assert_eq!(b.feed(23), None);
+        assert_eq!(b.feed(31), None);
+        assert_eq!(b.feed(37), Some(&mut [13, 17, 23, 31, 37]));
+        assert_eq!(b.feed(42), None);
+        assert_eq!(b.feed(52), None);
+        assert_eq!(b.feed(62), None);
+        assert_eq!(b.feed(72), None);
+        assert_eq!(b.feed(82), Some(&mut [42, 52, 62, 72, 82]));
+        assert_eq!(b.feed(92), None);
+    }
+
+    #[test]
+    fn test_buffer_small() {
+        let mut b = Buffer::new(TestSmallStorage::new());
+        assert_eq!(b.feed(bits::Dibit::new(0b11)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b01)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b01)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b00)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b11)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b10)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b01)), Some(&mut 0b11010100111001));
+        assert_eq!(b.feed(bits::Dibit::new(0b10)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b11)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b11)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b11)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b00)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b00)), None);
+        assert_eq!(b.feed(bits::Dibit::new(0b10)), Some(&mut 0b10111111000010));
+        assert_eq!(b.feed(bits::Dibit::new(0b00)), None);
     }
 }
