@@ -1,5 +1,7 @@
-use std;
+//! Just some utilities.
+
 use num::One;
+use std;
 
 /// Calculate ceil(a / b).
 pub fn div_ceil<T>(a: T, b: T) -> T where
