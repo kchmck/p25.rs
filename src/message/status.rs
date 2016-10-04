@@ -115,11 +115,9 @@ impl StatusDeinterleaver {
         }
     }
 
-    fn reset(&mut self) { self.pos = 0; }
-
     pub fn feed(&mut self, d: bits::Dibit) -> StreamSymbol {
         if self.pos == DIBITS_PER_UPDATE {
-            self.reset();
+            self.pos = 0;
             Status(StatusCode::from_dibit(d))
         } else {
             self.pos += 1;
