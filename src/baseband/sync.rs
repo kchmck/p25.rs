@@ -382,7 +382,7 @@ pub const SYNC_GENERATOR: &'static [u8] = &[
 
 #[cfg(test)]
 mod test {
-    use super::{SyncFingerprint, calc_averages, calc_thresholds};
+    use super::{SyncFingerprint, calc_averages, calc_thresholds, SyncDetector};
     use static_fir::FIRFilter;
 
     #[test]
@@ -443,6 +443,35 @@ mod test {
         assert!((p - 0.018).abs() < 0.000001);
         assert!((m - -0.030).abs() < 0.000001);
         assert!((n - -0.078).abs() < 0.000001);
+    }
+
+    #[test]
+    fn test_detector() {
+        {
+            let mut d = SyncDetector::new();
+            assert_eq!(d.feed(0.0, 0.42), false);
+            assert_eq!(d.feed(0.1, 0.42), false);
+            assert_eq!(d.feed(0.2, 0.42), false);
+            assert_eq!(d.feed(0.3, 0.42), false);
+            assert_eq!(d.feed(0.4, 0.42), false);
+            assert_eq!(d.feed(0.1, 0.42), false);
+            assert_eq!(d.feed(-0.5, 0.42), false);
+            assert_eq!(d.feed(0.43, 0.42), false);
+            assert_eq!(d.feed(0.43, 0.42), false);
+            assert_eq!(d.feed(0.43, 0.42), false);
+            assert_eq!(d.feed(0.5, 0.42), false);
+            assert_eq!(d.feed(0.6, 0.42), false);
+            assert_eq!(d.feed(0.7, 0.42), false);
+            assert_eq!(d.feed(0.6, 0.42), true);
+        }
+        {
+            let mut d = SyncDetector::new();
+            assert_eq!(d.feed(0.0, 0.1), false);
+            assert_eq!(d.feed(0.1, 0.1), false);
+            assert_eq!(d.feed(0.2, 0.1), false);
+            assert_eq!(d.feed(0.3, 0.5), false);
+            assert_eq!(d.feed(0.2, 0.5), true);
+        }
     }
 
     #[test]
