@@ -1,4 +1,6 @@
 use bits;
+use baseband::consts::SYNC_SYMBOLS;
+
 use self::StatusCode::*;
 use self::StreamSymbol::*;
 
@@ -91,12 +93,16 @@ impl StatusCode {
     }
 }
 
+/// A symbol in a transmitted P25 stream.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum StreamSymbol {
+    /// Current symbol is a status code.
     Status(StatusCode),
+    /// Current symbol is a data dibit.
     Data(bits::Dibit),
 }
 
+/// Deinterleave a P25 transmitted stream into status codes and data symbols.
 #[derive(Copy, Clone)]
 pub struct StatusDeinterleaver {
     pos: u32,
@@ -105,7 +111,7 @@ pub struct StatusDeinterleaver {
 impl StatusDeinterleaver {
     pub fn new() -> StatusDeinterleaver {
         StatusDeinterleaver {
-            pos: 24,
+            pos: SYNC_SYMBOLS as u32,
         }
     }
 
