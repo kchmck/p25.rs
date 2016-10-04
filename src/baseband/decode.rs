@@ -1,19 +1,25 @@
+//! Utilities for decoding a C4FM signal into symbols.
+
 use bits;
 use consts;
 
 /// Decodes symbol from sample at each symbol instant.
 #[derive(Copy, Clone)]
 pub struct Decoder {
+    /// Sample index into current symbol period.
     pos: usize,
+    /// Decider used for decoding symbol at each symbol instant.
     decider: Decider,
 }
 
 impl Decoder {
-    /// Create a new Decoder with the given symbol decider.
+    /// Create a new `Decoder` with the given symbol decider, initialized to decode the
+    /// first symbol after the frame sync has been detected.
     pub fn new(decider: Decider) -> Decoder {
         Decoder {
-            // Decoder is created after first sample of first symbol after sync has
-            // already been read.
+            // The frame sync sequence is detected one sample after its last symbol
+            // instant (i.e., the first sample in the next symbol period after the
+            // sequence), so take that sample into account.
             pos: 1,
             decider: decider,
         }
@@ -36,8 +42,11 @@ impl Decoder {
 /// Decides which symbol a sample represents with a threshold method.
 #[derive(Copy, Clone)]
 pub struct Decider {
+    /// Upper threshold.
     pthresh: f32,
+    /// Middle threshold.
     mthresh: f32,
+    /// Lower threshold.
     nthresh: f32,
 }
 
@@ -52,7 +61,7 @@ impl Decider {
         }
     }
 
-    /// Decide with symbol the given sample looks closest to.
+    /// Decide which symbol the given sample looks closest to.
     pub fn decide(&self, sample: f32) -> bits::Dibit {
         if sample > self.pthresh {
             bits::Dibit::new(0b01)
