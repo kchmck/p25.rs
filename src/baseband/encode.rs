@@ -1,3 +1,5 @@
+//! Utilities for encoding symbols as a C4FM signal.
+
 use bits;
 use consts;
 
