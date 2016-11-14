@@ -115,10 +115,11 @@ impl<S: Storage> Buffer<S> {
         }
 
         self.storage.add(item, self.pos);
-        self.pos += 1;
 
-        if self.pos == S::size() {
-            self.pos = 0;
+        self.pos += 1;
+        self.pos %= S::size();
+
+        if self.pos == 0 {
             Some(self.storage.buf())
         } else {
             None
