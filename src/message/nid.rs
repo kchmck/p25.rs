@@ -5,15 +5,21 @@ use buffer;
 use coding::bch;
 use error::{Result, P25Error};
 
+/// "Digital squelch" NAC field of the NID.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum NetworkAccessCode {
+    /// Default P25 NAC.
     Default,
+    /// Allows receiver to unsquelch on any NAC (shouldn't be transmitted.)
     ReceiveAny,
+    /// Allows repeater to unsquelch/retransmit any NAC (shouldn't be transmitted.)
     RepeatAny,
+    /// Custom NAC.
     Other(u16),
 }
 
 impl NetworkAccessCode {
+    /// Parse 12 bits into a NAC.
     pub fn from_bits(bits: u16) -> NetworkAccessCode {
         use self::NetworkAccessCode::*;
 
@@ -27,6 +33,7 @@ impl NetworkAccessCode {
         }
     }
 
+    /// Convert NAC to a 12-bit word.
     pub fn to_bits(&self) -> u16 {
         use self::NetworkAccessCode::*;
 
@@ -39,18 +46,27 @@ impl NetworkAccessCode {
     }
 }
 
+/// Data unit of associated packet.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DataUnit {
+    /// Voice header packet.
     VoiceHeader,
+    /// Simple terminator packet.
     VoiceSimpleTerminator,
+    /// Terminator packet with link control word.
     VoiceLCTerminator,
+    /// Link control voice frame group.
     VoiceLCFrameGroup,
+    /// Crypto control voice frame group.
     VoiceCCFrameGroup,
+    /// Confirmed/Unconfirmed data packet
     DataPacket,
+    /// Trunking signalling packet.
     TrunkingSignaling,
 }
 
 impl DataUnit {
+    /// Parse 4 bits into a data unit type.
     pub fn from_bits(bits: u8) -> Option<DataUnit> {
         use self::DataUnit::*;
 
@@ -68,6 +84,7 @@ impl DataUnit {
         }
     }
 
+    /// Convert data unit to 4-bit word.
     pub fn to_bits(&self) -> u8 {
         use self::DataUnit::*;
 
@@ -83,6 +100,7 @@ impl DataUnit {
     }
 }
 
+/// NID word associated with each P25 packet.
 #[derive(Copy, Clone, Debug)]
 pub struct NetworkID {
     pub access_code: NetworkAccessCode,
@@ -90,6 +108,7 @@ pub struct NetworkID {
 }
 
 impl NetworkID {
+    /// Create an NID word from the given NAC and data unit.
     pub fn new(access_code: NetworkAccessCode, data_unit: DataUnit) -> NetworkID {
         NetworkID {
             access_code: access_code,
@@ -97,6 +116,7 @@ impl NetworkID {
         }
     }
 
+    /// Parse NID from the given 16-bit word.
     pub fn from_bits(bits: u16) -> Option<NetworkID> {
         match DataUnit::from_bits(bits as u8 & 0b1111) {
             Some(du) => Some(NetworkID::new(NetworkAccessCode::from_bits(bits >> 4), du)),
@@ -104,10 +124,12 @@ impl NetworkID {
         }
     }
 
+    /// Convert NID to 16-bit representation.
     pub fn to_bits(&self) -> u16 {
         (self.access_code.to_bits() as u16) << 4 | self.data_unit.to_bits() as u16
     }
 
+    /// Encode NID into a byte sequence.
     pub fn encode(&self) -> [u8; 8] {
         let bits = self.to_bits();
         let e = bch::encode(bits);
@@ -125,17 +147,23 @@ impl NetworkID {
     }
 }
 
+/// State machine that attempts to parse a stream of dibits into an NID word.
 pub struct NIDReceiver {
+    /// Buffered dibits.
     dibits: buffer::Buffer<buffer::NIDStorage>,
 }
 
 impl NIDReceiver {
+    /// Create a new `NIDReceiver` with an empty buffer.
     pub fn new() -> NIDReceiver {
         NIDReceiver {
             dibits: buffer::Buffer::new(buffer::NIDStorage::new()),
         }
     }
 
+    /// Feed in a data symbol, possibly producing a decoded NID. Return `Some(Ok(nid))` if
+    /// an NID was successfully parsed, `Some(Err(err))` if an unrecoverable error
+    /// occurred, and `None` for no event.
     pub fn feed(&mut self, dibit: Dibit) -> Option<Result<NetworkID>> {
         let buf = match self.dibits.feed(dibit) {
             Some(buf) => *buf,
