@@ -1,3 +1,5 @@
+//! Constants used throughout the protocol.
+
 /// Symbols (dibits) per second.
 pub const SYMBOL_RATE: usize = 4800;
 /// Baseband samples per second

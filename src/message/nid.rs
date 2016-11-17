@@ -1,3 +1,5 @@
+//! Network ID (NID), Network Access Code (NAC), and Data Unit utilities.
+
 use bits::Dibit;
 use buffer;
 use coding::bch;

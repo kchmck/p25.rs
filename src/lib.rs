@@ -1,3 +1,6 @@
+//! Implements the Project (P25) air interface radio protocol, including baseband frame
+//! synchronization, symbol decoding, error correction coding, and packet reconstuction.
+
 #![feature(const_fn)]
 
 extern crate collect_slice;

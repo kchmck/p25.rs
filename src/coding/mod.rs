@@ -1,3 +1,5 @@
+//! Encoding and decoding for the several error correction coding schemes used in P25.
+
 mod bmcf;
 
 #[macro_use]

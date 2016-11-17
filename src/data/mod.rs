@@ -1,4 +1,4 @@
-//! This module implements Project 25's data packet specification.
+//! Implements Project 25's data packet specification.
 
 mod coder;
 mod fragment;

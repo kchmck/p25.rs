@@ -1,5 +1,4 @@
-//! This module defines wrapper types and iterators for working with sub-byte values, as
-//! well as iterators to group those values back into bytes.
+//! Utilities for packing/unpacking dibits and tribits into/out of bytes.
 
 use std;
 

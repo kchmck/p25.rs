@@ -1,3 +1,5 @@
+//! Decoding of voice-related data units.
+
 mod descramble;
 mod frame_group;
 mod message;
