@@ -1,3 +1,6 @@
+//! General low-level receiver for all data units, covering frame synchronization up to
+//! symbol decoding.
+
 use baseband::decode::{Decoder, Decider};
 use baseband::sync::{SyncCorrelator, SyncDetector};
 use error::{P25Error, Result};
@@ -7,28 +10,30 @@ use message::status::{StreamSymbol, StatusDeinterleaver};
 use self::State::*;
 use self::StateChange::*;
 
+/// Number of samples used to initially prime the correlator's moving average before starting to
+/// look for sync.
 const PRIME_SAMPLES: u32 = 6000;
 
-#[derive(Debug)]
-pub enum ReceiverEvent {
-    Symbol(StreamSymbol),
-    NetworkID(nid::NetworkID),
-}
-
+/// Low-level receiver for decoding samples into symbols and deinterleaving status
+/// symbols.
 #[derive(Copy, Clone)]
-struct Receiver {
+struct SymbolReceiver {
+    /// Symbol decoder.
     decoder: Decoder,
+    /// Data/Status symbol deinterleaver.
     status: StatusDeinterleaver,
 }
 
-impl Receiver {
-    pub fn new(decoder: Decoder) -> Receiver {
-        Receiver {
+impl SymbolReceiver {
+    /// Create a new `SymbolReceiver` using the given symbol decoder.
+    pub fn new(decoder: Decoder) -> SymbolReceiver {
+        SymbolReceiver {
             decoder: decoder,
             status: StatusDeinterleaver::new(),
         }
     }
 
+    /// Feed in a baseband symbol, possibly producing a data or status symbol.
     pub fn feed(&mut self, s: f32) -> Option<StreamSymbol> {
         match self.decoder.feed(s) {
             Some(dibit) => Some(self.status.feed(dibit)),
@@ -37,38 +42,82 @@ impl Receiver {
     }
 }
 
-enum State {
-    Prime(u32),
-    Sync(SyncDetector),
-    DecodeNID(Receiver, nid::NIDReceiver),
-    DecodePacket(Receiver),
-    FlushPads(Receiver),
+
+/// An event seen by the low-level receiver.
+#[derive(Debug)]
+pub enum ReceiverEvent {
+    /// Data or status symbol.
+    Symbol(StreamSymbol),
+    /// Decoded NID information.
+    NetworkID(nid::NetworkID),
 }
 
+/// Internal state of the state machine.
+enum State {
+    /// Prime the signal power tracker.
+    Prime(u32),
+    /// Lock onto frame synchronization.
+    Sync(SyncDetector),
+    /// Decode NID.
+    DecodeNID(SymbolReceiver, nid::NIDReceiver),
+    /// Decode data and status symbols.
+    DecodePacket(SymbolReceiver),
+    /// Flush pads at end of packet.
+    FlushPads(SymbolReceiver),
+}
+
+/// Action the state machine should take.
 enum StateChange {
+    /// Change to the given state.
     Change(State),
+    /// Propagate the given event.
     Event(ReceiverEvent),
+    /// Change to the given state and propagate the given event.
     EventChange(ReceiverEvent, State),
+    /// Propagate the given error.
     Error(P25Error),
+    /// No action necessary.
     NoChange,
 }
 
 impl State {
+    /// Initial prime state.
     pub fn prime() -> State { Prime(1) }
+
+    /// Initial synchronization state.
     pub fn sync() -> State { Sync(SyncDetector::new()) }
+
+    /// Initial NID decode state.
     pub fn decode_nid(decoder: Decoder) -> State {
-        DecodeNID(Receiver::new(decoder), nid::NIDReceiver::new())
+        DecodeNID(SymbolReceiver::new(decoder), nid::NIDReceiver::new())
     }
-    pub fn decode_packet(recv: Receiver) -> State { DecodePacket(recv) }
-    pub fn flush_pads(recv: Receiver) -> State { FlushPads(recv) }
+
+    /// Initial symbol decode state.
+    pub fn decode_packet(recv: SymbolReceiver) -> State { DecodePacket(recv) }
+
+    /// Initial flush padding state.
+    pub fn flush_pads(recv: SymbolReceiver) -> State { FlushPads(recv) }
 }
 
+/// State machine for low-level data unit reception.
+///
+/// The state machine consumes baseband samples and performs the following steps common to
+/// all data units:
+///
+/// 1. Track average power of input signal
+/// 2. Lock onto frame synchronization
+/// 3. Deinterleave status symbols
+/// 4. Decode NID information
+/// 5. Decode dibit symbol until stopped
 pub struct DataUnitReceiver {
+    /// Current state.
     state: State,
+    /// Tracks input signal power and frame synchronization statistics.
     corr: SyncCorrelator,
 }
 
 impl DataUnitReceiver {
+    /// Create a new `DataUnitReceiver` in the initial reception state.
     pub fn new() -> DataUnitReceiver {
         DataUnitReceiver {
             state: State::prime(),
@@ -76,6 +125,8 @@ impl DataUnitReceiver {
         }
     }
 
+    /// Flush any remaining padding symbols at the end of the current packet, and reenter
+    /// the frame synchronization state afterwards.
     pub fn flush_pads(&mut self) {
         match self.state {
             DecodePacket(recv) => self.state = State::flush_pads(recv),
@@ -84,9 +135,12 @@ impl DataUnitReceiver {
         }
     }
 
+    /// Force the receiver into frame synchronization.
     pub fn resync(&mut self) { self.state = State::sync(); }
 
+    /// Determine the next action to take based on the given sample.
     fn handle(&mut self, s: f32) -> StateChange {
+        // Continuously track the input signal power.
         let (power, thresh) = self.corr.feed(s);
 
         match self.state {
@@ -120,12 +174,17 @@ impl DataUnitReceiver {
                 None => NoChange,
             },
             FlushPads(ref mut recv) => match recv.feed(s) {
+                /// According to the spec, the stream is padded until the next status
+                /// symbol boundary.
                 Some(StreamSymbol::Status(_)) => Change(State::sync()),
                 _ => NoChange,
             },
         }
     }
 
+    /// Feed in a baseband symbol, possibly producing a receiver event. Return
+    /// `Some(Ok(event))` for any normal event, `Some(Err(err))` for any error, and `None`
+    /// if no event occurred.
     pub fn feed(&mut self, s: f32) -> Option<Result<ReceiverEvent>> {
         match self.handle(s) {
             Change(state) => {
