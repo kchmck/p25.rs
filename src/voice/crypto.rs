@@ -8,7 +8,7 @@ impl CryptoControlFields {
 
     pub fn crypto_init(&self) -> &[u8] { &self.0[..9] }
 
-    pub fn crypto_alg(&self) -> Option<CryptoAlgorithm> {
+    pub fn crypto_alg(&self) -> CryptoAlgorithm {
         CryptoAlgorithm::from_bits(self.0[9])
     }
 
@@ -27,24 +27,25 @@ pub enum CryptoAlgorithm {
     DES,
     TripleDES,
     AES,
+    Other(u8),
 }
 
 impl CryptoAlgorithm {
-    pub fn from_bits(bits: u8) -> Option<CryptoAlgorithm> {
+    pub fn from_bits(bits: u8) -> CryptoAlgorithm {
         use self::CryptoAlgorithm::*;
 
         match bits {
-            0x00 => Some(Accordion),
-            0x01 => Some(BatonEven),
-            0x02 => Some(Firefly),
-            0x03 => Some(Mayfly),
-            0x04 => Some(Saville),
-            0x41 => Some(BatonOdd),
-            0x80 => Some(Unencrypted),
-            0x81 => Some(DES),
-            0x83 => Some(TripleDES),
-            0x84 => Some(AES),
-            _ => None,
+            0x00 => Accordion,
+            0x01 => BatonEven,
+            0x02 => Firefly,
+            0x03 => Mayfly,
+            0x04 => Saville,
+            0x41 => BatonOdd,
+            0x80 => Unencrypted,
+            0x81 => DES,
+            0x83 => TripleDES,
+            0x84 => AES,
+            b => Other(b),
         }
     }
 }
@@ -63,7 +64,7 @@ mod test {
         ]);
 
         assert_eq!(c.crypto_init(), &[0,0,0,1,0,0,0,2,0]);
-        assert_eq!(c.crypto_alg(), Some(AES));
+        assert_eq!(c.crypto_alg(), AES);
         assert_eq!(c.crypto_key(), 0xDEAD);
     }
 }

@@ -10,7 +10,7 @@ impl VoiceHeaderFields {
     pub fn crypto_init(&self) -> &[u8] { &self.0[..9] }
     pub fn mfg(&self) -> u8 { self.0[9] }
 
-    pub fn crypto_alg(&self) -> Option<crypto::CryptoAlgorithm> {
+    pub fn crypto_alg(&self) -> crypto::CryptoAlgorithm {
         crypto::CryptoAlgorithm::from_bits(self.0[10])
     }
 
@@ -41,7 +41,7 @@ mod test {
 
         assert_eq!(h.crypto_init(), &[1,2,3,4,5,6,7,8,9]);
         assert_eq!(h.mfg(), 0);
-        assert_eq!(h.crypto_alg(), Some(Unencrypted));
+        assert_eq!(h.crypto_alg(), Unencrypted);
         assert_eq!(h.crypto_key(), 0);
         assert_eq!(h.talk_group(), TalkGroup::Everbody);
     }
