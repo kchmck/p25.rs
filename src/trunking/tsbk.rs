@@ -177,6 +177,10 @@ impl TSBKFields {
             .feed_bytes((&self.0[..10]).iter().cloned())
             .finish() as u16
     }
+
+    pub fn crc_valid(&self) -> bool {
+        self.crc() == self.calc_crc()
+    }
 }
 
 pub struct GroupVoiceGrant(Buf);
