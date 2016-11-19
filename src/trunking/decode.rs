@@ -10,6 +10,7 @@ impl ServiceOptions {
     pub fn prio(&self) -> u8 { self.0 & 0x7 }
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Channel(u16);
 
 impl Channel {
