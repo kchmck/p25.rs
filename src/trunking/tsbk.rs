@@ -6,8 +6,16 @@ use coding::trellis;
 use consts::{TSBK_DIBITS, TSBK_BYTES};
 use data::{crc, interleave};
 use error::{Result, P25Error};
-use trunking::fields::*;
 use util::{slice_u16, slice_u24, slice_u32};
+
+use trunking::fields::{
+    Channel,
+    ChannelParams,
+    TalkGroup,
+    SystemServices,
+    ServiceOptions,
+    SiteOptions,
+};
 
 pub struct TSBKReceiver {
     dibits: Buffer<DataPayloadStorage>,

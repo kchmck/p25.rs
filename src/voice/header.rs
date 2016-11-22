@@ -1,5 +1,5 @@
 use consts::HEADER_BYTES;
-use trunking::fields::*;
+use trunking::fields::TalkGroup;
 use util::slice_u16;
 use voice::crypto;
 
