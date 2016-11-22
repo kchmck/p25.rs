@@ -1,5 +1,6 @@
-use trunking::decode::*;
 use consts::LINK_CONTROL_BYTES;
+use trunking::decode::*;
+use util::{slice_u16, slice_u24};
 
 pub type Buf = [u8; LINK_CONTROL_BYTES];
 

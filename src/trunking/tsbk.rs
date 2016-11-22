@@ -6,6 +6,7 @@ use coding::trellis;
 use consts::{TSBK_DIBITS, TSBK_BYTES};
 use data::{crc, interleave};
 use error::{Result, P25Error};
+use util::{slice_u16, slice_u24, slice_u32};
 
 use trunking::decode::*;
 

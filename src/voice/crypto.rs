@@ -1,5 +1,5 @@
-use trunking::decode::*;
 use consts::CRYPTO_CONTROL_BYTES;
+use util::slice_u16;
 
 pub struct CryptoControlFields([u8; CRYPTO_CONTROL_BYTES]);
 
