@@ -25,8 +25,8 @@ impl Decoder {
         }
     }
 
-    /// Examine the given sample and, based on the symbol clock, decode it a symbol or
-    /// do nothing.
+    /// Examine the given sample and, based on the symbol clock, decode it into a symbol
+    /// or do nothing.
     pub fn feed(&mut self, s: f32) -> Option<bits::Dibit> {
         self.pos += 1;
         self.pos %= consts::SYMBOL_PERIOD;
