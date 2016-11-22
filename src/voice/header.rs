@@ -1,7 +1,7 @@
 use consts::HEADER_BYTES;
 use trunking::fields::TalkGroup;
 use util::slice_u16;
-use voice::crypto;
+use voice::crypto::CryptoAlgorithm;
 
 pub struct VoiceHeaderFields([u8; HEADER_BYTES]);
 
@@ -11,8 +11,8 @@ impl VoiceHeaderFields {
     pub fn crypto_init(&self) -> &[u8] { &self.0[..9] }
     pub fn mfg(&self) -> u8 { self.0[9] }
 
-    pub fn crypto_alg(&self) -> crypto::CryptoAlgorithm {
-        crypto::CryptoAlgorithm::from_bits(self.0[10])
+    pub fn crypto_alg(&self) -> CryptoAlgorithm {
+        CryptoAlgorithm::from_bits(self.0[10])
     }
 
     pub fn crypto_key(&self) -> u16 { slice_u16(&self.0[11..]) }
