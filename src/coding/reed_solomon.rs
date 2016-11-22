@@ -1,10 +1,8 @@
 //! Encoding and decoding of the (24, 12, 13) short, (24, 16, 9) medium, and (36, 20, 17)
 //! long Reed-Solomon codes described by P25.
 //!
-//! These algorithms are sourced from \[1].
-//!
-//! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
-//! al, 2000
+//! These algorithms are sourced from *Coding Theory and Cryptography: The Essentials*,
+//! Hankerson, Hoffman, et al, 2000.
 
 use std;
 use std::ops::{Deref, DerefMut};

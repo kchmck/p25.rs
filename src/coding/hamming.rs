@@ -1,10 +1,8 @@
 //! Encoding and decoding of the (15, 11, 3) standard and (10, 6, 3) shortened Hamming
 //! codes described by P25.
 //!
-//! Both codes can correct up to 1 error. These algorithms are sourced from \[1].
-//!
-//! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
-//! al, 2000
+//! Both codes can correct up to 1 error. These algorithms are sourced from *Coding Theory
+//! and Cryptography: The Essentials*, Hankerson, Hoffman, et al, 2000.
 
 /// Encoding and decoding of the (15, 11, 3) code.
 pub mod standard {

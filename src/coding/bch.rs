@@ -1,9 +1,7 @@
 //! Encoding and decoding of the (63, 16, 23) BCH code described by P25.
 //!
-//! These algorithms are derived from \[1].
-//!
-//! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
-//! al, 2000
+//! These algorithms are derived from *Coding Theory and Cryptography: The Essentials*,
+//! Hankerson, Hoffman, et al, 2000.
 
 use std;
 

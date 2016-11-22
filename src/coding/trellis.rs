@@ -1,9 +1,9 @@
 //! Implements encoding and decoding of the "trellis" convolutional error correcting code
-//! specified by P25. Encoding is done with a state machine and decoding is done with the
-//! Viterbi algorithm, adapted from \[1].
+//! specified by P25.
 //!
-//! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
-//! al, 2000
+//! Encoding is done with a state machine and decoding is done with the Viterbi algorithm,
+//! adapted from *Coding Theory and Cryptography: The Essentials*, Hankerson, Hoffman, et
+//! al, 2000.
 
 use std;
 use std::ops::{Deref, DerefMut};

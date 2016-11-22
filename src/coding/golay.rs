@@ -1,10 +1,8 @@
 //! Encoding and decoding of the (23, 12, 7) standard, (24, 12, 8) extended, and (18, 6,
 //! 8) shortened Golay codes described by P25.
 //!
-//! These algorithms are sourced from \[1].
-//!
-//! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
-//! al, 2000
+//! These algorithms are sourced from *Coding Theory and Cryptography: The Essentials*,
+//! Hankerson, Hoffman, et al, 2000.
 
 /// Encoding and decoding of the (23, 12, 7) code.
 pub mod standard {

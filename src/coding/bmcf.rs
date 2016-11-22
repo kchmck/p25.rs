@@ -1,11 +1,9 @@
 //! Implements the Berlekamp-Massey, Chien Search, and Forney algorithms.
 //!
 //! Most Galois field information as well as the Berlekamp-Massey and Forney
-//! implementations are derived from \[1] and the Chien search is derived from \[2].
-//!
-//! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
-//! al, 2000
-//! \[2]: https://en.wikipedia.org/wiki/Chien_search
+//! implementations are derived from *Coding Theory and Cryptography: The Essentials*,
+//! Hankerson, Hoffman, et al, 2000, and the Chien search is derived from
+//! [Wikipedia](https://en.wikipedia.org/wiki/Chien_search).
 
 use std;
 

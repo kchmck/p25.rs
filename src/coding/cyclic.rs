@@ -1,13 +1,10 @@
 //! Encoding and decoding of the (16, 8, 5) shortened cyclic code described by P25.
 //!
-//! The parity-check matrix construction was sourced from \[1] and the decoding algorithm
-//! was derived from \[2]. The key information that this code is shortened from a (17, 8,
-//! 5) code came from \[3].
-//!
-//! \[1]: "Coding Theory and Cryptography: The Essentials", 2nd ed, Hankerson, Hoffman, et
-//! al, 2000
-//! \[2]: "Error Control Coding", Lin and Costello, 1983
-//! \[3]: "Standard APCO25 Physical Layer of the Radio Transmission Chain", Simon, 2014
+//! The parity-check matrix construction was sourced from *Coding Theory and Cryptography:
+//! The Essentials*, Hankerson, Hoffman, et al, 2000, and the decoding algorithm
+//! was derived from *Error Control Coding*, Lin and Costello, 1983. The key information
+//! that this code is shortened from a (17, 8, 5) code came from "Standard APCO25 Physical
+//! Layer of the Radio Transmission Chain", Simon, 2014.
 
 /// Encode the 8 data bits into a 16-bit codeword.
 pub fn encode(data: u8) -> u16 {
