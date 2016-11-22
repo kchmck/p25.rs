@@ -348,6 +348,31 @@ impl SiteStatusBroadcast {
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
 }
 
+/// Advertisement of an adjacent/nearby site within the same WACN (Wide Area Communication
+/// Network.)
+pub struct AdjacentSite(Buf);
+
+impl AdjacentSite {
+    /// Create a new `AdjacentSite` decoder from base TSBK decoder.
+    pub fn new(tsbk: TSBKFields) -> Self { AdjacentSite(tsbk.0) }
+
+    /// Location registration area of adjacent site, which determines whether a subscriber
+    /// must update the network before roaming to the site.
+    pub fn area(&self) -> u8 { self.0[2] }
+    /// Description of adjacent site.
+    pub fn opts(&self) -> AdjacentSiteOptions { AdjacentSiteOptions::new(self.0[3] >> 4) }
+    /// System ID of adjacent site within WACN.
+    pub fn system(&self) -> u16 { slice_u16(&self.0[3...4]) & 0xFFF }
+    /// RF Subsystem ID of adjacent site within the System.
+    pub fn rfss(&self) -> u8 { self.0[5] }
+    /// Site ID of adjacent site within the RFSS.
+    pub fn site(&self) -> u8 { self.0[6] }
+    /// Channel information for computing TX/RX frequencies.
+    pub fn channel(&self) -> Channel { Channel::new(&self.0[7...8]) }
+    /// Services supported by the adjacent site.
+    pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
+}
+
 pub struct ChannelParamsUpdate(Buf);
 
 impl ChannelParamsUpdate {

@@ -99,6 +99,28 @@ impl ChannelParams {
     }
 }
 
+/// Options for an adjacent site.
+pub struct AdjacentSiteOptions(u8);
+
+impl AdjacentSiteOptions {
+    /// Create a new `AdjacentSiteOptions` from the given 4-bit word.
+    pub fn new(opts: u8) -> AdjacentSiteOptions {
+        assert!(opts >> 4 == 0);
+        AdjacentSiteOptions(opts)
+    }
+
+    /// Whether site is "conventional", with no trunking.
+    pub fn conventional(&self) -> bool { self.0 & 0b1000 != 0 }
+    /// Whether site is in failure state.
+    pub fn failing(&self) -> bool { self.0 & 0b100 != 0 }
+    /// Whether this information is up-to-date (broadcasting site is in communication with
+    /// adjacent site.)
+    pub fn current(&self) -> bool { self.0 & 0b10 != 0 }
+    /// Whether site has active network connection with RFSS controller and can
+    /// communicate with other sites.
+    pub fn networked(&self) -> bool { self.0 & 1 != 0 }
+}
+
 pub fn slice_u16(bytes: &[u8]) -> u16 {
     (bytes[0] as u16) << 8 | bytes[1] as u16
 }
