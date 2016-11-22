@@ -295,6 +295,30 @@ impl AltControlChannel {
     fn serviced_b(&self) -> SystemServices { SystemServices::new(self.0[9]) }
 }
 
+/// Carries Site and RFSS information of current control channel.
+pub struct RFSSStatusBroadcast(Buf);
+
+impl RFSSStatusBroadcast {
+    /// Create a new `RFSSStatusBroadcast` decoder from base TSBK decoder.
+    pub fn new(tsbk: TSBKFields) -> Self { RFSSStatusBroadcast(tsbk.0) }
+
+    /// Location registration area of current site.
+    pub fn area(&self) -> u8 { self.0[2] }
+    /// Whether the site is networked with the RFSS controller, which determines if it can
+    /// communicate with other sites.
+    pub fn networked(&self) -> bool { self.0[3] & 0b10000 != 0 }
+    /// System ID of current site within WACN.
+    pub fn system(&self) -> u16 { slice_u16(&self.0[3...4]) & 0xFFF }
+    /// RF Subsystem ID of current site within System.
+    pub fn rfss(&self) -> u8 { self.0[5] }
+    /// Site ID of current site within RFSS.
+    pub fn site(&self) -> u8 { self.0[6] }
+    /// Channel information for computing TX/RX frequencies.
+    pub fn channel(&self) -> Channel { Channel::new(&self.0[7...8]) }
+    /// Services supported by the current site.
+    pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
+}
+
 pub struct NetworkStatusBroadcast(Buf);
 
 impl NetworkStatusBroadcast {

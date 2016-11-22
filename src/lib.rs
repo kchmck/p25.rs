@@ -2,6 +2,7 @@
 //! synchronization, symbol decoding, error correction coding, and packet reconstuction.
 
 #![feature(const_fn)]
+#![feature(inclusive_range_syntax)]
 
 extern crate collect_slice;
 extern crate static_ewma;
