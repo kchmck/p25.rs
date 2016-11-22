@@ -99,14 +99,14 @@ impl ChannelParams {
     }
 }
 
-/// Options for an adjacent site.
-pub struct AdjacentSiteOptions(u8);
+/// Options for a P25 site.
+pub struct SiteOptions(u8);
 
-impl AdjacentSiteOptions {
-    /// Create a new `AdjacentSiteOptions` from the given 4-bit word.
-    pub fn new(opts: u8) -> AdjacentSiteOptions {
+impl SiteOptions {
+    /// Create a new `SiteOptions` from the given 4-bit word.
+    pub fn new(opts: u8) -> SiteOptions {
         assert!(opts >> 4 == 0);
-        AdjacentSiteOptions(opts)
+        SiteOptions(opts)
     }
 
     /// Whether site is "conventional", with no trunking.

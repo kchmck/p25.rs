@@ -360,7 +360,7 @@ impl AdjacentSite {
     /// must update the network before roaming to the site.
     pub fn area(&self) -> u8 { self.0[2] }
     /// Description of adjacent site.
-    pub fn opts(&self) -> AdjacentSiteOptions { AdjacentSiteOptions::new(self.0[3] >> 4) }
+    pub fn opts(&self) -> SiteOptions { SiteOptions::new(self.0[3] >> 4) }
     /// System ID of adjacent site within WACN.
     pub fn system(&self) -> u16 { slice_u16(&self.0[3...4]) & 0xFFF }
     /// RF Subsystem ID of adjacent site within the System.
