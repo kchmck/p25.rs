@@ -1,5 +1,5 @@
 use consts::HEADER_BYTES;
-use trunking::decode::*;
+use trunking::fields::*;
 use util::slice_u16;
 use voice::crypto;
 
@@ -26,7 +26,7 @@ impl VoiceHeaderFields {
 mod test {
     use super::*;
     use voice::crypto::CryptoAlgorithm::*;
-    use trunking::decode::TalkGroup;
+    use trunking::fields::TalkGroup;
 
     #[test]
     fn test_header() {

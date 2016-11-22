@@ -1,4 +1,4 @@
 //! Trunking control message decoding.
 
-pub mod decode;
+pub mod fields;
 pub mod tsbk;

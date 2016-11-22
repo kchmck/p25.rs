@@ -1,5 +1,5 @@
 use consts::LINK_CONTROL_BYTES;
-use trunking::decode::*;
+use trunking::fields::*;
 use util::{slice_u16, slice_u24};
 
 pub type Buf = [u8; LINK_CONTROL_BYTES];
@@ -142,7 +142,7 @@ impl AdjacentSiteBroadcast {
 #[cfg(test)]
 mod test {
     use super::*;
-    use trunking::decode::*;
+    use trunking::fields::*;
 
     #[test]
     fn test_lc() {
