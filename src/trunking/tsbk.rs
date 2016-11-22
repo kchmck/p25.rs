@@ -337,10 +337,7 @@ impl SiteStatusBroadcast {
     pub fn new(tsbk: TSBKFields) -> Self { SiteStatusBroadcast(tsbk.0) }
 
     pub fn area(&self) -> u8 { self.0[2] }
-    pub fn is_conventional(&self) -> bool { self.0[3] & 0x80 != 0 }
-    pub fn is_down(&self) -> bool { self.0[3] & 0x40 != 0 }
-    pub fn is_current(&self) -> bool { self.0[3] & 0x20 != 0 }
-    pub fn has_network(&self) -> bool { self.0[3] & 0x10 != 0 }
+    pub fn opts(&self) -> SiteOptions { SiteOptions::new(self.0[3] >> 4) }
     pub fn system(&self) -> u16 { slice_u16(&self.0[3..]) & 0xFFF }
     pub fn rfss(&self) -> u8 { self.0[5] }
     pub fn site(&self) -> u8 { self.0[6] }
