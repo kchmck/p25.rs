@@ -79,7 +79,7 @@ pub enum TSBKOpcode {
     RoamingAddrCommand,
     RoamingAddrUpdate,
     SystemServiceBroadcast,
-    AltControlBroadcast,
+    AltControlChannel,
     RFSSStatusBroadcast,
     NetworkStatusBroadcast,
     AdjacentSiteBroadcast,
@@ -145,7 +145,7 @@ impl TSBKOpcode {
             0b110111 => Some(RoamingAddrUpdate),
 
             0b111000 => Some(SystemServiceBroadcast),
-            0b111001 => Some(AltControlBroadcast),
+            0b111001 => Some(AltControlChannel),
             0b111010 => Some(RFSSStatusBroadcast),
             0b111011 => Some(NetworkStatusBroadcast),
             0b111100 => Some(AdjacentSiteBroadcast),
@@ -272,10 +272,11 @@ impl UnitDataGrant {
     pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[4..]) }
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
-pub struct AltControlBroadcast(Buf);
 
-impl AltControlBroadcast {
-    pub fn new(tsbk: TSBKFields) -> Self { AltControlBroadcast(tsbk.0) }
+pub struct AltControlChannel(Buf);
+
+impl AltControlChannel {
+    pub fn new(tsbk: TSBKFields) -> Self { AltControlChannel(tsbk.0) }
 
     pub fn rfss(&self) -> u8 { self.0[2] }
     pub fn site(&self) -> u8 { self.0[3] }
