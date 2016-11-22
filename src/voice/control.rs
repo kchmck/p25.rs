@@ -15,9 +15,9 @@ pub type Buf = [u8; LINK_CONTROL_BYTES];
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum LinkControlOpcode {
     GroupVoiceTraffic,
-    GroupVoiceChannel,
+    GroupVoiceUpdate,
     UnitVoiceTraffic,
-    GroupVoiceChannelExplicit,
+    GroupVoiceUpdateExplicit,
     UnitVoiceRequest,
     PhoneVoiceTraffic,
     PhoneVoiceRequest,
@@ -27,20 +27,20 @@ pub enum LinkControlOpcode {
     UnitAuthenticationRequst,
     UnitStatusRequest,
     SystemServiceBroadcast,
-    SecondaryControlBroadcast,
-    AdjacentSiteBroadcast,
-    RadioStatusBroadcast,
+    AltControlChannel,
+    AdjacentSite,
+    RFSSStatusBroadcast,
     NetworkStatusBroadcast,
-    UnitStatus,
-    UnitMessage,
+    UnitStatusUpdate,
+    UnitShortMessage,
     UnitCallAlert,
     ExtendedFunction,
     ChannelParamsUpdate,
     ProtectionParamBroadcast,
-    AltControlBroadcastExplicit,
-    AdjacentSiteBroadcastExplicit,
-    ChannelIdentifierExplicit,
-    RadioStatusExplicit,
+    AltControlChannelExplicit,
+    AdjacentSiteExplicit,
+    ChannelParamsExplicit,
+    RFSSStatusExplicit,
     NetworkStatusExplicit,
 }
 
@@ -50,9 +50,9 @@ impl LinkControlOpcode {
 
         match bits {
             0b000000 => Some(GroupVoiceTraffic),
-            0b000010 => Some(GroupVoiceChannel),
+            0b000010 => Some(GroupVoiceUpdate),
             0b000011 => Some(UnitVoiceTraffic),
-            0b000100 => Some(GroupVoiceChannelExplicit),
+            0b000100 => Some(GroupVoiceUpdateExplicit),
             0b000101 => Some(UnitVoiceRequest),
             0b000110 => Some(PhoneVoiceTraffic),
             0b000111 => Some(PhoneVoiceRequest),
@@ -62,20 +62,20 @@ impl LinkControlOpcode {
             0b010010 => Some(UnitAuthenticationRequst),
             0b010011 => Some(UnitStatusRequest),
             0b100000 => Some(SystemServiceBroadcast),
-            0b100001 => Some(SecondaryControlBroadcast),
-            0b100010 => Some(AdjacentSiteBroadcast),
-            0b100011 => Some(RadioStatusBroadcast),
+            0b100001 => Some(AltControlChannel),
+            0b100010 => Some(AdjacentSite),
+            0b100011 => Some(RFSSStatusBroadcast),
             0b100100 => Some(NetworkStatusBroadcast),
-            0b010100 => Some(UnitStatus),
-            0b010101 => Some(UnitMessage),
+            0b010100 => Some(UnitStatusUpdate),
+            0b010101 => Some(UnitShortMessage),
             0b010110 => Some(UnitCallAlert),
             0b010111 => Some(ExtendedFunction),
             0b011000 => Some(ChannelParamsUpdate),
             0b100101 => Some(ProtectionParamBroadcast),
-            0b100110 => Some(AltControlBroadcastExplicit),
-            0b100111 => Some(AdjacentSiteBroadcastExplicit),
-            0b011001 => Some(ChannelIdentifierExplicit),
-            0b101000 => Some(RadioStatusExplicit),
+            0b100110 => Some(AltControlChannelExplicit),
+            0b100111 => Some(AdjacentSiteExplicit),
+            0b011001 => Some(ChannelParamsExplicit),
+            0b101000 => Some(RFSSStatusExplicit),
             0b101001 => Some(NetworkStatusExplicit),
             _ => None,
         }
@@ -105,10 +105,10 @@ impl GroupVoiceTraffic {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[6..]) }
 }
 
-pub struct GroupVoiceChannel(Buf);
+pub struct GroupVoiceUpdate(Buf);
 
-impl GroupVoiceChannel {
-    pub fn new(lc: LinkControlFields) -> Self { GroupVoiceChannel(lc.0) }
+impl GroupVoiceUpdate {
+    pub fn new(lc: LinkControlFields) -> Self { GroupVoiceUpdate(lc.0) }
 
     pub fn updates(&self) -> ChannelUpdates { parse_updates(&self.0[1...8]) }
 }
