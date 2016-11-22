@@ -1,6 +1,14 @@
 use consts::LINK_CONTROL_BYTES;
-use trunking::fields::{TalkGroup, Channel, SystemServices, ServiceOptions};
 use util::{slice_u16, slice_u24};
+
+use trunking::fields::{
+    TalkGroup,
+    Channel,
+    SystemServices,
+    ServiceOptions,
+    ChannelUpdates,
+    parse_updates,
+};
 
 pub type Buf = [u8; LINK_CONTROL_BYTES];
 
@@ -102,11 +110,7 @@ pub struct GroupVoiceChannel(Buf);
 impl GroupVoiceChannel {
     pub fn new(lc: LinkControlFields) -> Self { GroupVoiceChannel(lc.0) }
 
-    pub fn channel_a(&self) -> Channel { Channel::new(&self.0[1..]) }
-    pub fn talk_group_a(&self) -> TalkGroup { TalkGroup::new(&self.0[3..]) }
-
-    pub fn channel_b(&self) -> Channel { Channel::new(&self.0[5..]) }
-    pub fn talk_group_b(&self) -> TalkGroup { TalkGroup::new(&self.0[7..]) }
+    pub fn updates(&self) -> ChannelUpdates { parse_updates(&self.0[1...8]) }
 }
 
 pub struct UnitVoiceTraffic(Buf);

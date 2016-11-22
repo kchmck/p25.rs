@@ -123,6 +123,17 @@ impl SiteOptions {
     pub fn networked(&self) -> bool { self.0 & 1 != 0 }
 }
 
+/// Represents the channel updates seen in a Group Voice Update.
+pub type ChannelUpdates = [(Channel, TalkGroup); 2];
+
+/// Parse out the pair of channels/talkgroups found in a Group Voice Update.
+pub fn parse_updates(buf: &[u8]) -> ChannelUpdates {
+    [
+        (Channel::new(&buf[0...1]), TalkGroup::new(&buf[2...3])),
+        (Channel::new(&buf[4...5]), TalkGroup::new(&buf[6...7])),
+    ]
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -136,5 +147,28 @@ mod test {
         assert_eq!(p.offset, -45_000_000);
         assert_eq!(p.bandwidth, 12_500);
         assert_eq!(p.rx_freq(0b1001), 851_062_500);
+    }
+
+    #[test]
+    fn test_parse_updates() {
+        let buf = [
+            0b10001000,
+            0b01110111,
+            0b11111111,
+            0b11111111,
+            0b10010001,
+            0b00000001,
+            0b10101010,
+            0b10101010,
+        ];
+
+        let u = parse_updates(&buf[..]);
+
+        assert_eq!(u[0].0.id(), 0b1000);
+        assert_eq!(u[0].0.number(), 0b100001110111);
+        assert_eq!(u[0].1, TalkGroup::Everbody);
+        assert_eq!(u[1].0.id(), 0b1001);
+        assert_eq!(u[1].0.number(), 0b000100000001);
+        assert_eq!(u[1].1, TalkGroup::Other(0b1010101010101010));
     }
 }

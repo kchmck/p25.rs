@@ -11,10 +11,12 @@ use util::{slice_u16, slice_u24, slice_u32};
 use trunking::fields::{
     Channel,
     ChannelParams,
+    ChannelUpdates,
     TalkGroup,
     SystemServices,
     ServiceOptions,
     SiteOptions,
+    parse_updates,
 };
 
 pub struct TSBKReceiver {
@@ -206,17 +208,7 @@ pub struct GroupVoiceUpdate(Buf);
 impl GroupVoiceUpdate {
     pub fn new(tsbk: TSBKFields) -> Self { GroupVoiceUpdate(tsbk.0) }
 
-    pub fn updates(&self) -> [(TalkGroup, Channel); 2] {
-        [
-            (self.talk_group_a(), self.channel_a()),
-            (self.talk_group_b(), self.channel_b()),
-        ]
-    }
-
-    fn channel_a(&self) -> Channel { Channel::new(&self.0[2..]) }
-    fn talk_group_a(&self) -> TalkGroup { TalkGroup::new(&self.0[4..]) }
-    fn channel_b(&self) -> Channel { Channel::new(&self.0[6..]) }
-    fn talk_group_b(&self) -> TalkGroup { TalkGroup::new(&self.0[8..]) }
+    pub fn updates(&self) -> ChannelUpdates { parse_updates(&self.0[2...9]) }
 }
 
 pub struct GroupVoiceUpdateExplicit(Buf);
