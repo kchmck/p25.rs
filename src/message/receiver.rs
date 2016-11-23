@@ -8,12 +8,11 @@ use trunking::tsbk::{TSBKFields, TSBKReceiver};
 use voice::control::LinkControlFields;
 use voice::crypto::CryptoControlFields;
 use voice::frame::VoiceFrame;
-use voice::header::VoiceHeaderFields;
+use voice::header::{VoiceHeaderReceiver, VoiceHeaderFields};
 
 use voice::{
     FrameGroupEvent,
     VoiceCCFrameGroupReceiver,
-    VoiceHeaderReceiver,
     VoiceLCFrameGroupReceiver,
     VoiceLCTerminatorReceiver,
 };

@@ -10,6 +10,6 @@ pub mod crypto;
 pub mod frame;
 pub mod header;
 
-pub use self::message::{VoiceHeaderReceiver, VoiceLCTerminatorReceiver};
+pub use self::message::VoiceLCTerminatorReceiver;
 pub use self::frame_group::{VoiceLCFrameGroupReceiver, VoiceCCFrameGroupReceiver,
                             FrameGroupEvent};

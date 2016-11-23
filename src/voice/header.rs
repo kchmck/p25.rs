@@ -1,7 +1,57 @@
+use collect_slice::CollectSlice;
+
+use bits::{Dibit, Hexbit, HexbitBytes};
+use buffer::{Buffer, VoiceHeaderWordStorage, VoiceHeaderStorage};
+use coding::{reed_solomon, golay};
 use consts::HEADER_BYTES;
+use error::Result;
 use trunking::fields::TalkGroup;
 use util::slice_u16;
 use voice::crypto::CryptoAlgorithm;
+
+use error::P25Error::*;
+
+pub struct VoiceHeaderReceiver {
+    dibits: Buffer<VoiceHeaderWordStorage>,
+    hexbits: Buffer<VoiceHeaderStorage>,
+}
+
+impl VoiceHeaderReceiver {
+    pub fn new() -> VoiceHeaderReceiver {
+        VoiceHeaderReceiver {
+            dibits: Buffer::new(VoiceHeaderWordStorage::new()),
+            hexbits: Buffer::new(VoiceHeaderStorage::new()),
+        }
+    }
+
+    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<VoiceHeaderFields>> {
+        let buf = match self.dibits.feed(dibit) {
+            Some(buf) => *buf as u32,
+            None => return None,
+        };
+
+        let data = match golay::shortened::decode(buf) {
+            Some((data, err)) => data,
+            None => return Some(Err(GolayUnrecoverable)),
+        };
+
+        let hexbits = match self.hexbits.feed(Hexbit::new(data)) {
+            Some(buf) => buf,
+            None => return None,
+        };
+
+        let data = match reed_solomon::long::decode(hexbits) {
+            Some((data, err)) => data,
+            None => return Some(Err(ReedSolomonUnrecoverable)),
+        };
+
+        let mut bytes = [0; HEADER_BYTES];
+        HexbitBytes::new(data.iter().cloned())
+            .collect_slice_checked(&mut bytes[..]);
+
+        Some(Ok(VoiceHeaderFields::new(bytes)))
+    }
+}
 
 pub struct VoiceHeaderFields([u8; HEADER_BYTES]);
 
