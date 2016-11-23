@@ -149,7 +149,7 @@ mod test {
     #[test]
     fn test_adjacent_site() {
         let lc = LinkControlFields::new([
-            0b10100111,
+            0b10100010,
             0b11001100,
             0b00001111,
             0b01010101,
@@ -159,6 +159,7 @@ mod test {
             0b11111111,
             0b01010001,
         ]);
+        assert_eq!(lc.opcode(), Some(LinkControlOpcode::AdjacentSite));
         let a = AdjacentSite::new(lc.payload());
 
         assert_eq!(a.area(), 0b11001100);
@@ -186,7 +187,7 @@ mod test {
             0b00000000, 0b00000001,
             0xDE, 0xAD, 0xBE,
         ]);
-
+        assert_eq!(lc.opcode(), Some(LinkControlOpcode::GroupVoiceTraffic));
         let dec = GroupVoiceTraffic::new(lc);
         let opts = dec.opts();
 
@@ -214,6 +215,7 @@ mod test {
             0b00010000,
             0b10100010,
         ]);
+        assert_eq!(l.opcode(), Some(LinkControlOpcode::ChannelParamsUpdate));
         let p = ChannelParamsUpdate::new(l.payload());
 
         assert_eq!(p.id(), 0b0110);
@@ -234,6 +236,7 @@ mod test {
             0b00110011,
             0b11001100,
         ]);
+        assert_eq!(l.opcode(), Some(LinkControlOpcode::GroupVoiceUpdate));
         let u = GroupVoiceUpdate::new(l.payload()).updates();
 
         assert_eq!(u[0].0.id(), 0b0110);

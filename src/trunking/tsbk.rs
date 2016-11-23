@@ -325,7 +325,7 @@ mod test {
     #[test]
     fn test_adjacent_site() {
         let t = TSBKFields::new([
-            0b00000000,
+            0b00111100,
             0b00000000,
             0b11001100,
             0b11011111,
@@ -338,6 +338,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::AdjacentSite));
         let a = AdjacentSite::new(t.payload());
 
         assert_eq!(a.area(), 0b11001100);
@@ -376,6 +377,7 @@ mod test {
             0b11111111,
             0b11111111,
         ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::ChannelParamsUpdate));
         let p = ChannelParamsUpdate::new(t.payload());
 
         assert_eq!(p.id(), 0b0110);
@@ -399,6 +401,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::GroupVoiceUpdate));
         let u = GroupVoiceUpdate::new(t.payload()).updates();
 
         assert_eq!(u[0].0.id(), 0b0110);
