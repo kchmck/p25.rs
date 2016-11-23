@@ -1,10 +1,13 @@
 use consts::CRYPTO_CONTROL_BYTES;
 use util::slice_u16;
 
-pub struct CryptoControlFields([u8; CRYPTO_CONTROL_BYTES]);
+/// Buffer of bytes that represent a crypto control packet.
+pub type Buf = [u8; CRYPTO_CONTROL_BYTES];
+
+pub struct CryptoControlFields(Buf);
 
 impl CryptoControlFields {
-    pub fn new(buf: [u8; 12]) -> Self { CryptoControlFields(buf) }
+    pub fn new(buf: Buf) -> Self { CryptoControlFields(buf) }
 
     pub fn crypto_init(&self) -> &[u8] { &self.0[..9] }
 
