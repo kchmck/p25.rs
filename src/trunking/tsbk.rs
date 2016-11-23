@@ -203,6 +203,9 @@ impl TSBKFields {
     pub fn crc_valid(&self) -> bool {
         self.crc() == self.calc_crc()
     }
+
+    /// Bytes that make up the payload of the packet.
+    pub fn payload(&self) -> &[u8] { &self.0[2...9] }
 }
 
 pub struct GroupVoiceGrant(Buf);
@@ -438,6 +441,42 @@ impl ChannelParamsUpdate {
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_tsbk_fields() {
+        let t = TSBKFields::new([
+            0b10111001,
+            0b00000001,
+            0b11110000,
+            0b00001111,
+            0b10101010,
+            0b01010101,
+            0b00000000,
+            0b11111111,
+            0b11001100,
+            0b00110011,
+            0b11010111,
+            0b11010111,
+        ]);
+
+        assert!(t.is_tail());
+        assert!(!t.protected());
+        assert_eq!(t.opcode(), Some(TSBKOpcode::AltControlChannel));
+        assert_eq!(t.mfg(), 0b00000001);
+        assert_eq!(t.crc(), 0b1101011111010111);
+        assert_eq!(t.calc_crc(), 0b0111010000111100);
+        assert!(!t.crc_valid());
+        assert_eq!(t.payload(), &[
+            0b11110000,
+            0b00001111,
+            0b10101010,
+            0b01010101,
+            0b00000000,
+            0b11111111,
+            0b11001100,
+            0b00110011,
+        ]);
+    }
 
     #[test]
     fn test_adjacent_site() {
