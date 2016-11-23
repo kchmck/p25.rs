@@ -41,7 +41,8 @@ impl VoiceHeaderReceiver {
 
         let data = match golay::shortened::decode(buf) {
             Some((data, err)) => data,
-            None => return Some(Err(GolayUnrecoverable)),
+            // Let the following RS code attempt to fix these errors.
+            None => 0,
         };
 
         let hexbits = match self.hexbits.feed(Hexbit::new(data)) {

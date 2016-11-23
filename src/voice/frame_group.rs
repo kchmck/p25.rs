@@ -276,7 +276,8 @@ impl<E: Extra> ExtraReceiver<E> {
 
         let bits = match hamming::shortened::decode(buf) {
             Some((data, err)) => data,
-            None => return Some(Err(HammingUnrecoverable)),
+            // Let the following RS code attempt to fix these errors.
+            None => 0,
         };
 
         let hexbits = match self.hexbits.feed(Hexbit::new(bits)) {
