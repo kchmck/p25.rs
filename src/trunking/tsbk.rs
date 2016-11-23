@@ -294,28 +294,6 @@ impl UnitDataGrant {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
-pub struct AltControlChannel(Buf);
-
-impl AltControlChannel {
-    pub fn new(tsbk: TSBKFields) -> Self { AltControlChannel(tsbk.0) }
-
-    pub fn rfss(&self) -> u8 { self.0[2] }
-    pub fn site(&self) -> u8 { self.0[3] }
-
-    pub fn channels(&self) -> [(Channel, SystemServices); 2] {
-        [
-            (self.channel_a(), self.services_a()),
-            (self.channel_b(), self.serviced_b()),
-        ]
-    }
-
-    fn channel_a(&self) -> Channel { Channel::new(&self.0[4..]) }
-    fn services_a(&self) -> SystemServices { SystemServices::new(self.0[6]) }
-
-    fn channel_b(&self) -> Channel { Channel::new(&self.0[7..]) }
-    fn serviced_b(&self) -> SystemServices { SystemServices::new(self.0[9]) }
-}
-
 /// Site and RFSS information of current control channel.
 pub struct RFSSStatusBroadcast(Buf);
 
@@ -528,10 +506,10 @@ mod test {
             0b11111111,
         ]);
         assert_eq!(t.opcode(), Some(TSBKOpcode::AltControlChannel));
-        let a = AltControlChannel::new(t);
+        let a = AltControlChannel::new(t.payload());
         assert_eq!(a.rfss(), 0b11100011);
         assert_eq!(a.site(), 0b01010101);
-        let c = a.channels();
+        let c = a.alts();
         assert_eq!(c[0].0.id(), 0b1011);
         assert_eq!(c[0].0.number(), 0b011010101111);
         let s = c[0].1;

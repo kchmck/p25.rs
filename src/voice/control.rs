@@ -250,4 +250,44 @@ mod test {
         assert_eq!(u[1].0.number(), 0b101010101010);
         assert_eq!(u[1].1, TalkGroup::Other(0b0011001111001100));
     }
+
+    #[test]
+    fn test_alt_control_channel() {
+        let l = LinkControlFields::new([
+            0b00100001,
+            0b11100011,
+            0b01010101,
+            0b10110110,
+            0b10101111,
+            0b01010001,
+            0b11101010,
+            0b10101010,
+            0b10101110,
+        ]);
+        assert_eq!(l.opcode(), Some(LinkControlOpcode::AltControlChannel));
+        let a = AltControlChannel::new(l.payload());
+        assert_eq!(a.rfss(), 0b11100011);
+        assert_eq!(a.site(), 0b01010101);
+        let c = a.alts();
+        assert_eq!(c[0].0.id(), 0b1011);
+        assert_eq!(c[0].0.number(), 0b011010101111);
+        let s = c[0].1;
+        assert!(s.is_composite());
+        assert!(!s.has_updates());
+        assert!(!s.is_backup());
+        assert!(s.has_data());
+        assert!(!s.has_voice());
+        assert!(s.has_registration());
+        assert!(!s.has_auth());
+        assert_eq!(c[1].0.id(), 0b1110);
+        assert_eq!(c[1].0.number(), 0b101010101010);
+        let s = c[1].1;
+        assert!(!s.is_composite());
+        assert!(s.has_updates());
+        assert!(s.is_backup());
+        assert!(!s.has_data());
+        assert!(s.has_voice());
+        assert!(!s.has_registration());
+        assert!(s.has_auth());
+    }
 }

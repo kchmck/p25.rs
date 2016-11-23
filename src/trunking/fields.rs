@@ -222,6 +222,28 @@ impl<'a> ChannelParamsUpdate<'a> {
     fn base(&self) -> u32 { slice_u32(&self.0[4...7]) }
 }
 
+/// Advertisement of one or more alternative control channels for the current site.
+pub struct AltControlChannel<'a>(&'a [u8]);
+
+impl<'a> AltControlChannel<'a> {
+    /// Create a new `AltControlChannel` decoder from the given payload bytes.
+    pub fn new(payload: &'a [u8]) -> Self { AltControlChannel(payload) }
+
+    /// RF Subsystem ID of current site within System.
+    pub fn rfss(&self) -> u8 { self.0[0] }
+    /// Site ID of current site within RFSS.
+    pub fn site(&self) -> u8 { self.0[1] }
+
+    /// Retrieve alternative sites, with each site's tuning parameters and supported
+    /// services.
+    pub fn alts(&self) -> [(Channel, SystemServices); 2] {
+        [
+            (Channel::new(&self.0[2...3]), SystemServices::new(self.0[4])),
+            (Channel::new(&self.0[5...6]), SystemServices::new(self.0[7])),
+        ]
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
