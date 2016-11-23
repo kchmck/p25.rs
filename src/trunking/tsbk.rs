@@ -15,7 +15,6 @@ use trunking::fields::{
     TalkGroup,
     SystemServices,
     ServiceOptions,
-    SiteOptions,
 };
 
 /// State machine for receiving a TSBK packet.
@@ -300,29 +299,6 @@ impl NetworkStatusBroadcast {
     /// Channel information for computing TX/RX frequencies.
     pub fn channel(&self) -> Channel { Channel::new(&self.0[7..]) }
     /// Services supported by the current site.
-    pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
-}
-
-/// Status of current site.
-pub struct SiteStatusBroadcast(Buf);
-
-impl SiteStatusBroadcast {
-    /// Create a new `SiteStatusBroadcast` decoder from base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { SiteStatusBroadcast(tsbk.0) }
-
-    /// Location registration area of site.
-    pub fn area(&self) -> u8 { self.0[2] }
-    /// Properties of current site.
-    pub fn opts(&self) -> SiteOptions { SiteOptions::new(self.0[3] >> 4) }
-    /// System ID of site within WACN.
-    pub fn system(&self) -> u16 { slice_u16(&self.0[3..]) & 0xFFF }
-    /// RF Subsystem ID of site within System.
-    pub fn rfss(&self) -> u8 { self.0[5] }
-    /// Site ID of site within RFSS.
-    pub fn site(&self) -> u8 { self.0[6] }
-    /// Channel information for computing TX/RX frequencies.
-    pub fn channel(&self) -> Channel { Channel::new(&self.0[7..]) }
-    /// Services supported by the site.
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
 }
 
