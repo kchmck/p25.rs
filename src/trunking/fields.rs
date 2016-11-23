@@ -144,9 +144,6 @@ impl SiteOptions {
     pub fn networked(&self) -> bool { self.0 & 1 != 0 }
 }
 
-/// Represents the channel updates seen in a Group Voice Update.
-pub type ChannelUpdates = [(Channel, TalkGroup); 2];
-
 /// Updates subscribers about new or ongoing talkgroup conversations.
 pub struct GroupVoiceUpdate<'a>(&'a [u8]);
 
@@ -156,7 +153,7 @@ impl<'a> GroupVoiceUpdate<'a> {
 
     /// Retrieve the set of active talkgroups included in the update along with the
     /// parameters for tuning to the traffic channel of each.
-    pub fn updates(&self) -> ChannelUpdates {
+    pub fn updates(&self) -> [(Channel, TalkGroup); 2] {
         [
             (Channel::new(&self.0[0...1]), TalkGroup::new(&self.0[2...3])),
             (Channel::new(&self.0[4...5]), TalkGroup::new(&self.0[6...7])),
