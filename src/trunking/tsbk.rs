@@ -404,3 +404,45 @@ impl ChannelParamsUpdate {
 
     fn base(&self) -> u32 { slice_u32(&self.0[6..]) }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_adjacent_site() {
+        let a = AdjacentSite::new(TSBKFields::new([
+            0b00000000,
+            0b00000000,
+            0b11001100,
+            0b11011111,
+            0b00111100,
+            0b10101010,
+            0b01010101,
+            0b00110110,
+            0b01111110,
+            0b01010001,
+            0b00000000,
+            0b00000000,
+        ]));
+
+        assert_eq!(a.area(), 0b11001100);
+        assert!(a.opts().conventional());
+        assert!(a.opts().failing());
+        assert!(!a.opts().current());
+        assert!(a.opts().networked());
+        assert_eq!(a.system(), 0b111100111100);
+        assert_eq!(a.rfss(), 0b10101010);
+        assert_eq!(a.site(), 0b01010101);
+        assert_eq!(a.channel().id(), 0b0011);
+        assert_eq!(a.channel().number(), 0b011001111110);
+        let s = a.services();
+        assert!(s.is_composite());
+        assert!(!s.has_updates());
+        assert!(!s.is_backup());
+        assert!(s.has_data());
+        assert!(!s.has_voice());
+        assert!(s.has_registration());
+        assert!(!s.has_auth());
+    }
+}
