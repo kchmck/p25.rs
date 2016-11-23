@@ -667,4 +667,32 @@ mod test {
         assert_eq!(c.dest_unit(), 0b010101011010101011001100);
         assert_eq!(c.src_unit(), 0b001100111110011100011000);
     }
+
+    #[test]
+    fn test_call_request() {
+        let t = TSBKFields::new([
+            0b00000101,
+            0b00000000,
+            0b01010101,
+            0b11111111,
+            0b00111001,
+            0b11000110,
+            0b01010101,
+            0b11101010,
+            0b00010101,
+            0b11110000,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::UnitCallRequest));
+        let r = UnitCallRequest::new(t);
+        let o = r.opts();
+        assert!(!o.emergency());
+        assert!(o.protected());
+        assert!(!o.full_duplex());
+        assert!(o.packet_switched());
+        assert_eq!(o.prio(), 0b101);
+        assert_eq!(r.dest_unit(), 0b001110011100011001010101);
+        assert_eq!(r.src_id(), 0b111010100001010111110000);
+    }
 }
