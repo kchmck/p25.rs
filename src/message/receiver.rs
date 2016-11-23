@@ -9,12 +9,12 @@ use voice::control::LinkControlFields;
 use voice::crypto::CryptoControlFields;
 use voice::frame::VoiceFrame;
 use voice::header::{VoiceHeaderReceiver, VoiceHeaderFields};
+use voice::term::VoiceLCTerminatorReceiver;
 
 use voice::{
     FrameGroupEvent,
     VoiceCCFrameGroupReceiver,
     VoiceLCFrameGroupReceiver,
-    VoiceLCTerminatorReceiver,
 };
 
 /// Set of callbacks to handle events and messages that occur when receiving the air

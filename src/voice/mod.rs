@@ -2,14 +2,13 @@
 
 mod descramble;
 mod frame_group;
-mod message;
 mod rand;
 
 pub mod control;
 pub mod crypto;
 pub mod frame;
 pub mod header;
+pub mod term;
 
-pub use self::message::VoiceLCTerminatorReceiver;
 pub use self::frame_group::{VoiceLCFrameGroupReceiver, VoiceCCFrameGroupReceiver,
                             FrameGroupEvent};
