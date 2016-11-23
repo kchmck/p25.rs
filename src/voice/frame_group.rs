@@ -69,13 +69,19 @@ impl Extra for CryptoControlExtra {
 enum State {
     DecodeVoiceFrame(VoiceFrameReceiver),
     DecodeExtra,
-    DecodeDataFragment,
+    /// Decoding a low-speed data fragment.
+    DecodeDataFragment(DataFragmentReceiver),
     Done,
 }
 
 impl State {
     pub fn decode_voice_frame() -> State {
         DecodeVoiceFrame(VoiceFrameReceiver::new())
+    }
+
+    /// Decode the upcoming symbols as a low-speed data fragment.
+    pub fn decode_data_frag() -> State {
+        DecodeDataFragment(DataFragmentReceiver::new())
     }
 }
 
@@ -95,7 +101,6 @@ pub enum FrameGroupEvent<E: Extra> {
 pub struct FrameGroupReceiver<E: Extra> {
     state: State,
     extra: ExtraReceiver<E>,
-    frag: DataFragmentReceiver,
     frame: usize,
 }
 
@@ -104,7 +109,6 @@ impl<E: Extra> FrameGroupReceiver<E> {
         FrameGroupReceiver {
             state: State::decode_voice_frame(),
             extra: ExtraReceiver::new(),
-            frag: DataFragmentReceiver::new(),
             frame: 0,
         }
     }
@@ -122,7 +126,7 @@ impl<E: Extra> FrameGroupReceiver<E> {
                     EventChange(FrameGroupEvent::VoiceFrame(vf), match self.frame {
                         1 => State::decode_voice_frame(),
                         2...7 => DecodeExtra,
-                        8 => DecodeDataFragment,
+                        8 => State::decode_data_frag(),
                         9 => Done,
                         _ => unreachable!(),
                     })
@@ -140,7 +144,7 @@ impl<E: Extra> FrameGroupReceiver<E> {
                     NoChange
                 }
             },
-            DecodeDataFragment => match self.frag.feed(dibit) {
+            DecodeDataFragment(ref mut dec) => match dec.feed(dibit) {
                 Some(Ok(data)) => EventChange(FrameGroupEvent::DataFragment(data),
                                               State::decode_voice_frame()),
                 Some(Err(err)) => Error(err),
