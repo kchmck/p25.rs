@@ -130,7 +130,7 @@ impl CallTermination {
 #[cfg(test)]
 mod test {
     use super::*;
-    use trunking::fields::{TalkGroup, AdjacentSite, GroupVoiceUpdate};
+    use trunking::fields::*;
 
     #[test]
     fn test_lc() {
@@ -206,6 +206,26 @@ mod test {
         assert_eq!(opts.duplex(), true);
         assert_eq!(opts.packet_switched(), true);
         assert_eq!(opts.prio(), 5);
+    }
+
+    #[test]
+    fn test_channel_params_update() {
+        let l = LinkControlFields::new([
+            0b00011000,
+            0b01100011,
+            0b00100010,
+            0b11010000,
+            0b00110010,
+            0b00001010,
+            0b00100101,
+            0b00010000,
+            0b10100010,
+        ]);
+        let p = ChannelParamsUpdate::new(l.payload());
+
+        assert_eq!(p.id(), 0b0110);
+        assert_eq!(p.params().bandwidth, 12_500);
+        assert_eq!(p.params().rx_freq(0b1001), 851_062_500);
     }
 
     #[test]
