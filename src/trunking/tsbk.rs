@@ -100,8 +100,11 @@ pub enum TSBKOpcode {
 }
 
 impl TSBKOpcode {
+    /// Parse an opcode from the given 6 bits.
     pub fn from_bits(bits: u8) -> Option<TSBKOpcode> {
         use self::TSBKOpcode::*;
+
+        assert!(bits >> 6 == 0);
 
         match bits {
             0b000000 => Some(GroupVoiceGrant),
@@ -170,24 +173,33 @@ impl TSBKOpcode {
 
 pub type Buf = [u8; TSBK_BYTES];
 
+/// A Trunking Signalling Block packet.
 #[derive(Copy, Clone)]
 pub struct TSBKFields(Buf);
 
 impl TSBKFields {
+    /// Interpret the given bytes as a TSBK packet.
     pub fn new(buf: Buf) -> TSBKFields { TSBKFields(buf) }
 
+    /// Whether this packet is the last one in the TSBK group.
     pub fn is_tail(&self) -> bool { self.0[0] >> 7 == 1 }
+    /// Whether the packet is encrypted.
     pub fn protected(&self) -> bool { self.0[0] >> 6 & 1 == 1 }
+    /// Type of data contained in the payload.
     pub fn opcode(&self) -> Option<TSBKOpcode> { TSBKOpcode::from_bits(self.0[0] & 0x3F) }
+    /// Manufacturer ID, which determines if the packet is standardized.
     pub fn mfg(&self) -> u8 { self.0[1] }
+    /// Transmitted CRC.
     pub fn crc(&self) -> u16 { slice_u16(&self.0[10..]) }
 
+    /// Calculate 16-bit CRC over bytes in packet.
     pub fn calc_crc(&self) -> u16 {
         crc::CRC16::new()
             .feed_bytes((&self.0[..10]).iter().cloned())
             .finish() as u16
     }
 
+    /// Verify if the calculated CRC matches the transmitted one.
     pub fn crc_valid(&self) -> bool {
         self.crc() == self.calc_crc()
     }
@@ -319,15 +331,23 @@ impl RFSSStatusBroadcast {
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
 }
 
+/// Carries WACN (Wide Area Communication Network) and System ID information of current
+/// control channel.
 pub struct NetworkStatusBroadcast(Buf);
 
 impl NetworkStatusBroadcast {
+    /// Create a new `NetworkStatusBroadcast` decoder from the base TSBK decoder.
     pub fn new(tsbk: TSBKFields) -> Self { NetworkStatusBroadcast(tsbk.0) }
 
+    /// Location registration area of site.
     pub fn area(&self) -> u8 { self.0[2] }
+    /// WACN ID within the communications network.
     pub fn wacn(&self) -> u32 { slice_u24(&self.0[3..]) >> 4 }
+    /// System ID of site within WACN.
     pub fn system(&self) -> u16 { slice_u16(&self.0[5..]) & 0xFFF }
+    /// Channel information for computing TX/RX frequencies.
     pub fn channel(&self) -> Channel { Channel::new(&self.0[7..]) }
+    /// Services supported by the current site.
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
 }
 
@@ -379,29 +399,39 @@ impl AdjacentSite {
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
 }
 
+/// Advertisement of parameters used to calculate TX/RX frequencies within the given
+/// associated channel.
 pub struct ChannelParamsUpdate(Buf);
 
 impl ChannelParamsUpdate {
+    /// Create a new `ChannelParamsUpdate` decoder from the base TSBK decoder.
     pub fn new(tsbk: TSBKFields) -> Self { ChannelParamsUpdate(tsbk.0) }
 
+    /// Channel ID associated with the enclosed parameters (can be up to 16 per control
+    /// channel.)
     pub fn id(&self) -> u8 { self.0[2] >> 4 }
 
+    /// Parameters for the associated channel.
     pub fn params(&self) -> ChannelParams {
         ChannelParams::new(self.base(), self.bandwidth(), self.offset(), self.spacing())
     }
 
+    /// Bandwidth in steps of 125Hz.
     fn bandwidth(&self) -> u16 {
         (self.0[2] as u16 & 0xF) << 5 | (self.0[3] >> 3) as u16
     }
 
+    /// Offset of TX frequency from base RX frequency in steps of 250kHz.
     fn offset(&self) -> u16 {
         (self.0[3] as u16 & 0x7) << 6 | (self.0[4] >> 2) as u16
     }
 
+    /// Spacing between individual channel numbers in steps of 125Hz.
     fn spacing(&self) -> u16 {
         (self.0[4] as u16 & 0x3) << 8 | self.0[5] as u16
     }
 
+    /// Base RX frequency in steps of 5Hz.
     fn base(&self) -> u32 { slice_u32(&self.0[6..]) }
 }
 

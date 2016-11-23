@@ -82,13 +82,18 @@ impl LinkControlOpcode {
     }
 }
 
+/// Link Control information carried within voice packets.
+#[derive(Copy, Clone)]
 pub struct LinkControlFields(Buf);
 
 impl LinkControlFields {
+    /// Interpret the given bytes as a link control packet.
     pub fn new(buf: Buf) -> Self { LinkControlFields(buf) }
 
+    /// Whether the packet is encrypted.
     pub fn protected(&self) -> bool { self.0[0] >> 7 == 1 }
 
+    /// Type of data contained in the payload.
     pub fn opcode(&self) -> Option<LinkControlOpcode> {
         LinkControlOpcode::from_bits(self.0[0] & 0x3F)
     }

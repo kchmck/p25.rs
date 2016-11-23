@@ -103,7 +103,9 @@ impl DataUnit {
 /// NID word associated with each P25 packet.
 #[derive(Copy, Clone, Debug)]
 pub struct NetworkID {
+    /// NAC field.
     pub access_code: NetworkAccessCode,
+    /// DUID field.
     pub data_unit: DataUnit,
 }
 

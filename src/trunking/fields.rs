@@ -12,29 +12,45 @@ impl ServiceOptions {
     pub fn prio(&self) -> u8 { self.0 & 0x7 }
 }
 
+/// Uniquely identifies a channel within a site.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Channel(u16);
 
 impl Channel {
+    /// Create a new `Channel` from the given 16 bits.
     pub fn new(bytes: &[u8]) -> Channel { Channel(slice_u16(bytes)) }
 
+    /// Channel ID whose parameters to use.
     pub fn id(&self) -> u8 { (self.0 >> 12) as u8 }
+    /// Individual channel number within the channel.
     pub fn number(&self) -> u16 { self.0 & 0xFFF }
 }
 
+/// Identifies which group a message belongs to.
+///
+/// In a production P25 system, users can set their radios to receive one or more
+/// talkgroups, and the radio will only unsquelch if one of those talkgroups is seen.
+/// Additionally, the user directs each transmission to a talkgroup selected on the
+/// radio.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TalkGroup {
+    /// Includes nobody.
     Nobody,
+    /// Default talkgroup when no other is selected.
     Default,
+    /// Includes everybody.
     Everbody,
+    /// Specific group of users.
     Other(u16),
 }
 
 impl TalkGroup {
+    /// Parse a talkgroup from the given 16 bit slice.
     pub fn new(bytes: &[u8]) -> TalkGroup {
         Self::from_bits(slice_u16(bytes))
     }
 
+    /// Parse a talkgroup from the given 16 bits.
     pub fn from_bits(bits: u16) -> TalkGroup {
         use self::TalkGroup::*;
 
@@ -65,6 +81,7 @@ impl SystemServices {
 /// Map channel identifier (maximum 16 per control channel) to its parameters.
 pub type ChannelParamsMap = [Option<ChannelParams>; 16];
 
+/// Computes TX/RX frequencies and bandwidth for channel numbers within a site.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ChannelParams {
     /// Base frequency in Hz.
@@ -78,6 +95,8 @@ pub struct ChannelParams {
 }
 
 impl ChannelParams {
+    /// Create a new `ChannelParams` from the given base frequency (5Hz steps), bandwidth
+    /// (125Hz steps), TX offset (250kHz steps), and inter-channel spacing (125Hz steps.)
     pub fn new(base: u32, bandwidth: u16, offset: u16, spacing: u16) -> ChannelParams {
         // The MSB denotes the sign and the lower byte is the actual offset.
         let off = (offset as i32 & 0xFF) * 250_000;
@@ -113,10 +132,10 @@ impl SiteOptions {
 
     /// Whether site is "conventional", with no trunking.
     pub fn conventional(&self) -> bool { self.0 & 0b1000 != 0 }
-    /// Whether site is in failure state.
+    /// Whether site is in a failure state.
     pub fn failing(&self) -> bool { self.0 & 0b100 != 0 }
-    /// Whether this information is up-to-date (broadcasting site is in communication with
-    /// adjacent site.)
+    /// Whether this information is up-to-date (whether broadcasting site is in
+    /// communication with adjacent site.)
     pub fn current(&self) -> bool { self.0 & 0b10 != 0 }
     /// Whether site has active network connection with RFSS controller and can
     /// communicate with other sites.
