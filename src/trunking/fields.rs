@@ -318,6 +318,19 @@ impl RegResponse {
     }
 }
 
+/// Request for a target unit to call a source unit.
+pub struct UnitCallAlert<'a>(&'a [u8]);
+
+impl<'a> UnitCallAlert<'a> {
+    /// Create a new `UnitCallAlert` decoder from the given payload bytes.
+    pub fn new(payload: &'a [u8]) -> Self { UnitCallAlert(payload) }
+
+    /// Target unit.
+    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[2...4]) }
+    /// Requesting unit.
+    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[5...7]) }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

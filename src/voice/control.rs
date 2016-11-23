@@ -364,4 +364,23 @@ mod test {
         assert!(s.has_registration());
         assert!(!s.has_auth());
     }
+
+    #[test]
+    fn test_call_alert() {
+        let l = LinkControlFields::new([
+            0b00010110,
+            0b11111111,
+            0b11111111,
+            0b01010101,
+            0b10101010,
+            0b11001100,
+            0b00110011,
+            0b11100111,
+            0b00011000,
+        ]);
+        assert_eq!(l.opcode(), Some(LinkControlOpcode::UnitCallAlert));
+        let c = UnitCallAlert::new(l.payload());
+        assert_eq!(c.dest_unit(), 0b010101011010101011001100);
+        assert_eq!(c.src_unit(), 0b001100111110011100011000);
+    }
 }

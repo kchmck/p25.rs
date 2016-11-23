@@ -645,4 +645,26 @@ mod test {
         assert_eq!(r.site(), 0b10101010);
         assert_eq!(r.dest_unit(), 0b111100000000111100110011);
     }
+
+    #[test]
+    fn test_call_alert() {
+        let t = TSBKFields::new([
+            0b00011111,
+            0b00000000,
+            0b11111111,
+            0b11111111,
+            0b01010101,
+            0b10101010,
+            0b11001100,
+            0b00110011,
+            0b11100111,
+            0b00011000,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::UnitCallAlert));
+        let c = UnitCallAlert::new(t.payload());
+        assert_eq!(c.dest_unit(), 0b010101011010101011001100);
+        assert_eq!(c.src_unit(), 0b001100111110011100011000);
+    }
 }
