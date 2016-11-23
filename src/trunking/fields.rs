@@ -145,12 +145,21 @@ impl SiteOptions {
 /// Represents the channel updates seen in a Group Voice Update.
 pub type ChannelUpdates = [(Channel, TalkGroup); 2];
 
-/// Parse out the pair of channels/talkgroups found in a Group Voice Update.
-pub fn parse_updates(buf: &[u8]) -> ChannelUpdates {
-    [
-        (Channel::new(&buf[0...1]), TalkGroup::new(&buf[2...3])),
-        (Channel::new(&buf[4...5]), TalkGroup::new(&buf[6...7])),
-    ]
+/// Updates subscribers about new or ongoing talkgroup conversations.
+pub struct GroupVoiceUpdate<'a>(&'a [u8]);
+
+impl<'a> GroupVoiceUpdate<'a> {
+    /// Create a new `GroupVoiceUpdate` decoder from the given payload bytes.
+    pub fn new(payload: &'a [u8]) -> Self { GroupVoiceUpdate(payload) }
+
+    /// Retrieve the set of active talkgroups included in the update along with the
+    /// parameters for tuning to the traffic channel of each.
+    pub fn updates(&self) -> ChannelUpdates {
+        [
+            (Channel::new(&self.0[0...1]), TalkGroup::new(&self.0[2...3])),
+            (Channel::new(&self.0[4...5]), TalkGroup::new(&self.0[6...7])),
+        ]
+    }
 }
 
 /// Advertisement of an adjacent/nearby site within the same WACN (Wide Area Communication
@@ -242,7 +251,7 @@ mod test {
             0b10101010,
         ];
 
-        let u = parse_updates(&buf[..]);
+        let u = GroupVoiceUpdate(&buf[..]).updates();
 
         assert_eq!(u[0].0.id(), 0b1000);
         assert_eq!(u[0].0.number(), 0b100001110111);

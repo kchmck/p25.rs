@@ -6,16 +6,14 @@ use coding::trellis;
 use consts::{TSBK_DIBITS, TSBK_BYTES};
 use data::{crc, interleave};
 use error::{Result, P25Error};
-use util::{slice_u16, slice_u24, slice_u32};
+use util::{slice_u16, slice_u24};
 
 use trunking::fields::{
     Channel,
-    ChannelUpdates,
     TalkGroup,
     SystemServices,
     ServiceOptions,
     SiteOptions,
-    parse_updates,
 };
 
 pub struct TSBKReceiver {
@@ -217,14 +215,6 @@ impl GroupVoiceGrant {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
-pub struct GroupVoiceUpdate(Buf);
-
-impl GroupVoiceUpdate {
-    pub fn new(tsbk: TSBKFields) -> Self { GroupVoiceUpdate(tsbk.0) }
-
-    pub fn updates(&self) -> ChannelUpdates { parse_updates(&self.0[2...9]) }
-}
-
 pub struct GroupVoiceUpdateExplicit(Buf);
 
 impl GroupVoiceUpdateExplicit {
@@ -379,7 +369,7 @@ impl SiteStatusBroadcast {
 #[cfg(test)]
 mod test {
     use super::*;
-    use trunking::fields::{AdjacentSite, ChannelParamsUpdate, TalkGroup};
+    use trunking::fields::*;
 
     #[test]
     fn test_tsbk_fields() {
@@ -494,7 +484,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        let u = GroupVoiceUpdate::new(t).updates();
+        let u = GroupVoiceUpdate::new(t.payload()).updates();
 
         assert_eq!(u[0].0.id(), 0b0110);
         assert_eq!(u[0].0.number(), 0b111101010101);

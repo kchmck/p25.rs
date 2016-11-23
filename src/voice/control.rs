@@ -4,8 +4,6 @@ use util::slice_u24;
 use trunking::fields::{
     TalkGroup,
     ServiceOptions,
-    ChannelUpdates,
-    parse_updates,
 };
 
 pub type Buf = [u8; LINK_CONTROL_BYTES];
@@ -111,14 +109,6 @@ impl GroupVoiceTraffic {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[6..]) }
 }
 
-pub struct GroupVoiceUpdate(Buf);
-
-impl GroupVoiceUpdate {
-    pub fn new(lc: LinkControlFields) -> Self { GroupVoiceUpdate(lc.0) }
-
-    pub fn updates(&self) -> ChannelUpdates { parse_updates(&self.0[1...8]) }
-}
-
 pub struct UnitVoiceTraffic(Buf);
 
 impl UnitVoiceTraffic {
@@ -140,7 +130,7 @@ impl CallTermination {
 #[cfg(test)]
 mod test {
     use super::*;
-    use trunking::fields::{TalkGroup, AdjacentSite};
+    use trunking::fields::{TalkGroup, AdjacentSite, GroupVoiceUpdate};
 
     #[test]
     fn test_lc() {
@@ -231,7 +221,7 @@ mod test {
             0b00110011,
             0b11001100,
         ]);
-        let u = GroupVoiceUpdate::new(l).updates();
+        let u = GroupVoiceUpdate::new(l.payload()).updates();
 
         assert_eq!(u[0].0.id(), 0b0110);
         assert_eq!(u[0].0.number(), 0b111101010101);
