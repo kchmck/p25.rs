@@ -231,13 +231,19 @@ impl<E: Extra> ExtraReceiver<E> {
     }
 }
 
+/// Receives a 16-bit fragment of the 32-bit "low-speed data" word embedded in each frame
+/// group.
 struct DataFragmentReceiver {
+    /// Current buffer of coded dibits.
     dibits: Buffer<VoiceDataFragStorage>,
-    byte: usize,
+    /// Which byte is being received.
+    byte: u8,
+    /// Current decoded fragment.
     data: u32,
 }
 
 impl DataFragmentReceiver {
+    /// Create a new `DataFragmentReceiver` in the initial state.
     pub fn new() -> DataFragmentReceiver {
         DataFragmentReceiver {
             dibits: Buffer::new(VoiceDataFragStorage::new()),
@@ -246,6 +252,9 @@ impl DataFragmentReceiver {
         }
     }
 
+    /// Feed in a baseband symbol, possibly producing a decoded data fragment. Return
+    /// `Some(Ok(frag))` if a fragment was successfully received, `Some(Err(err))` if an
+    /// error occurred, and `None` in the case of no event.
     pub fn feed(&mut self, dibit: Dibit) -> Option<Result<u32>> {
         let buf = match self.dibits.feed(dibit) {
             Some(buf) => *buf as u16,

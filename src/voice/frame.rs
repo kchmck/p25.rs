@@ -1,3 +1,5 @@
+//! Decode voice frame into chunks for IMBE decoder.
+
 use bits::Dibit;
 use coding::{golay, hamming};
 use consts;
@@ -8,16 +10,22 @@ use voice::rand;
 
 use error::P25Error::*;
 
+/// IMBE-encoded voice frame.
 pub struct VoiceFrame {
+    /// Known as u_0, ..., u_7 in the standard.
     pub chunks: [u32; 8],
+    /// Number of FEC errors detected for each associated chunk u_0, ..., u_6.
     pub errors: [usize; 7],
 }
 
 impl VoiceFrame {
+    /// Create a new `VoiceFrame` from the given interleaved, PN-scrambled, coded dibits.
+    /// Return `Some(frame)` if the frame was successfully decoded, and `None` otherwise.
     pub fn new(dibits: &[Dibit; consts::FRAME_DIBITS]) -> Result<VoiceFrame> {
         let mut chunks = [0; 8];
         let mut errors = [0; 7];
 
+        // Decode u_0 to recover the PN seed.
         let (init, err) = match golay::standard::decode(descramble(dibits, 0)) {
             Some(x) => x,
             None => return Err(GolayUnrecoverable),
@@ -28,7 +36,8 @@ impl VoiceFrame {
         chunks[0] = init as u32;
         errors[0] = err;
 
-        for idx in 1..4 {
+        // Decode "higher-priority" Golay chunks.
+        for idx in 1...3 {
             let bits = descramble(dibits, idx) ^ prand.next_23();
 
             let (data, err) = match golay::standard::decode(bits) {
@@ -40,7 +49,8 @@ impl VoiceFrame {
             chunks[idx] = data as u32;
         }
 
-        for idx in 4..7 {
+        // Decode "lower-priority" Hamming chunks.
+        for idx in 4...6 {
             let bits = descramble(dibits, idx) ^ prand.next_15();
 
             let (data, err) = match hamming::standard::decode(bits as u16) {
