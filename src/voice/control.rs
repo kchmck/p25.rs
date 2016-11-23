@@ -1,10 +1,8 @@
 use consts::LINK_CONTROL_BYTES;
-use util::{slice_u16, slice_u24};
+use util::slice_u24;
 
 use trunking::fields::{
     TalkGroup,
-    Channel,
-    SystemServices,
     ServiceOptions,
     ChannelUpdates,
     parse_updates,
@@ -139,22 +137,10 @@ impl CallTermination {
     pub fn unit(&self) -> u32 { slice_u24(&self.0[6..]) }
 }
 
-pub struct AdjacentSiteBroadcast(Buf);
-
-impl AdjacentSiteBroadcast {
-    pub fn new(lc: LinkControlFields) -> Self { AdjacentSiteBroadcast(lc.0) }
-    pub fn area(&self) -> u8 { self.0[1] }
-    pub fn system(&self) -> u16 { slice_u16(&self.0[2..]) & 0xFFF }
-    pub fn rfss(&self) -> u8 { self.0[4] }
-    pub fn site(&self) -> u8 { self.0[5] }
-    pub fn channel(&self) -> Channel { Channel::new(&self.0[6..]) }
-    pub fn services(&self) -> SystemServices { SystemServices::new(self.0[8]) }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use trunking::fields::{TalkGroup};
+    use trunking::fields::{TalkGroup, AdjacentSite};
 
     #[test]
     fn test_lc() {
@@ -175,6 +161,37 @@ mod test {
             0b00000000, 0b00000001,
             0xDE, 0xAD, 0xBE,
         ]);
+    }
+
+    #[test]
+    fn test_adjacent_site() {
+        let lc = LinkControlFields::new([
+            0b10100111,
+            0b11001100,
+            0b00001111,
+            0b01010101,
+            0b11100011,
+            0b00011000,
+            0b11000001,
+            0b11111111,
+            0b01010001,
+        ]);
+        let a = AdjacentSite::new(lc.payload());
+
+        assert_eq!(a.area(), 0b11001100);
+        assert_eq!(a.system(), 0b111101010101);
+        assert_eq!(a.rfss(), 0b11100011);
+        assert_eq!(a.site(), 0b00011000);
+        assert_eq!(a.channel().id(), 0b1100);
+        assert_eq!(a.channel().number(), 0b000111111111);
+        let s = a.services();
+        assert!(s.is_composite());
+        assert!(!s.has_updates());
+        assert!(!s.is_backup());
+        assert!(s.has_data());
+        assert!(!s.has_voice());
+        assert!(s.has_registration());
+        assert!(!s.has_auth());
     }
 
     #[test]

@@ -153,6 +153,31 @@ pub fn parse_updates(buf: &[u8]) -> ChannelUpdates {
     ]
 }
 
+/// Advertisement of an adjacent/nearby site within the same WACN (Wide Area Communication
+/// Network.)
+pub struct AdjacentSite<'a>(&'a [u8]);
+
+impl<'a> AdjacentSite<'a> {
+    /// Create a new `AdjacentSite` decoder from base TSBK decoder.
+    pub fn new(payload: &'a [u8]) -> Self { AdjacentSite(payload) }
+
+    /// Location registration area of adjacent site, which determines whether a subscriber
+    /// must update the network before roaming to the site.
+    pub fn area(&self) -> u8 { self.0[0] }
+    /// Description of adjacent site.
+    pub fn opts(&self) -> SiteOptions { SiteOptions::new(self.0[1] >> 4) }
+    /// System ID of adjacent site within WACN.
+    pub fn system(&self) -> u16 { slice_u16(&self.0[1...2]) & 0xFFF }
+    /// RF Subsystem ID of adjacent site within the System.
+    pub fn rfss(&self) -> u8 { self.0[3] }
+    /// Site ID of adjacent site within the RFSS.
+    pub fn site(&self) -> u8 { self.0[4] }
+    /// Channel information for computing TX/RX frequencies.
+    pub fn channel(&self) -> Channel { Channel::new(&self.0[5...6]) }
+    /// Services supported by the adjacent site.
+    pub fn services(&self) -> SystemServices { SystemServices::new(self.0[7]) }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

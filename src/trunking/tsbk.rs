@@ -377,31 +377,6 @@ impl SiteStatusBroadcast {
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
 }
 
-/// Advertisement of an adjacent/nearby site within the same WACN (Wide Area Communication
-/// Network.)
-pub struct AdjacentSite(Buf);
-
-impl AdjacentSite {
-    /// Create a new `AdjacentSite` decoder from base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { AdjacentSite(tsbk.0) }
-
-    /// Location registration area of adjacent site, which determines whether a subscriber
-    /// must update the network before roaming to the site.
-    pub fn area(&self) -> u8 { self.0[2] }
-    /// Description of adjacent site.
-    pub fn opts(&self) -> SiteOptions { SiteOptions::new(self.0[3] >> 4) }
-    /// System ID of adjacent site within WACN.
-    pub fn system(&self) -> u16 { slice_u16(&self.0[3...4]) & 0xFFF }
-    /// RF Subsystem ID of adjacent site within the System.
-    pub fn rfss(&self) -> u8 { self.0[5] }
-    /// Site ID of adjacent site within the RFSS.
-    pub fn site(&self) -> u8 { self.0[6] }
-    /// Channel information for computing TX/RX frequencies.
-    pub fn channel(&self) -> Channel { Channel::new(&self.0[7...8]) }
-    /// Services supported by the adjacent site.
-    pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
-}
-
 /// Advertisement of parameters used to calculate TX/RX frequencies within the given
 /// associated channel.
 pub struct ChannelParamsUpdate(Buf);
@@ -441,6 +416,7 @@ impl ChannelParamsUpdate {
 #[cfg(test)]
 mod test {
     use super::*;
+    use trunking::fields::AdjacentSite;
 
     #[test]
     fn test_tsbk_fields() {
@@ -480,7 +456,7 @@ mod test {
 
     #[test]
     fn test_adjacent_site() {
-        let a = AdjacentSite::new(TSBKFields::new([
+        let t = TSBKFields::new([
             0b00000000,
             0b00000000,
             0b11001100,
@@ -493,7 +469,8 @@ mod test {
             0b01010001,
             0b00000000,
             0b00000000,
-        ]));
+        ]);
+        let a = AdjacentSite::new(t.payload());
 
         assert_eq!(a.area(), 0b11001100);
         assert!(a.opts().conventional());
