@@ -288,6 +288,36 @@ impl<'a> NetworkStatusBroadcast<'a> {
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[7]) }
 }
 
+/// Registration response.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum RegResponse {
+    /// Registration is accepted.
+    Accept,
+    /// RFSS was unable to verify registration.
+    Fail,
+    /// Registration isn't allowed at this location.
+    Deny,
+    /// Denied temporarily, but user may retry registration.
+    Refuse,
+}
+
+impl RegResponse {
+    /// Try to parse a registration response from the given 2 bits.
+    pub fn from_bits(bits: u8) -> RegResponse {
+        use self::RegResponse::*;
+
+        assert!(bits >> 2 == 0);
+
+        match bits {
+            0b00 => Accept,
+            0b01 => Fail,
+            0b10 => Deny,
+            0b11 => Refuse,
+            _ => unreachable!(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

@@ -10,7 +10,7 @@ use data::{crc, interleave};
 use error::{Result, P25Error};
 use util::{slice_u16, slice_u24};
 
-use trunking::fields::{Channel, TalkGroup, ServiceOptions};
+use trunking::fields::{Channel, TalkGroup, ServiceOptions, RegResponse};
 
 /// State machine for receiving a TSBK packet.
 ///
@@ -214,6 +214,27 @@ impl TSBKFields {
 
     /// Bytes that make up the payload of the packet.
     pub fn payload(&self) -> &[u8] { &self.0[2...9] }
+}
+
+/// Response given to an attempted user registration.
+pub struct UnitRegResponse(Buf);
+
+impl UnitRegResponse {
+    /// Create a new `UnitRegResponse` decoder from the base TSBK decoder.
+    pub fn new(tsbk: TSBKFields) -> Self { UnitRegResponse(tsbk.0) }
+
+    /// System response to user registration request.
+    pub fn response(&self) -> RegResponse {
+        RegResponse::from_bits((self.0[2] >> 4) & 0b11)
+    }
+
+    /// System ID within WACN.
+    pub fn system(&self) -> u16 { slice_u16(&self.0[2...3]) & 0xFFF }
+    /// Address of originating unit, which uniquely identifies the unit within the System.
+    pub fn src_id(&self) -> u32 { slice_u24(&self.0[4...6]) }
+    /// ID of originating unit which, along with the WACN and System ID, uniquely
+    /// identifies the unit.
+    pub fn src_addr(&self) -> u32 { slice_u24(&self.0[7...9]) }
 }
 
 pub struct GroupVoiceGrant(Buf);
@@ -517,5 +538,29 @@ mod test {
         assert!(!s.has_voice());
         assert!(s.has_registration());
         assert!(!s.has_auth());
+    }
+
+    #[test]
+    fn test_unit_reg_response() {
+        let t = TSBKFields::new([
+            0b00101100,
+            0b00000000,
+            0b11011010,
+            0b11100111,
+            0b10101010,
+            0b01010101,
+            0b00110011,
+            0b11111000,
+            0b00111111,
+            0b11001100,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::UnitRegResponse));
+        let r = UnitRegResponse::new(t);
+        assert_eq!(r.response(), RegResponse::Fail);
+        assert_eq!(r.system(), 0b101011100111);
+        assert_eq!(r.src_id(), 0b101010100101010100110011);
+        assert_eq!(r.src_addr(), 0b111110000011111111001100);
     }
 }
