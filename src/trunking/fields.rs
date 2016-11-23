@@ -158,7 +158,7 @@ pub fn parse_updates(buf: &[u8]) -> ChannelUpdates {
 pub struct AdjacentSite<'a>(&'a [u8]);
 
 impl<'a> AdjacentSite<'a> {
-    /// Create a new `AdjacentSite` decoder from base TSBK decoder.
+    /// Create a new `AdjacentSite` decoder from given payload bytes decoder.
     pub fn new(payload: &'a [u8]) -> Self { AdjacentSite(payload) }
 
     /// Location registration area of adjacent site, which determines whether a subscriber
