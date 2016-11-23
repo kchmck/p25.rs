@@ -217,4 +217,27 @@ mod test {
         assert_eq!(opts.packet_switched(), true);
         assert_eq!(opts.prio(), 5);
     }
+
+    #[test]
+    fn test_group_voice_update() {
+        let l = LinkControlFields::new([
+            0b00000010,
+            0b01101111,
+            0b01010101,
+            0b11111111,
+            0b11111111,
+            0b10011010,
+            0b10101010,
+            0b00110011,
+            0b11001100,
+        ]);
+        let u = GroupVoiceUpdate::new(l).updates();
+
+        assert_eq!(u[0].0.id(), 0b0110);
+        assert_eq!(u[0].0.number(), 0b111101010101);
+        assert_eq!(u[0].1, TalkGroup::Everbody);
+        assert_eq!(u[1].0.id(), 0b1001);
+        assert_eq!(u[1].0.number(), 0b101010101010);
+        assert_eq!(u[1].1, TalkGroup::Other(0b0011001111001100));
+    }
 }

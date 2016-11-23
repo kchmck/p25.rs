@@ -379,7 +379,7 @@ impl SiteStatusBroadcast {
 #[cfg(test)]
 mod test {
     use super::*;
-    use trunking::fields::{AdjacentSite, ChannelParamsUpdate};
+    use trunking::fields::{AdjacentSite, ChannelParamsUpdate, TalkGroup};
 
     #[test]
     fn test_tsbk_fields() {
@@ -476,5 +476,31 @@ mod test {
         assert_eq!(p.id(), 0b0110);
         assert_eq!(p.params().bandwidth, 12_500);
         assert_eq!(p.params().rx_freq(0b1001), 851_062_500);
+    }
+
+    #[test]
+    fn test_group_voice_update() {
+        let t = TSBKFields::new([
+            0b00000010,
+            0b00000000,
+            0b01101111,
+            0b01010101,
+            0b11111111,
+            0b11111111,
+            0b10011010,
+            0b10101010,
+            0b00110011,
+            0b11001100,
+            0b00000000,
+            0b00000000,
+        ]);
+        let u = GroupVoiceUpdate::new(t).updates();
+
+        assert_eq!(u[0].0.id(), 0b0110);
+        assert_eq!(u[0].0.number(), 0b111101010101);
+        assert_eq!(u[0].1, TalkGroup::Everbody);
+        assert_eq!(u[1].0.id(), 0b1001);
+        assert_eq!(u[1].0.number(), 0b101010101010);
+        assert_eq!(u[1].1, TalkGroup::Other(0b0011001111001100));
     }
 }
