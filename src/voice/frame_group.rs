@@ -233,7 +233,7 @@ impl<E: Extra> ExtraReceiver<E> {
 
 struct DataFragmentReceiver {
     dibits: Buffer<VoiceDataFragStorage>,
-    dibit: usize,
+    byte: usize,
     data: u32,
 }
 
@@ -241,7 +241,7 @@ impl DataFragmentReceiver {
     pub fn new() -> DataFragmentReceiver {
         DataFragmentReceiver {
             dibits: Buffer::new(VoiceDataFragStorage::new()),
-            dibit: 0,
+            byte: 0,
             data: 0,
         }
     }
@@ -257,12 +257,12 @@ impl DataFragmentReceiver {
             None => return Some(Err(CyclicUnrecoverable)),
         };
 
-        self.dibit += 1;
+        self.byte += 1;
 
         self.data <<= 8;
         self.data |= bits as u32;
 
-        if self.dibit == 2 {
+        if self.byte == 2 {
             Some(Ok(self.data))
         } else {
             None
