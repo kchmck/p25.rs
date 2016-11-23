@@ -92,7 +92,7 @@ pub enum TSBKOpcode {
     UnitRegResponse,
     UnitRegCommand,
     UnitAuthCommand,
-    UnitDeregisterAck,
+    UnitDeregAck,
     RoamingAddrCommand,
     RoamingAddrUpdate,
     SystemServiceBroadcast,
@@ -158,7 +158,7 @@ impl TSBKOpcode {
             0b101100 => Some(UnitRegResponse),
             0b101101 => Some(UnitRegCommand),
             0b101110 => Some(UnitAuthCommand),
-            0b101111 => Some(UnitDeregisterAck),
+            0b101111 => Some(UnitDeregAck),
 
             0b110000...0b110101 => Some(Reserved),
             0b110110 => Some(RoamingAddrCommand),
