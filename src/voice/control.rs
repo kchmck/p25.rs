@@ -1,13 +1,14 @@
+//! Decode Link Control (LC) packets and payloads.
+
 use consts::LINK_CONTROL_BYTES;
 use util::slice_u24;
 
-use trunking::fields::{
-    TalkGroup,
-    ServiceOptions,
-};
+use trunking::fields::{TalkGroup, ServiceOptions};
 
+/// Buffer of bytes that represents a link control packet.
 pub type Buf = [u8; LINK_CONTROL_BYTES];
 
+/// Type of a link control payload.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum LinkControlOpcode {
     GroupVoiceTraffic,
@@ -78,7 +79,7 @@ impl LinkControlOpcode {
     }
 }
 
-/// Link Control information carried within voice packets.
+/// Base link control decoder, common to all packets.
 #[derive(Copy, Clone)]
 pub struct LinkControlFields(Buf);
 
@@ -98,25 +99,37 @@ impl LinkControlFields {
     pub fn payload(&self) -> &[u8] { &self.0[1...8] }
 }
 
+/// Identity of user transmitting on the current talkgroup traffic channel.
 pub struct GroupVoiceTraffic(Buf);
 
 impl GroupVoiceTraffic {
+    /// Create a new `GroupVoiceTraffic` from the base LC decoder.
     pub fn new(lc: LinkControlFields) -> Self { GroupVoiceTraffic(lc.0) }
 
+    /// Manufacturer ID of current packet.
     pub fn mfg(&self) -> u8 { self.0[1] }
+    /// Service options provided by current traffic channel.
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
+    /// Current resident talkgroup of traffic channel.
     pub fn talk_group(&self) -> TalkGroup { TalkGroup::new(&self.0[4..]) }
+    /// Address of user currently transmitting.
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[6..]) }
 }
 
+/// Identity of users transmitting on current unit-to-unit traffic channel.
 pub struct UnitVoiceTraffic(Buf);
 
 impl UnitVoiceTraffic {
+    /// Create a new `UnitVoiceTraffic` from the base LC decoder.
     pub fn new(lc: LinkControlFields) -> Self { UnitVoiceTraffic(lc.0) }
 
+    /// Manufacturer ID of current packet.
     pub fn mfg(&self) -> u8 { self.0[1] }
+    /// Service options provided by current traffic channel.
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
+    /// Destination user address for current transmission.
     pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[3..]) }
+    /// Source user address for current transmission.
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[6..]) }
 }
 

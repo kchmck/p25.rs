@@ -10,11 +10,7 @@ use data::{crc, interleave};
 use error::{Result, P25Error};
 use util::{slice_u16, slice_u24};
 
-use trunking::fields::{
-    Channel,
-    TalkGroup,
-    ServiceOptions,
-};
+use trunking::fields::{Channel, TalkGroup, ServiceOptions};
 
 /// State machine for receiving a TSBK packet.
 ///
