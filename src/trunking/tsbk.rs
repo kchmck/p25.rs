@@ -237,6 +237,21 @@ impl UnitRegResponse {
     pub fn src_addr(&self) -> u32 { slice_u24(&self.0[7...9]) }
 }
 
+/// Acknowledgement of successful user deregistration request.
+pub struct UnitDeregAck(Buf);
+
+impl UnitDeregAck {
+    /// Create a new `UnitDeregAck` decoder from the base TSBK decoder.
+    pub fn new(tsbk: TSBKFields) -> Self { UnitDeregAck(tsbk.0) }
+
+    /// WACN ID within the communication network.
+    pub fn wacn(&self) -> u32 { slice_u24(&self.0[3...5]) >> 4 }
+    /// System ID within WACN.
+    pub fn system(&self) -> u16 { slice_u16(&self.0[5...6]) & 0xFFF }
+    /// ID of affected unit.
+    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7...9]) }
+}
+
 pub struct GroupVoiceGrant(Buf);
 
 impl GroupVoiceGrant {
@@ -562,5 +577,28 @@ mod test {
         assert_eq!(r.system(), 0b101011100111);
         assert_eq!(r.src_id(), 0b101010100101010100110011);
         assert_eq!(r.src_addr(), 0b111110000011111111001100);
+    }
+
+    #[test]
+    fn test_unit_dereg_ack() {
+        let t = TSBKFields::new([
+            0b00101111,
+            0b00000000,
+            0b11111111,
+            0b11001100,
+            0b00110011,
+            0b10100001,
+            0b11110011,
+            0b11111100,
+            0b00000011,
+            0b11100111,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::UnitDeregAck));
+        let a = UnitDeregAck::new(t);
+        assert_eq!(a.wacn(), 0b11001100001100111010);
+        assert_eq!(a.system(), 0b000111110011);
+        assert_eq!(a.src_unit(), 0b111111000000001111100111);
     }
 }
