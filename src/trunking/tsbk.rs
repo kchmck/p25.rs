@@ -291,16 +291,6 @@ impl UnitVoiceGrant {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
-pub struct UnitCallRequest(Buf);
-
-impl UnitCallRequest {
-    pub fn new(tsbk: TSBKFields) -> Self { UnitCallRequest(tsbk.0) }
-
-    pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
-    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[4..]) }
-    pub fn src_id(&self) -> u32 { slice_u24(&self.0[7..]) }
-}
-
 pub struct UnitVoiceUpdate(Buf);
 
 impl UnitVoiceUpdate {
@@ -685,7 +675,7 @@ mod test {
             0b00000000,
         ]);
         assert_eq!(t.opcode(), Some(TSBKOpcode::UnitCallRequest));
-        let r = UnitCallRequest::new(t);
+        let r = UnitCallRequest::new(t.payload());
         let o = r.opts();
         assert!(!o.emergency());
         assert!(o.protected());
@@ -693,6 +683,6 @@ mod test {
         assert!(o.packet_switched());
         assert_eq!(o.prio(), 0b101);
         assert_eq!(r.dest_unit(), 0b001110011100011001010101);
-        assert_eq!(r.src_id(), 0b111010100001010111110000);
+        assert_eq!(r.src_unit(), 0b111010100001010111110000);
     }
 }

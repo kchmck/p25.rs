@@ -340,6 +340,21 @@ impl<'a> UnitCallAlert<'a> {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[5...7]) }
 }
 
+/// Signals a target unit that a unit-to-unit all has been requested.
+pub struct UnitCallRequest<'a>(&'a [u8]);
+
+impl<'a> UnitCallRequest<'a> {
+    /// Create a new `UnitCallRequest` decoder from the given payload bytes.
+    pub fn new(payload: &'a [u8]) -> Self { UnitCallRequest(payload) }
+
+    /// Options requested/granted for resulting channel.
+    pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[0]) }
+    /// Target unit.
+    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[2...4]) }
+    /// Requesting unit.
+    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[5...7]) }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
