@@ -277,7 +277,7 @@ impl GroupVoiceGrant {
     pub fn new(tsbk: TSBKFields) -> Self { GroupVoiceGrant(tsbk.0) }
 
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
-    pub fn talk_group(&self) -> TalkGroup { TalkGroup::new(&self.0[5..]) }
+    pub fn talkgroup(&self) -> TalkGroup { TalkGroup::new(&self.0[5..]) }
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 

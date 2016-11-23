@@ -114,7 +114,7 @@ impl GroupVoiceTraffic {
     /// Service options provided by current traffic channel.
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
     /// Current resident talkgroup of traffic channel.
-    pub fn talk_group(&self) -> TalkGroup { TalkGroup::new(&self.0[4..]) }
+    pub fn talkgroup(&self) -> TalkGroup { TalkGroup::new(&self.0[4..]) }
     /// Address of user currently transmitting.
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[6..]) }
 }
@@ -208,7 +208,7 @@ mod test {
         let opts = dec.opts();
 
         assert_eq!(dec.mfg(), 0);
-        assert_eq!(dec.talk_group(), TalkGroup::Default);
+        assert_eq!(dec.talkgroup(), TalkGroup::Default);
         assert_eq!(dec.src_unit(), 0xDEADBE);
 
         assert_eq!(opts.emergency(), true);
