@@ -11,7 +11,7 @@ use voice::frame::VoiceFrame;
 use voice::header::{VoiceHeaderReceiver, VoiceHeaderFields};
 use voice::term::VoiceLCTerminatorReceiver;
 
-use voice::{
+use voice::frame_group::{
     FrameGroupEvent,
     VoiceCCFrameGroupReceiver,
     VoiceLCFrameGroupReceiver,
