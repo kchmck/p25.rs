@@ -1,8 +1,13 @@
+//! Pseudo-random (PN) sequence used for voice frame scrambling/descrambling.
+
+/// Generates 23-bit and 15-bit scrambling words using the P25 PN sequence algorithm.
 pub struct PseudoRand {
+    /// Current state, known as `p_n` in the standard.
     state: u16,
 }
 
 impl PseudoRand {
+    /// Create a new `PseudoRand` generator using the given 12-bit seed.
     pub fn new(init: u16) -> PseudoRand {
         assert!(init >> 12 == 0);
 
@@ -11,26 +16,37 @@ impl PseudoRand {
         }
     }
 
+    /// Retrieve the next 23-bit scrambling word.
     pub fn next_23(&mut self) -> u32 { self.next_bits(23) }
+    /// Retrieve the next 15-bit scrambling word.
     pub fn next_15(&mut self) -> u32 { self.next_bits(15) }
 
+    /// Generate a scrambling word of the given size, up to 32 bits. The resulting word
+    /// has `p_n(15)` as MSB and `p_{n+bits-1}(15)` as LSB, in the notation of the
+    /// standard.
     fn next_bits(&mut self, bits: usize) -> u32 {
         assert!(bits <= 32);
 
+        // Continously shift random bits into LSB.
         (0..bits).fold(0, |buf, _| {
             buf << 1 | self.advance() as u32
         })
     }
 
+    /// Step the generator and retrieve the next random bit.
     fn advance(&mut self) -> u16 {
         self.state = self.next_state();
         self.next_bit()
     }
 
+    /// Retrieve the random bit for the current state (defined as the MSB, `p_n(15)`, by
+    /// the standard.)
     fn next_bit(&self) -> u16 {
         self.state >> 15
     }
 
+    /// Step to the next state using the formula in the standard. Since the containing
+    /// type is 16 bits, the modulo operation is implicit.
     fn next_state(&self) -> u16 {
         self.state.wrapping_mul(173).wrapping_add(13849)
     }

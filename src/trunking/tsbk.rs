@@ -107,7 +107,7 @@ pub enum TSBKOpcode {
 }
 
 impl TSBKOpcode {
-    /// Parse an opcode from the given 6 bits.
+    /// Try to parse an opcode from the given 6 bits.
     pub fn from_bits(bits: u8) -> Option<TSBKOpcode> {
         use self::TSBKOpcode::*;
 

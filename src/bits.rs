@@ -4,7 +4,8 @@ use std;
 
 /// Iterate over the 2-bit symbols of a byte source, MSB to LSB.
 pub type Dibits<T> = SubByteIter<DibitParams, T>;
-/// Iterates over the 3-bit symbols of a byte source, MSB to LSB.
+/// Iterates over the 3-bit symbols of a byte source, MSB to LSB. The source must be a
+/// multiple of 3 bytes.
 pub type Tribits<T> = SubByteIter<TribitParams, T>;
 /// Iterates over the 6-bit symbols of a byte source, MSB to LSB. The source must be a
 /// multiple of 3 bytes.
@@ -32,7 +33,7 @@ pub trait IterParams {
     /// Amount to shift buffer after loading an input symbol.
     fn shift() -> usize;
 
-    /// Amount to shift buffer after all buffering.
+    /// Amount to shift buffer after all buffering, so the bits are lined up at the MSB.
     fn post_shift() -> usize { 32 - Self::shift() * Self::buffer() }
 
     /// Number of iterations before buffering.

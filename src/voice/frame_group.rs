@@ -1,80 +1,56 @@
+//! Receive voice frame groups, known as LDU1 and LDU2 in the standard.
+//!
+//! Each frame group contains 9 voice frames, a low-speed data word, and an "extra"
+//! packet: either link control (LC) or crypto control (CC).
+
 use std;
 
 use collect_slice::CollectSlice;
 
 use bits::{Hexbit, HexbitBytes, Dibit};
-use buffer::{Buffer, VoiceExtraStorage, VoiceFrameStorage, VoiceExtraWordStorage,
-             VoiceDataFragStorage};
 use coding::{cyclic, hamming, reed_solomon};
 use error::{P25Error, Result};
+use voice::frame::VoiceFrame;
+use voice::{control, crypto};
+
+use buffer::{
+    Buffer,
+    VoiceDataFragStorage,
+    VoiceExtraStorage,
+    VoiceExtraWordStorage,
+    VoiceFrameStorage,
+};
 
 use consts::{
+    CRYPTO_CONTROL_BYTES,
     EXTRA_HEXBITS,
     EXTRA_PIECE_DIBITS,
     LINK_CONTROL_BYTES,
-    CRYPTO_CONTROL_BYTES,
 };
-
-use voice::{control, crypto};
-use voice::frame::VoiceFrame;
 
 use error::P25Error::*;
 use self::State::*;
 use self::StateChange::*;
 
+/// Receiver for Link Control (LC) frame group.
 pub type VoiceLCFrameGroupReceiver = FrameGroupReceiver<LinkControlExtra>;
+/// Receiver for Crypto Control (CC) frame group.
 pub type VoiceCCFrameGroupReceiver = FrameGroupReceiver<CryptoControlExtra>;
 
-pub trait Extra {
-    type Fields;
-
-    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)>;
-    fn decode_extra(buf: &[Hexbit]) -> Self::Fields;
-}
-
-pub struct LinkControlExtra;
-
-impl Extra for LinkControlExtra {
-    type Fields = control::LinkControlFields;
-
-    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)> {
-        reed_solomon::short::decode(buf)
-    }
-
-    fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
-        let mut bytes = [0; LINK_CONTROL_BYTES];
-        HexbitBytes::new(buf.iter().cloned()).collect_slice_checked(&mut bytes[..]);
-
-        control::LinkControlFields::new(bytes)
-    }
-}
-
-pub struct CryptoControlExtra;
-
-impl Extra for CryptoControlExtra {
-    type Fields = crypto::CryptoControlFields;
-
-    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)> {
-        reed_solomon::medium::decode(buf)
-    }
-
-    fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
-        let mut bytes = [0; CRYPTO_CONTROL_BYTES];
-        HexbitBytes::new(buf.iter().cloned()).collect_slice_checked(&mut bytes[..]);
-
-        crypto::CryptoControlFields::new(bytes)
-    }
-}
-
+/// Internal state of the frame group receiver.
 enum State {
+    /// Decoding a voice frame.
     DecodeVoiceFrame(VoiceFrameReceiver),
+    /// Decoding an "extra".
     DecodeExtra,
     /// Decoding a low-speed data fragment.
     DecodeDataFragment(DataFragmentReceiver),
+    /// Finished decoding the frame group.
     Done,
 }
 
 impl State {
+    /// Decode the upcoming symbols as a voice frame.
     pub fn decode_voice_frame() -> State {
         DecodeVoiceFrame(VoiceFrameReceiver::new())
     }
@@ -85,26 +61,41 @@ impl State {
     }
 }
 
+/// Action the state machine should take.
 enum StateChange<E: Extra> {
+    /// Do nothing.
     NoChange,
+    /// Change to the enclosed state.
     Change(State),
+    /// Change to the enclosed state and propagate an event.
     EventChange(FrameGroupEvent<E>, State),
+    /// Propagate an error.
     Error(P25Error),
 }
 
+/// Events that can occur when receiving a frame group.
 pub enum FrameGroupEvent<E: Extra> {
+    /// Decoded a voice frame.
     VoiceFrame(VoiceFrame),
+    /// Decoded an "extra" packet.
     Extra(E::Fields),
+    /// Decoded a 16-bit fragment of the low-speed data word.
     DataFragment(u32),
 }
 
+/// State machine that receives the various pieces that make up a frame group.
 pub struct FrameGroupReceiver<E: Extra> {
+    /// Current state.
     state: State,
+    /// Receiver for inner extra packet. This is persisted across state changes because
+    /// each extra packet is split into 6 chunks and spread throughout the frame group.
     extra: ExtraReceiver<E>,
+    /// The current frame position within the frame group.
     frame: usize,
 }
 
 impl<E: Extra> FrameGroupReceiver<E> {
+    /// Create a new `FrameGroupReceiver` in the initial state.
     pub fn new() -> FrameGroupReceiver<E> {
         FrameGroupReceiver {
             state: State::decode_voice_frame(),
@@ -113,10 +104,12 @@ impl<E: Extra> FrameGroupReceiver<E> {
         }
     }
 
+    /// Whether the full frame group has been received.
     pub fn done(&self) -> bool {
         if let Done = self.state { true } else { false }
     }
 
+    /// Determine what action to take based on the given symbol.
     fn handle(&mut self, dibit: Dibit) -> StateChange<E> {
         match self.state {
             DecodeVoiceFrame(ref mut decoder) => match decoder.feed(dibit) {
@@ -154,6 +147,9 @@ impl<E: Extra> FrameGroupReceiver<E> {
         }
     }
 
+    /// Feed in a baseband symbol, possibly producing an event. Return `Some(Ok(event))`
+    /// if a nominal event occurred, `Some(Err(err))` if an error occurred, and `None` in
+    /// the case of no event.
     pub fn feed(&mut self, dibit: Dibit) -> Option<Result<FrameGroupEvent<E>>> {
         match self.handle(dibit) {
             EventChange(event, next) => {
@@ -170,17 +166,70 @@ impl<E: Extra> FrameGroupReceiver<E> {
     }
 }
 
+/// An "extra" information packet carried along in a frame group.
+pub trait Extra {
+    /// Base decoder for the packet.
+    type Fields;
+
+    /// Decode the inner Reed Soloman code.
+    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)>;
+    /// Transform the given hexbits into a base packet decoder.
+    fn decode_extra(buf: &[Hexbit]) -> Self::Fields;
+}
+
+/// Link control frame group extra.
+pub struct LinkControlExtra;
+
+impl Extra for LinkControlExtra {
+    type Fields = control::LinkControlFields;
+
+    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)> {
+        reed_solomon::short::decode(buf)
+    }
+
+    fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
+        let mut bytes = [0; LINK_CONTROL_BYTES];
+        HexbitBytes::new(buf.iter().cloned()).collect_slice_checked(&mut bytes[..]);
+
+        control::LinkControlFields::new(bytes)
+    }
+}
+
+/// Crypto control frame group extra.
+pub struct CryptoControlExtra;
+
+impl Extra for CryptoControlExtra {
+    type Fields = crypto::CryptoControlFields;
+
+    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)> {
+        reed_solomon::medium::decode(buf)
+    }
+
+    fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
+        let mut bytes = [0; CRYPTO_CONTROL_BYTES];
+        HexbitBytes::new(buf.iter().cloned()).collect_slice_checked(&mut bytes[..]);
+
+        crypto::CryptoControlFields::new(bytes)
+    }
+}
+
+/// Receives and decodes an IMBE voice frame.
 struct VoiceFrameReceiver {
+    /// Current buffered dibits.
     dibits: Buffer<VoiceFrameStorage>,
 }
 
 impl VoiceFrameReceiver {
+    /// Create a new `VoiceFrameReceiver` in the initial state.
     pub fn new() -> VoiceFrameReceiver {
         VoiceFrameReceiver {
             dibits: Buffer::new(VoiceFrameStorage::new()),
         }
     }
 
+    /// Feed in a baseband symbol, possibly resulting in a decoded voice frame. Return
+    /// `Some(Ok(frame))` if a voice frame was successfully decoded, `Some(Err(err))` if
+    /// an error occurred, and `None` in the case of no event.
     pub fn feed(&mut self, dibit: Dibit) -> Option<Result<VoiceFrame>> {
         match self.dibits.feed(dibit) {
             Some(buf) => Some(VoiceFrame::new(buf)),
@@ -189,14 +238,19 @@ impl VoiceFrameReceiver {
     }
 }
 
+/// Receives and decodes a frame group extra packet.
 struct ExtraReceiver<E: Extra> {
     extra: std::marker::PhantomData<E>,
+    /// Current buffered dibits for the current hexbit.
     dibits: Buffer<VoiceExtraWordStorage>,
+    /// Current buffered hexbits.
     hexbits: Buffer<VoiceExtraStorage>,
+    /// Number of dibits that have been received into the packet.
     dibit: usize,
 }
 
 impl<E: Extra> ExtraReceiver<E> {
+    /// Create a new `ExtraReceiver` in the initial state.
     pub fn new() -> ExtraReceiver<E> {
         ExtraReceiver {
             extra: std::marker::PhantomData,
@@ -206,8 +260,12 @@ impl<E: Extra> ExtraReceiver<E> {
         }
     }
 
+    /// Whether the current piece of the packet is finished decoding.
     pub fn piece_done(&self) -> bool { self.dibit % EXTRA_PIECE_DIBITS == 0 }
 
+    /// Feed in a baseband symbol, possibly producing a decoded packet. Return
+    /// `Some(Ok(pkt))` if the packet was successfully decoded, `Some(Err(err))` if an
+    /// error occurred, and `None` in the case of no event.
     pub fn feed(&mut self, dibit: Dibit) -> Option<Result<E::Fields>> {
         self.dibit += 1;
 

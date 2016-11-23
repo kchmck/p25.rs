@@ -42,8 +42,11 @@ pub enum LinkControlOpcode {
 }
 
 impl LinkControlOpcode {
+    /// Try to parse an opcode from the given 6 bits.
     pub fn from_bits(bits: u8) -> Option<LinkControlOpcode> {
         use self::LinkControlOpcode::*;
+
+        assert!(bits >> 6 == 0);
 
         match bits {
             0b000000 => Some(GroupVoiceTraffic),

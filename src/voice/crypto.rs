@@ -1,21 +1,27 @@
+//! Decode Cryptographic Control (CC) packets.
+
 use consts::CRYPTO_CONTROL_BYTES;
 use util::slice_u16;
 
 /// Buffer of bytes that represent a crypto control packet.
 pub type Buf = [u8; CRYPTO_CONTROL_BYTES];
 
+/// Information necessary to decrypt an encrypted message.
 pub struct CryptoControlFields(Buf);
 
 impl CryptoControlFields {
+    /// Create a new `CryptoControlFields` decoder from the given bytes.
     pub fn new(buf: Buf) -> Self { CryptoControlFields(buf) }
 
+    /// Initialization vector used internally by associated crypto algorithm.
     pub fn init(&self) -> &[u8] { &self.0[..9] }
-
+    /// Type of crypto algorithm in use, if any.
     pub fn alg(&self) -> CryptoAlgorithm { CryptoAlgorithm::from_bits(self.0[9]) }
-
+    /// Encryption key to use.
     pub fn key(&self) -> u16 { slice_u16(&self.0[10..]) }
 }
 
+/// Type of cryptographic algorithm.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum CryptoAlgorithm {
     Accordion,
@@ -32,6 +38,7 @@ pub enum CryptoAlgorithm {
 }
 
 impl CryptoAlgorithm {
+    /// Parse the given 8 bits into a crypto algorithm.
     pub fn from_bits(bits: u8) -> CryptoAlgorithm {
         use self::CryptoAlgorithm::*;
 

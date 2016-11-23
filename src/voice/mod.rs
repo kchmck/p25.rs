@@ -1,4 +1,4 @@
-//! Decoding of voice-related data units.
+//! Receive and decode voice-related data units.
 
 mod descramble;
 mod rand;

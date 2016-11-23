@@ -1,4 +1,4 @@
-//! Decode voice frame into chunks for IMBE decoder.
+//! Decode a voice frame into chunks suitable for IMBE.
 
 use bits::Dibit;
 use coding::{golay, hamming};
@@ -12,15 +12,16 @@ use error::P25Error::*;
 
 /// IMBE-encoded voice frame.
 pub struct VoiceFrame {
-    /// Known as u_0, ..., u_7 in the standard.
+    /// Chunks of IMBE-prioritized data, Known as `u_0`, ..., `u_7` in the standard.
     pub chunks: [u32; 8],
-    /// Number of FEC errors detected for each associated chunk u_0, ..., u_6.
+    /// Number of FEC errors detected for each associated chunk `u_0`, ..., `u_6`.
     pub errors: [usize; 7],
 }
 
 impl VoiceFrame {
-    /// Create a new `VoiceFrame` from the given interleaved, PN-scrambled, coded dibits.
-    /// Return `Some(frame)` if the frame was successfully decoded, and `None` otherwise.
+    /// Try to decode a `VoiceFrame` from the given coded, PN-scrambled, interleaved
+    /// dibits. Return `Ok(frame)` if the frame was successfully decoded, and `Err(err)`
+    /// otherwise.
     pub fn new(dibits: &[Dibit; consts::FRAME_DIBITS]) -> Result<VoiceFrame> {
         let mut chunks = [0; 8];
         let mut errors = [0; 7];
