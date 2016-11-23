@@ -13,7 +13,6 @@ use util::{slice_u16, slice_u24};
 use trunking::fields::{
     Channel,
     TalkGroup,
-    SystemServices,
     ServiceOptions,
 };
 
@@ -282,26 +281,6 @@ impl UnitDataGrant {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
-/// WACN (Wide Area Communication Network) and System ID information of current control
-/// channel.
-pub struct NetworkStatusBroadcast(Buf);
-
-impl NetworkStatusBroadcast {
-    /// Create a new `NetworkStatusBroadcast` decoder from the base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { NetworkStatusBroadcast(tsbk.0) }
-
-    /// Location registration area of site.
-    pub fn area(&self) -> u8 { self.0[2] }
-    /// WACN ID within the communications network.
-    pub fn wacn(&self) -> u32 { slice_u24(&self.0[3..]) >> 4 }
-    /// System ID of site within WACN.
-    pub fn system(&self) -> u16 { slice_u16(&self.0[5..]) & 0xFFF }
-    /// Channel information for computing TX/RX frequencies.
-    pub fn channel(&self) -> Channel { Channel::new(&self.0[7..]) }
-    /// Services supported by the current site.
-    pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -525,7 +504,7 @@ mod test {
             0b00000000,
         ]);
         assert_eq!(t.opcode(), Some(TSBKOpcode::NetworkStatusBroadcast));
-        let n = NetworkStatusBroadcast::new(t);
+        let n = NetworkStatusBroadcast::new(t.payload());
         assert_eq!(n.area(), 0b11001010);
         assert_eq!(n.wacn(), 0b11111100001010111100);
         assert_eq!(n.system(), 0b111101011011);

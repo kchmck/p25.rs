@@ -1,6 +1,6 @@
 //! Decode various trunking-related packet fields.
 
-use util::{slice_u16, slice_u32};
+use util::{slice_u16, slice_u24, slice_u32};
 
 pub struct ServiceOptions(u8);
 
@@ -262,6 +262,26 @@ impl<'a> RFSSStatusBroadcast<'a> {
     pub fn rfss(&self) -> u8 { self.0[3] }
     /// Site ID of current site within RFSS.
     pub fn site(&self) -> u8 { self.0[4] }
+    /// Channel information for computing TX/RX frequencies.
+    pub fn channel(&self) -> Channel { Channel::new(&self.0[5...6]) }
+    /// Services supported by the current site.
+    pub fn services(&self) -> SystemServices { SystemServices::new(self.0[7]) }
+}
+
+/// WACN (Wide Area Communication Network) and System ID information of current control
+/// channel.
+pub struct NetworkStatusBroadcast<'a>(&'a [u8]);
+
+impl<'a> NetworkStatusBroadcast<'a> {
+    /// Create a new `NetworkStatusBroadcast` decoder from the given payload bytes.
+    pub fn new(payload: &'a [u8]) -> Self { NetworkStatusBroadcast(payload) }
+
+    /// Location registration area of site.
+    pub fn area(&self) -> u8 { self.0[0] }
+    /// WACN ID within the communications network.
+    pub fn wacn(&self) -> u32 { slice_u24(&self.0[1...3]) >> 4 }
+    /// System ID of site within WACN.
+    pub fn system(&self) -> u16 { slice_u16(&self.0[3...4]) & 0xFFF }
     /// Channel information for computing TX/RX frequencies.
     pub fn channel(&self) -> Channel { Channel::new(&self.0[5...6]) }
     /// Services supported by the current site.
