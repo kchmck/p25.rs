@@ -507,4 +507,37 @@ mod test {
         assert!(s.has_registration());
         assert!(!s.has_auth());
     }
+
+    #[test]
+    fn test_network_status_broadcast() {
+        let t = TSBKFields::new([
+            0b00111011,
+            0b00000000,
+            0b11001010,
+            0b11111100,
+            0b00101011,
+            0b11001111,
+            0b01011011,
+            0b11011100,
+            0b11100111,
+            0b01010001,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::NetworkStatusBroadcast));
+        let n = NetworkStatusBroadcast::new(t);
+        assert_eq!(n.area(), 0b11001010);
+        assert_eq!(n.wacn(), 0b11111100001010111100);
+        assert_eq!(n.system(), 0b111101011011);
+        assert_eq!(n.channel().id(), 0b1101);
+        assert_eq!(n.channel().number(), 0b110011100111);
+        let s = n.services();
+        assert!(s.is_composite());
+        assert!(!s.has_updates());
+        assert!(!s.is_backup());
+        assert!(s.has_data());
+        assert!(!s.has_voice());
+        assert!(s.has_registration());
+        assert!(!s.has_auth());
+    }
 }
