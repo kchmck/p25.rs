@@ -491,4 +491,31 @@ mod test {
         assert!(s.has_registration());
         assert!(!s.has_auth());
     }
+
+    #[test]
+    fn test_channel_params_update() {
+        let t = TSBKFields::new([
+            0b00111101,
+            0b00000000,
+            0b0110_0011,
+            0b00100_010,
+            0b110100_00,
+            0b00110010,
+            0b00001010,
+            0b00100101,
+            0b00010000,
+            0b10100010,
+            0b11111111,
+            0b11111111,
+        ]);
+        let p = ChannelParamsUpdate::new(t);
+
+        assert_eq!(p.id(), 0b0110);
+        assert_eq!(p.bandwidth(), 0x64);
+        assert_eq!(p.offset(), 0b010110100);
+        assert_eq!(p.spacing(), 0x32);
+        assert_eq!(p.base(), 170201250);
+        assert_eq!(p.params().bandwidth, 12_500);
+        assert_eq!(p.params().rx_freq(0b1001), 851_062_500);
+    }
 }
