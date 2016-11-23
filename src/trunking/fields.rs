@@ -2,15 +2,24 @@
 
 use util::{slice_u16, slice_u24, slice_u32};
 
+/// Options that can be requested/granted by a service.
 pub struct ServiceOptions(u8);
 
 impl ServiceOptions {
+    /// Create a new `ServiceOptions` based on the given byte.
     pub fn new(opts: u8) -> ServiceOptions { ServiceOptions(opts) }
 
+    /// Whether the service should be processed as an emergency.
     pub fn emergency(&self) -> bool { self.0 >> 7 == 1 }
+    /// Whether the channel should be encrypted.
     pub fn protected(&self) -> bool { self.0 >> 6 & 1 == 1 }
+    /// Whether the channel should be full duplex for simultaneous transmit and receive
+    /// (otherwise fall back to half duplex.)
     pub fn full_duplex(&self) -> bool { self.0 >> 5 & 1 == 1 }
+    /// Whether the service should be packet switched (otherwise fall back to circuit
+    /// switched.)
     pub fn packet_switched(&self) -> bool { self.0 >> 4 & 1 == 1 }
+    /// Priority assigned to service, with 1 as lowest and 7 as highest.
     pub fn prio(&self) -> u8 { self.0 & 0x7 }
 }
 
