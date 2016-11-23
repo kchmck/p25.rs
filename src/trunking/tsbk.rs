@@ -520,4 +520,39 @@ mod test {
         assert!(!s.has_registration());
         assert!(s.has_auth());
     }
+
+    #[test]
+    fn test_rfss_status_broadcast() {
+        let t = TSBKFields::new([
+            0b00111010,
+            0b00000000,
+            0b11001100,
+            0b00010000,
+            0b10101010,
+            0b11100111,
+            0b00011000,
+            0b11010101,
+            0b01110011,
+            0b01010001,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::RFSSStatusBroadcast));
+        let a = RFSSStatusBroadcast::new(t);
+        assert_eq!(a.area(), 0b11001100);
+        assert!(a.networked());
+        assert_eq!(a.system(), 0b000010101010);
+        assert_eq!(a.rfss(), 0b11100111);
+        assert_eq!(a.site(), 0b00011000);
+        assert_eq!(a.channel().id(), 0b1101);
+        assert_eq!(a.channel().number(), 0b010101110011);
+        let s = a.services();
+        assert!(s.is_composite());
+        assert!(!s.has_updates());
+        assert!(!s.is_backup());
+        assert!(s.has_data());
+        assert!(!s.has_voice());
+        assert!(s.has_registration());
+        assert!(!s.has_auth());
+    }
 }
