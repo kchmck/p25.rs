@@ -232,17 +232,6 @@ impl GroupVoiceGrant {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
-pub struct GroupVoiceUpdateExplicit(Buf);
-
-impl GroupVoiceUpdateExplicit {
-    pub fn new(tsbk: TSBKFields) -> Self { GroupVoiceUpdateExplicit(tsbk.0) }
-
-    pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
-    pub fn tx_channel(&self) -> Channel { Channel::new(&self.0[4..]) }
-    pub fn rx_channel(&self) -> Channel { Channel::new(&self.0[6..]) }
-    pub fn talk_group(&self) -> TalkGroup { TalkGroup::new(&self.0[8..]) }
-}
-
 pub struct UnitVoiceGrant(Buf);
 
 impl UnitVoiceGrant {

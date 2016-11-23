@@ -120,13 +120,6 @@ impl UnitVoiceTraffic {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[6..]) }
 }
 
-pub struct CallTermination(Buf);
-
-impl CallTermination {
-    pub fn new(lc: LinkControlFields) -> Self { CallTermination(lc.0) }
-    pub fn unit(&self) -> u32 { slice_u24(&self.0[6..]) }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
