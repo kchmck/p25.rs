@@ -216,6 +216,25 @@ impl TSBKFields {
     pub fn payload(&self) -> &[u8] { &self.0[2...9] }
 }
 
+/// Response given to a location registration request.
+pub struct LocRegResponse(Buf);
+
+impl LocRegResponse {
+    /// Create a new `LocRegResponse` decoder from the base TSBK decoder.
+    pub fn new(tsbk: TSBKFields) -> Self { LocRegResponse(tsbk.0) }
+
+    /// System response to the registration request.
+    pub fn response(&self) -> RegResponse { RegResponse::from_bits(self.0[2] & 0b11) }
+    /// Talkgroup of requesting unit.
+    pub fn talkgroup(&self)  -> TalkGroup { TalkGroup::new(&self.0[3...4]) }
+    /// RF Subsystem ID of site within System.
+    pub fn rfss(&self) -> u8 { self.0[5] }
+    /// Site ID of site within RFSS.
+    pub fn site(&self) -> u8 { self.0[6] }
+    /// Address of requesting unit.
+    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[7...9]) }
+}
+
 /// Response given to an attempted user registration.
 pub struct UnitRegResponse(Buf);
 
@@ -600,5 +619,30 @@ mod test {
         assert_eq!(a.wacn(), 0b11001100001100111010);
         assert_eq!(a.system(), 0b000111110011);
         assert_eq!(a.src_unit(), 0b111111000000001111100111);
+    }
+
+    #[test]
+    fn test_loc_reg_response() {
+        let t = TSBKFields::new([
+            0b00101011,
+            0b00000000,
+            0b01010011,
+            0b11111000,
+            0b00011100,
+            0b11011010,
+            0b10101010,
+            0b11110000,
+            0b00001111,
+            0b00110011,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::LocRegResponse));
+        let r = LocRegResponse::new(t);
+        assert_eq!(r.response(), RegResponse::Refuse);
+        assert_eq!(r.talkgroup(), TalkGroup::Other(0b1111100000011100));
+        assert_eq!(r.rfss(), 0b11011010);
+        assert_eq!(r.site(), 0b10101010);
+        assert_eq!(r.dest_unit(), 0b111100000000111100110011);
     }
 }
