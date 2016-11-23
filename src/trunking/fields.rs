@@ -1,3 +1,5 @@
+//! Decode various trunking-related packet fields.
+
 use util::{slice_u16, slice_u32};
 
 pub struct ServiceOptions(u8);
@@ -167,7 +169,7 @@ impl<'a> GroupVoiceUpdate<'a> {
 pub struct AdjacentSite<'a>(&'a [u8]);
 
 impl<'a> AdjacentSite<'a> {
-    /// Create a new `AdjacentSite` decoder from given payload bytes decoder.
+    /// Create a new `AdjacentSite` decoder from the given payload bytes.
     pub fn new(payload: &'a [u8]) -> Self { AdjacentSite(payload) }
 
     /// Location registration area of adjacent site, which determines whether a subscriber
@@ -192,7 +194,7 @@ impl<'a> AdjacentSite<'a> {
 pub struct ChannelParamsUpdate<'a>(&'a [u8]);
 
 impl<'a> ChannelParamsUpdate<'a> {
-    /// Create a new `ChannelParamsUpdate` decoder from given payload bytes.
+    /// Create a new `ChannelParamsUpdate` decoder from the given payload bytes.
     pub fn new(payload: &'a [u8]) -> Self { ChannelParamsUpdate(payload) }
 
     /// Channel ID associated with the enclosed parameters (can be up to 16 per control

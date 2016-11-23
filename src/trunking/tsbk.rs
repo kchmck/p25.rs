@@ -1,3 +1,5 @@
+//! Receive Trunking Signalling Block (TSBK) packets and decode the various TSBK payloads.
+
 use collect_slice::CollectSlice;
 
 use bits::{Dibit, DibitBytes};
@@ -16,17 +18,30 @@ use trunking::fields::{
     SiteOptions,
 };
 
+/// State machine for receiving a TSBK packet.
+///
+/// The state machine consumes dibit symbols and performs the following steps:
+///
+/// 1. Buffer dibits until a full packet's worth are available
+/// 2. Descramble symbols using the same deinterleaver as data packets
+/// 3. Decode 1/2-rate convolutional code and attempt to correct any errors
+/// 4. Group dibits into a buffer of bytes for further interpretation
 pub struct TSBKReceiver {
+    /// Current buffered dibits.
     dibits: Buffer<DataPayloadStorage>,
 }
 
 impl TSBKReceiver {
+    /// Create a new `TSBKReceiver` in the initial state.
     pub fn new() -> TSBKReceiver {
         TSBKReceiver {
             dibits: Buffer::new(DataPayloadStorage::new()),
         }
     }
 
+    /// Feed in a baseband symbol, possibly producing a complete TSBK packet. Return
+    /// `Some(Ok(pkt))` if a packet was successfully received, `Some(Err(err))` if an
+    /// error occurred, and `None` in the case of no event.
     pub fn feed(&mut self, dibit: Dibit) -> Option<Result<TSBKFields>> {
         let (count, dibits) = {
             let buf = match self.dibits.feed(dibit) {
@@ -53,6 +68,7 @@ impl TSBKReceiver {
     }
 }
 
+/// Type of a TSBK payload.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TSBKOpcode {
     GroupVoiceGrant,
@@ -168,6 +184,7 @@ impl TSBKOpcode {
     }
 }
 
+/// Buffer of bytes that represents a TSBK packet.
 pub type Buf = [u8; TSBK_BYTES];
 
 /// A Trunking Signalling Block packet.
@@ -299,7 +316,7 @@ impl AltControlChannel {
     fn serviced_b(&self) -> SystemServices { SystemServices::new(self.0[9]) }
 }
 
-/// Carries Site and RFSS information of current control channel.
+/// Site and RFSS information of current control channel.
 pub struct RFSSStatusBroadcast(Buf);
 
 impl RFSSStatusBroadcast {
@@ -323,8 +340,8 @@ impl RFSSStatusBroadcast {
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
 }
 
-/// Carries WACN (Wide Area Communication Network) and System ID information of current
-/// control channel.
+/// WACN (Wide Area Communication Network) and System ID information of current control
+/// channel.
 pub struct NetworkStatusBroadcast(Buf);
 
 impl NetworkStatusBroadcast {
