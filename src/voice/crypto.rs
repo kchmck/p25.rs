@@ -9,13 +9,11 @@ pub struct CryptoControlFields(Buf);
 impl CryptoControlFields {
     pub fn new(buf: Buf) -> Self { CryptoControlFields(buf) }
 
-    pub fn crypto_init(&self) -> &[u8] { &self.0[..9] }
+    pub fn init(&self) -> &[u8] { &self.0[..9] }
 
-    pub fn crypto_alg(&self) -> CryptoAlgorithm {
-        CryptoAlgorithm::from_bits(self.0[9])
-    }
+    pub fn alg(&self) -> CryptoAlgorithm { CryptoAlgorithm::from_bits(self.0[9]) }
 
-    pub fn crypto_key(&self) -> u16 { slice_u16(&self.0[10..]) }
+    pub fn key(&self) -> u16 { slice_u16(&self.0[10..]) }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -66,8 +64,8 @@ mod test {
             0xDE, 0xAD,
         ]);
 
-        assert_eq!(c.crypto_init(), &[0,0,0,1,0,0,0,2,0]);
-        assert_eq!(c.crypto_alg(), AES);
-        assert_eq!(c.crypto_key(), 0xDEAD);
+        assert_eq!(c.init(), &[0,0,0,1,0,0,0,2,0]);
+        assert_eq!(c.alg(), AES);
+        assert_eq!(c.key(), 0xDEAD);
     }
 }
