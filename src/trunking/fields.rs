@@ -1,4 +1,4 @@
-use util::slice_u16;
+use util::{slice_u16, slice_u32};
 
 pub struct ServiceOptions(u8);
 
@@ -176,6 +176,42 @@ impl<'a> AdjacentSite<'a> {
     pub fn channel(&self) -> Channel { Channel::new(&self.0[5...6]) }
     /// Services supported by the adjacent site.
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[7]) }
+}
+
+/// Advertisement of parameters used to calculate TX/RX frequencies within the given
+/// associated channel.
+pub struct ChannelParamsUpdate<'a>(&'a [u8]);
+
+impl<'a> ChannelParamsUpdate<'a> {
+    /// Create a new `ChannelParamsUpdate` decoder from given payload bytes.
+    pub fn new(payload: &'a [u8]) -> Self { ChannelParamsUpdate(payload) }
+
+    /// Channel ID associated with the enclosed parameters (can be up to 16 per control
+    /// channel.)
+    pub fn id(&self) -> u8 { self.0[0] >> 4 }
+
+    /// Parameters for the associated channel.
+    pub fn params(&self) -> ChannelParams {
+        ChannelParams::new(self.base(), self.bandwidth(), self.offset(), self.spacing())
+    }
+
+    /// Bandwidth in steps of 125Hz.
+    fn bandwidth(&self) -> u16 {
+        (self.0[0] as u16 & 0xF) << 5 | (self.0[1] >> 3) as u16
+    }
+
+    /// Offset of TX frequency from base RX frequency in steps of 250kHz.
+    fn offset(&self) -> u16 {
+        (self.0[1] as u16 & 0x7) << 6 | (self.0[2] >> 2) as u16
+    }
+
+    /// Spacing between individual channel numbers in steps of 125Hz.
+    fn spacing(&self) -> u16 {
+        (self.0[2] as u16 & 0x3) << 8 | self.0[3] as u16
+    }
+
+    /// Base RX frequency in steps of 5Hz.
+    fn base(&self) -> u32 { slice_u32(&self.0[4...7]) }
 }
 
 #[cfg(test)]

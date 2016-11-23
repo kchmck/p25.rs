@@ -10,7 +10,6 @@ use util::{slice_u16, slice_u24, slice_u32};
 
 use trunking::fields::{
     Channel,
-    ChannelParams,
     ChannelUpdates,
     TalkGroup,
     SystemServices,
@@ -377,46 +376,10 @@ impl SiteStatusBroadcast {
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[9]) }
 }
 
-/// Advertisement of parameters used to calculate TX/RX frequencies within the given
-/// associated channel.
-pub struct ChannelParamsUpdate(Buf);
-
-impl ChannelParamsUpdate {
-    /// Create a new `ChannelParamsUpdate` decoder from the base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { ChannelParamsUpdate(tsbk.0) }
-
-    /// Channel ID associated with the enclosed parameters (can be up to 16 per control
-    /// channel.)
-    pub fn id(&self) -> u8 { self.0[2] >> 4 }
-
-    /// Parameters for the associated channel.
-    pub fn params(&self) -> ChannelParams {
-        ChannelParams::new(self.base(), self.bandwidth(), self.offset(), self.spacing())
-    }
-
-    /// Bandwidth in steps of 125Hz.
-    fn bandwidth(&self) -> u16 {
-        (self.0[2] as u16 & 0xF) << 5 | (self.0[3] >> 3) as u16
-    }
-
-    /// Offset of TX frequency from base RX frequency in steps of 250kHz.
-    fn offset(&self) -> u16 {
-        (self.0[3] as u16 & 0x7) << 6 | (self.0[4] >> 2) as u16
-    }
-
-    /// Spacing between individual channel numbers in steps of 125Hz.
-    fn spacing(&self) -> u16 {
-        (self.0[4] as u16 & 0x3) << 8 | self.0[5] as u16
-    }
-
-    /// Base RX frequency in steps of 5Hz.
-    fn base(&self) -> u32 { slice_u32(&self.0[6..]) }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use trunking::fields::AdjacentSite;
+    use trunking::fields::{AdjacentSite, ChannelParamsUpdate};
 
     #[test]
     fn test_tsbk_fields() {
@@ -508,13 +471,9 @@ mod test {
             0b11111111,
             0b11111111,
         ]);
-        let p = ChannelParamsUpdate::new(t);
+        let p = ChannelParamsUpdate::new(t.payload());
 
         assert_eq!(p.id(), 0b0110);
-        assert_eq!(p.bandwidth(), 0x64);
-        assert_eq!(p.offset(), 0b010110100);
-        assert_eq!(p.spacing(), 0x32);
-        assert_eq!(p.base(), 170201250);
         assert_eq!(p.params().bandwidth, 12_500);
         assert_eq!(p.params().rx_freq(0b1001), 851_062_500);
     }
