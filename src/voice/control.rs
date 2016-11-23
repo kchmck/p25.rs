@@ -97,6 +97,9 @@ impl LinkControlFields {
     pub fn opcode(&self) -> Option<LinkControlOpcode> {
         LinkControlOpcode::from_bits(self.0[0] & 0x3F)
     }
+
+    /// Bytes that make up the payload.
+    pub fn payload(&self) -> &[u8] { &self.0[1...8] }
 }
 
 pub struct GroupVoiceTraffic(Buf);
@@ -165,6 +168,13 @@ mod test {
 
         assert_eq!(lc.opcode(), Some(LinkControlOpcode::GroupVoiceTraffic));
         assert_eq!(lc.protected(), false);
+
+        assert_eq!(lc.payload(), &[
+            0b00000000,
+            0b10110101, 0b00000000,
+            0b00000000, 0b00000001,
+            0xDE, 0xAD, 0xBE,
+        ]);
     }
 
     #[test]
