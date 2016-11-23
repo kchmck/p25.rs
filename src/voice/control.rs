@@ -213,7 +213,7 @@ mod test {
 
         assert_eq!(opts.emergency(), true);
         assert_eq!(opts.protected(), false);
-        assert_eq!(opts.duplex(), true);
+        assert_eq!(opts.full_duplex(), true);
         assert_eq!(opts.packet_switched(), true);
         assert_eq!(opts.prio(), 5);
     }

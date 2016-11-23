@@ -9,7 +9,7 @@ impl ServiceOptions {
 
     pub fn emergency(&self) -> bool { self.0 >> 7 == 1 }
     pub fn protected(&self) -> bool { self.0 >> 6 & 1 == 1 }
-    pub fn duplex(&self) -> bool { self.0 >> 5 & 1 == 1 }
+    pub fn full_duplex(&self) -> bool { self.0 >> 5 & 1 == 1 }
     pub fn packet_switched(&self) -> bool { self.0 >> 4 & 1 == 1 }
     pub fn prio(&self) -> u8 { self.0 & 0x7 }
 }
