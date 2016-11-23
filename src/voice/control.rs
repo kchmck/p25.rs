@@ -165,6 +165,17 @@ mod test {
 
         assert_eq!(lc.opcode(), Some(LinkControlOpcode::GroupVoiceTraffic));
         assert_eq!(lc.protected(), false);
+    }
+
+    #[test]
+    fn test_group_voice_traffic() {
+        let lc = LinkControlFields::new([
+            0b00000000,
+            0b00000000,
+            0b10110101, 0b00000000,
+            0b00000000, 0b00000001,
+            0xDE, 0xAD, 0xBE,
+        ]);
 
         let dec = GroupVoiceTraffic::new(lc);
         let opts = dec.opts();
