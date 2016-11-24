@@ -288,28 +288,21 @@ impl GroupVoiceGrant {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
-/// Indicates a pair of units have been granted a voice traffic channel.
-pub struct UnitVoiceGrant(Buf);
+/// Indicates a pair of units have been granted a traffic channel.
+///
+/// Note that this decoder can be used with `UnitVoiceGrant`, `UnitVoiceUpdate`, and
+/// `UnitDataGrant` packets.
+pub struct UnitTrafficChannel(Buf);
 
-impl UnitVoiceGrant {
-    /// Create a new `UnitVoiceGrant` decoder from the base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { UnitVoiceGrant(tsbk.0) }
+impl UnitTrafficChannel {
+    /// Create a new `UnitTrafficChannel` decoder from the base TSBK decoder.
+    pub fn new(tsbk: TSBKFields) -> Self { UnitTrafficChannel(tsbk.0) }
 
     /// Parameters for tuning to the traffic channel.
     pub fn channel(&self) -> Channel { Channel::new(&self.0[2..]) }
     /// Destination unit of the call.
     pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[4..]) }
     /// Originating unit of the call.
-    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
-}
-
-pub struct UnitVoiceUpdate(Buf);
-
-impl UnitVoiceUpdate {
-    pub fn new(tsbk: TSBKFields) -> Self { UnitVoiceUpdate(tsbk.0) }
-
-    pub fn channel(&self) -> Channel { Channel::new(&self.0[2..]) }
-    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[4..]) }
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
@@ -322,16 +315,6 @@ impl PhoneGrant {
     pub fn channel(&self) -> Channel { Channel::new(&self.0[3..]) }
     pub fn call_timer(&self) -> u16 { slice_u16(&self.0[5..]) }
     pub fn unit(&self) -> u32 { slice_u24(&self.0[7..]) }
-}
-
-pub struct UnitDataGrant(Buf);
-
-impl UnitDataGrant {
-    pub fn new(tsbk: TSBKFields) -> Self { UnitDataGrant(tsbk.0) }
-
-    pub fn channel(&self) -> Channel { Channel::new(&self.0[2..]) }
-    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[4..]) }
-    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
 #[cfg(test)]
@@ -729,7 +712,7 @@ mod test {
     }
 
     #[test]
-    fn test_unit_voice_grant() {
+    fn test_unit_traffic_channel() {
         let t = TSBKFields::new([
             0b00000100,
             0b11111111,
@@ -745,7 +728,7 @@ mod test {
             0b00000000,
         ]);
         assert_eq!(t.opcode(), Some(TSBKOpcode::UnitVoiceGrant));
-        let g = UnitVoiceGrant::new(t);
+        let g = UnitTrafficChannel::new(t);
         assert_eq!(g.channel().id(), 0b1100);
         assert_eq!(g.channel().number(), 0b111010101010);
         assert_eq!(g.dest_unit(), 0b111001110001100011111001);
