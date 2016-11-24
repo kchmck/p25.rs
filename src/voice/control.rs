@@ -240,7 +240,7 @@ mod test {
     }
 
     #[test]
-    fn test_group_voice_update() {
+    fn test_group_traffic_update() {
         let l = LinkControlFields::new([
             0b00000010,
             0b01101111,
@@ -253,7 +253,7 @@ mod test {
             0b11001100,
         ]);
         assert_eq!(l.opcode(), Some(LinkControlOpcode::GroupVoiceUpdate));
-        let u = GroupVoiceUpdate::new(l.payload()).updates();
+        let u = GroupTrafficUpdate::new(l.payload()).updates();
 
         assert_eq!(u[0].0.id(), 0b0110);
         assert_eq!(u[0].0.number(), 0b111101010101);

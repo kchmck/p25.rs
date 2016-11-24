@@ -154,11 +154,13 @@ impl SiteOptions {
 }
 
 /// Updates subscribers about new or ongoing talkgroup conversations.
-pub struct GroupVoiceUpdate<'a>(&'a [u8]);
+///
+/// Note that this can be used for both `GroupVoiceUpdate` and `GroupDataUpdate`.
+pub struct GroupTrafficUpdate<'a>(&'a [u8]);
 
-impl<'a> GroupVoiceUpdate<'a> {
-    /// Create a new `GroupVoiceUpdate` decoder from the given payload bytes.
-    pub fn new(payload: &'a [u8]) -> Self { GroupVoiceUpdate(payload) }
+impl<'a> GroupTrafficUpdate<'a> {
+    /// Create a new `GroupTrafficUpdate` decoder from the given payload bytes.
+    pub fn new(payload: &'a [u8]) -> Self { GroupTrafficUpdate(payload) }
 
     /// Retrieve the set of active talkgroups included in the update along with the
     /// parameters for tuning to the traffic channel of each.
@@ -384,7 +386,7 @@ mod test {
     }
 
     #[test]
-    fn test_parse_updates() {
+    fn test_group_traffic_updates() {
         let buf = [
             0b10001000,
             0b01110111,
@@ -396,7 +398,7 @@ mod test {
             0b10101010,
         ];
 
-        let u = GroupVoiceUpdate(&buf[..]).updates();
+        let u = GroupTrafficUpdate(&buf[..]).updates();
 
         assert_eq!(u[0].0.id(), 0b1000);
         assert_eq!(u[0].0.number(), 0b100001110111);

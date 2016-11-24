@@ -445,7 +445,7 @@ mod test {
     }
 
     #[test]
-    fn test_group_voice_update() {
+    fn test_group_traffic_update() {
         let t = TSBKFields::new([
             0b00000010,
             0b00000000,
@@ -461,7 +461,7 @@ mod test {
             0b00000000,
         ]);
         assert_eq!(t.opcode(), Some(TSBKOpcode::GroupVoiceUpdate));
-        let u = GroupVoiceUpdate::new(t.payload()).updates();
+        let u = GroupTrafficUpdate::new(t.payload()).updates();
 
         assert_eq!(u[0].0.id(), 0b0110);
         assert_eq!(u[0].0.number(), 0b111101010101);
