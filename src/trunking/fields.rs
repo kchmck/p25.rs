@@ -74,18 +74,28 @@ impl TalkGroup {
     }
 }
 
+/// Supported services of a control channel.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct SystemServices(u8);
 
 impl SystemServices {
+    /// Create a new `SystemServices` from the given byte.
     pub fn new(ssc: u8) -> Self { SystemServices(ssc) }
 
+    /// Whether channel can also operate as a traffic channel in busy conditions.
     pub fn is_composite(&self) -> bool { self.0 & 0x01 != 0 }
+    /// Whether channel only transmits updates (and doesn't accept data, voice, etc.
+    /// service requests.)
     pub fn updates_only(&self) -> bool { self.0 & 0x02 != 0 }
+    /// Whether channel operates only as backup to a primary control channel.
     pub fn is_backup(&self) -> bool { self.0 & 0x04 != 0 }
+    /// Supports data service requests.
     pub fn has_data(&self) -> bool { self.0 & 0x10 != 0 }
+    /// Supports voice service requests.
     pub fn has_voice(&self) -> bool { self.0 & 0x20 != 0 }
+    /// Supports registration requests.
     pub fn has_registration(&self) -> bool { self.0 & 0x40 != 0 }
+    /// Supports authentication requests.
     pub fn has_auth(&self) -> bool { self.0 & 0x80 != 0 }
 }
 
