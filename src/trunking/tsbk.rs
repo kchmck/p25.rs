@@ -271,14 +271,20 @@ impl UnitDeregAck {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7...9]) }
 }
 
+/// Indicates a talkgroup has been granted a voice traffic channel.
 pub struct GroupVoiceGrant(Buf);
 
 impl GroupVoiceGrant {
+    /// Create a new `GroupVoiceGrant` decoder from the base TSBK decoder.
     pub fn new(tsbk: TSBKFields) -> Self { GroupVoiceGrant(tsbk.0) }
 
+    /// Options requested/granted for the traffic channel.
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
+    /// Parameters for tuning to the traffic channel.
     pub fn channel(&self) -> Channel { Channel::new(&self.0[3...4]) }
+    /// Talkgroup for the conversation.
     pub fn talkgroup(&self) -> TalkGroup { TalkGroup::new(&self.0[5..]) }
+    /// Unit that initiated the conversation.
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
