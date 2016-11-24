@@ -306,14 +306,20 @@ impl UnitTrafficChannel {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
+/// Indicates a unit has been granted a traffic channel for a phone call.
 pub struct PhoneGrant(Buf);
 
 impl PhoneGrant {
+    /// Create a new `PhoneGrant` decoder from the base TSBK decoder.
     pub fn new(tsbk: TSBKFields) -> Self { PhoneGrant(tsbk.0) }
 
+    /// Options requested/granted for the traffic channel.
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
+    /// Parameters for tuning to the traffic channel.
     pub fn channel(&self) -> Channel { Channel::new(&self.0[3..]) }
-    pub fn call_timer(&self) -> u16 { slice_u16(&self.0[5..]) }
+    /// Maximum amount of time in ms that the phone call can occupy the traffic channel.
+    pub fn call_timer(&self) -> u32 { slice_u16(&self.0[5..]) as u32 * 100 }
+    /// Unit assigned to the call.
     pub fn unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
@@ -761,5 +767,35 @@ mod test {
             0b01101110,
         ]);
         assert_eq!(a.dest_unit(), 0b111111000111111000111111);
+    }
+
+    #[test]
+    fn test_phone_grant() {
+        let t = TSBKFields::new([
+            0b00001000,
+            0b00000000,
+            0b10100011,
+            0b11100101,
+            0b00110100,
+            0b00000000,
+            0b00000010,
+            0b11111100,
+            0b01111110,
+            0b00000011,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::PhoneGrant));
+        let g = PhoneGrant::new(t);
+        let o = g.opts();
+        assert!(o.emergency());
+        assert!(!o.protected());
+        assert!(o.full_duplex());
+        assert!(!o.packet_switched());
+        assert_eq!(o.prio(), 0b011);
+        assert_eq!(g.channel().id(), 0b1110);
+        assert_eq!(g.channel().number(), 0b010100110100);
+        assert_eq!(g.call_timer(), 200);
+        assert_eq!(g.unit(), 0b111111000111111000000011);
     }
 }
