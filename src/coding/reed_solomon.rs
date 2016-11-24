@@ -132,15 +132,13 @@ pub mod long {
 fn encode<'g, G>(data: &[Hexbit], parity: &mut [Hexbit], gen: G)
     where G: Iterator<Item = &'g [u8]>
 {
-    for (p, row) in parity.iter_mut().zip(gen) {
-        *p = Hexbit::new(
-            row.iter()
-                .zip(data.iter())
-                .fold(P25Codeword::default(), |s, (&col, &d)| {
-                    s + P25Codeword::new(d.bits()) * P25Codeword::new(col)
-                }).bits()
-        );
-    }
+    gen.map(|row| {
+        row.iter()
+           .zip(data.iter())
+           .fold(P25Codeword::default(), |s, (&col, &d)| {
+               s + P25Codeword::new(d.bits()) * P25Codeword::new(col)
+           }).bits()
+    }).map(Hexbit::new).collect_slice_checked(parity);
 }
 
 /// Try to fix any errors in the given word.
