@@ -722,4 +722,28 @@ mod test {
         assert_eq!(g.talkgroup(), TalkGroup::Other(0b0001100011100111));
         assert_eq!(g.src_unit(), 0b111100000111100000111100);
     }
+
+    #[test]
+    fn test_unit_voice_grant() {
+        let t = TSBKFields::new([
+            0b00000100,
+            0b11111111,
+            0b11001110,
+            0b10101010,
+            0b11100111,
+            0b00011000,
+            0b11111001,
+            0b00000110,
+            0b11100111,
+            0b11001010,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::UnitVoiceGrant));
+        let g = UnitVoiceGrant::new(t);
+        assert_eq!(g.channel().id(), 0b1100);
+        assert_eq!(g.channel().number(), 0b111010101010);
+        assert_eq!(g.dest_unit(), 0b111001110001100011111001);
+        assert_eq!(g.src_unit(), 0b000001101110011111001010);
+    }
 }
