@@ -317,8 +317,9 @@ impl PhoneGrant {
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
     /// Parameters for tuning to the traffic channel.
     pub fn channel(&self) -> Channel { Channel::new(&self.0[3..]) }
-    /// Maximum amount of time in ms that the phone call can occupy the traffic channel.
-    pub fn call_timer(&self) -> u32 { slice_u16(&self.0[5..]) as u32 * 100 }
+    /// Maximum amount of time (in units of 100ms) that the phone call can occupy the
+    /// traffic channel.
+    pub fn call_timer(&self) -> u16 { slice_u16(&self.0[5..]) }
     /// Unit assigned to the call.
     pub fn unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
@@ -812,7 +813,7 @@ mod test {
         assert_eq!(o.prio(), 0b011);
         assert_eq!(g.channel().id(), 0b1110);
         assert_eq!(g.channel().number(), 0b010100110100);
-        assert_eq!(g.call_timer(), 200);
+        assert_eq!(g.call_timer(), 2);
         assert_eq!(g.unit(), 0b111111000111111000000011);
     }
 

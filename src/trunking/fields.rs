@@ -89,7 +89,7 @@ impl SystemServices {
     pub fn has_auth(&self) -> bool { self.0 & 0x80 != 0 }
 }
 
-/// Map channel identifier (maximum 16 per control channel) to its parameters.
+/// Maps channel identifiers (maximum 16 per control channel) to their tuning parameters.
 pub type ChannelParamsMap = [Option<ChannelParams>; 16];
 
 /// Computes TX/RX frequencies and bandwidth for channel numbers within a site.

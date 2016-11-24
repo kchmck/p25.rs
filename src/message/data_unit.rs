@@ -108,7 +108,7 @@ impl State {
 /// 2. Lock onto frame synchronization
 /// 3. Deinterleave status symbols
 /// 4. Decode NID information
-/// 5. Decode dibit symbol until stopped
+/// 5. Decode dibit symbols until stopped
 pub struct DataUnitReceiver {
     /// Current state.
     state: State,

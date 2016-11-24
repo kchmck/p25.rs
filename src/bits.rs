@@ -1,4 +1,4 @@
-//! Utilities for packing/unpacking dibits and tribits into/out of bytes.
+//! Dibits, tribits, and hexbits.
 
 use std;
 

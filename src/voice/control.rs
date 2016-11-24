@@ -102,7 +102,7 @@ impl LinkControlFields {
     pub fn payload(&self) -> &[u8] { &self.0[1...8] }
 }
 
-/// Identity of user transmitting on the current talkgroup traffic channel.
+/// Identity of unit transmitting on the current talkgroup traffic channel.
 pub struct GroupVoiceTraffic(Buf);
 
 impl GroupVoiceTraffic {
@@ -119,7 +119,7 @@ impl GroupVoiceTraffic {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[6..]) }
 }
 
-/// Identity of users transmitting on current unit-to-unit traffic channel.
+/// Identity of units transmitting on current unit-to-unit traffic channel.
 pub struct UnitVoiceTraffic(Buf);
 
 impl UnitVoiceTraffic {
