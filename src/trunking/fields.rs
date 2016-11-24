@@ -81,7 +81,7 @@ impl SystemServices {
     pub fn new(ssc: u8) -> Self { SystemServices(ssc) }
 
     pub fn is_composite(&self) -> bool { self.0 & 0x01 != 0 }
-    pub fn has_updates(&self) -> bool { self.0 & 0x02 != 0 }
+    pub fn updates_only(&self) -> bool { self.0 & 0x02 != 0 }
     pub fn is_backup(&self) -> bool { self.0 & 0x04 != 0 }
     pub fn has_data(&self) -> bool { self.0 & 0x10 != 0 }
     pub fn has_voice(&self) -> bool { self.0 & 0x20 != 0 }
