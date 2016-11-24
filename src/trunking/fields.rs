@@ -355,6 +355,19 @@ impl<'a> UnitCallRequest<'a> {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[5...7]) }
 }
 
+/// Alerts a unit of a call from the public phone network.
+pub struct PhoneAlert<'a>(&'a [u8]);
+
+impl<'a> PhoneAlert<'a> {
+    /// Create a new `PhoneAlert` decoder from the given payload bytes.
+    pub fn new(payload: &'a [u8]) -> Self { PhoneAlert(payload) }
+
+    /// The 10-digit phone number of the calling party, as encoded bytes.
+    pub fn digits(&self) -> &[u8] { &self.0[0...4] }
+    /// Unit the call is for.
+    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[5...7]) }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

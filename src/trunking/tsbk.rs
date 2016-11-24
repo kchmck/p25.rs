@@ -734,4 +734,32 @@ mod test {
         assert_eq!(g.dest_unit(), 0b111001110001100011111001);
         assert_eq!(g.src_unit(), 0b000001101110011111001010);
     }
+
+    #[test]
+    fn test_phone_alert() {
+        let t = TSBKFields::new([
+            0b00001010,
+            0b00000000,
+            0b11110011,
+            0b00111100,
+            0b01011010,
+            0b11100111,
+            0b01101110,
+            0b11111100,
+            0b01111110,
+            0b00111111,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::PhoneAlert));
+        let a = PhoneAlert::new(t.payload());
+        assert_eq!(a.digits(), &[
+            0b11110011,
+            0b00111100,
+            0b01011010,
+            0b11100111,
+            0b01101110,
+        ]);
+        assert_eq!(a.dest_unit(), 0b111111000111111000111111);
+    }
 }

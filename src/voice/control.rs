@@ -408,4 +408,29 @@ mod test {
         assert_eq!(r.dest_unit(), 0b001110011100011001010101);
         assert_eq!(r.src_unit(), 0b111010100001010111110000);
     }
+
+    #[test]
+    fn test_phone_alert() {
+        let l = LinkControlFields::new([
+            0b00000111,
+            0b11110011,
+            0b00111100,
+            0b01011010,
+            0b11100111,
+            0b01101110,
+            0b11111100,
+            0b01111110,
+            0b00111111,
+        ]);
+        assert_eq!(l.opcode(), Some(LinkControlOpcode::PhoneAlert));
+        let a = PhoneAlert::new(l.payload());
+        assert_eq!(a.digits(), &[
+            0b11110011,
+            0b00111100,
+            0b01011010,
+            0b11100111,
+            0b01101110,
+        ]);
+        assert_eq!(a.dest_unit(), 0b111111000111111000111111);
+    }
 }
