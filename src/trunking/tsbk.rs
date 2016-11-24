@@ -686,4 +686,34 @@ mod test {
         assert_eq!(r.dest_unit(), 0b001110011100011001010101);
         assert_eq!(r.src_unit(), 0b111010100001010111110000);
     }
+
+    #[test]
+    fn test_group_voice_grant() {
+        let t = TSBKFields::new([
+            0b00000000,
+            0b11111111,
+            0b10100011,
+            0b11100101,
+            0b11001100,
+            0b00011000,
+            0b11100111,
+            0b11110000,
+            0b01111000,
+            0b00111100,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::GroupVoiceGrant));
+        let g = GroupVoiceGrant::new(t);
+        let o = g.opts();
+        assert!(o.emergency());
+        assert!(!o.protected());
+        assert!(o.full_duplex());
+        assert!(!o.packet_switched());
+        assert_eq!(o.prio(), 0b011);
+        assert_eq!(g.channel().id(), 0b1110);
+        assert_eq!(g.channel().number(), 0b010111001100);
+        assert_eq!(g.talkgroup(), TalkGroup::Other(0b0001100011100111));
+        assert_eq!(g.src_unit(), 0b111100000111100000111100);
+    }
 }
