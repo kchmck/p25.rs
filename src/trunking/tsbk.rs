@@ -72,7 +72,7 @@ pub enum TSBKOpcode {
     UnitCallRequest,
     UnitVoiceUpdate,
     PhoneGrant,
-    PhoneRequest,
+    PhoneAlert,
     UnitDataGrant,
     GroupDataGrant,
     GroupDataUpdate,
@@ -125,7 +125,7 @@ impl TSBKOpcode {
 
             0b001000 => Some(PhoneGrant),
             0b001001 => Some(Reserved),
-            0b001010 => Some(PhoneRequest),
+            0b001010 => Some(PhoneAlert),
             0b001011...0b001111 => Some(Reserved),
 
             0b010000 => Some(UnitDataGrant),
