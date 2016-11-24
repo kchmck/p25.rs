@@ -1,7 +1,7 @@
 //! Decode Link Control (LC) packets and payloads.
 
 use consts::LINK_CONTROL_BYTES;
-use util::slice_u24;
+use util::{slice_u16, slice_u24};
 
 use trunking::fields::{TalkGroup, ServiceOptions};
 
@@ -134,6 +134,22 @@ impl UnitVoiceTraffic {
     pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[3..]) }
     /// Source user address for current transmission.
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[6..]) }
+}
+
+/// Identity of unit participating in current phone call.
+pub struct PhoneTraffic(Buf);
+
+impl PhoneTraffic {
+    /// Create a new `PhoneTraffic` decoder from the base LC decoder.
+    pub fn new(lc: LinkControlFields) -> Self { PhoneTraffic(lc.0) }
+
+    /// Options requested/granted for the traffic channel.
+    pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
+    /// Maximum amount of time (in units of 100ms) that the phone call can occupy the
+    /// traffic channel.
+    pub fn call_timer(&self) -> u16 { slice_u16(&self.0[4...5]) }
+    /// Unit participating in call.
+    pub fn unit(&self) -> u32 { slice_u24(&self.0[6...8]) }
 }
 
 #[cfg(test)]
@@ -432,5 +448,30 @@ mod test {
             0b01101110,
         ]);
         assert_eq!(a.dest_unit(), 0b111111000111111000111111);
+    }
+
+    #[test]
+    fn test_phone_traffic() {
+        let l = LinkControlFields::new([
+            0b00000110,
+            0b00000000,
+            0b01010101,
+            0b00000000,
+            0b10000000,
+            0b00000010,
+            0b11110000,
+            0b00110011,
+            0b11100010,
+        ]);
+        assert_eq!(l.opcode(), Some(LinkControlOpcode::PhoneTraffic));
+        let p = PhoneTraffic::new(l);
+        let o = p.opts();
+        assert!(!o.emergency());
+        assert!(o.protected());
+        assert!(!o.full_duplex());
+        assert!(o.packet_switched());
+        assert_eq!(o.prio(), 0b101);
+        assert_eq!(p.call_timer(), 0b1000000000000010);
+        assert_eq!(p.unit(), 0b111100000011001111100010);
     }
 }
