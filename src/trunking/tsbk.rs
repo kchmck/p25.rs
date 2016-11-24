@@ -413,7 +413,7 @@ mod test {
         assert_eq!(a.channel().number(), 0b011001111110);
         let s = a.services();
         assert!(s.is_composite());
-        assert!(!s.has_updates());
+        assert!(!s.updates_only());
         assert!(!s.is_backup());
         assert!(s.has_data());
         assert!(!s.has_voice());
@@ -497,7 +497,7 @@ mod test {
         assert_eq!(c[0].0.number(), 0b011010101111);
         let s = c[0].1;
         assert!(s.is_composite());
-        assert!(!s.has_updates());
+        assert!(!s.updates_only());
         assert!(!s.is_backup());
         assert!(s.has_data());
         assert!(!s.has_voice());
@@ -507,7 +507,7 @@ mod test {
         assert_eq!(c[1].0.number(), 0b101010101010);
         let s = c[1].1;
         assert!(!s.is_composite());
-        assert!(s.has_updates());
+        assert!(s.updates_only());
         assert!(s.is_backup());
         assert!(!s.has_data());
         assert!(s.has_voice());
@@ -542,7 +542,7 @@ mod test {
         assert_eq!(a.channel().number(), 0b010101110011);
         let s = a.services();
         assert!(s.is_composite());
-        assert!(!s.has_updates());
+        assert!(!s.updates_only());
         assert!(!s.is_backup());
         assert!(s.has_data());
         assert!(!s.has_voice());
@@ -575,7 +575,7 @@ mod test {
         assert_eq!(n.channel().number(), 0b110011100111);
         let s = n.services();
         assert!(s.is_composite());
-        assert!(!s.has_updates());
+        assert!(!s.updates_only());
         assert!(!s.is_backup());
         assert!(s.has_data());
         assert!(!s.has_voice());
