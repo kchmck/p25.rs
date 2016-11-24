@@ -323,6 +323,23 @@ impl PhoneGrant {
     pub fn unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
+/// Indicates a talkgroup has been granted a data traffic channel.
+pub struct GroupDataGrant(Buf);
+
+impl GroupDataGrant {
+    /// Create a new `GroupDataGrant` decoder from the base TSBK decoder.
+    pub fn new(tsbk: TSBKFields) -> Self { GroupDataGrant(tsbk.0) }
+
+    /// Options requested/granted for the traffic channel.
+    pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
+    /// Parameters for tuning to the traffic channel.
+    pub fn channel(&self) -> Channel { Channel::new(&self.0[3...4]) }
+    /// Talkgroup assigned to the channel.
+    pub fn talkgroup(&self) -> TalkGroup { TalkGroup::new(&self.0[5...6]) }
+    /// Originating unit for the data traffic.
+    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7...9]) }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -797,5 +814,35 @@ mod test {
         assert_eq!(g.channel().number(), 0b010100110100);
         assert_eq!(g.call_timer(), 200);
         assert_eq!(g.unit(), 0b111111000111111000000011);
+    }
+
+    #[test]
+    fn test_group_data_grant() {
+        let t = TSBKFields::new([
+            0b00010001,
+            0b00000000,
+            0b10100011,
+            0b10010111,
+            0b11111100,
+            0b11110000,
+            0b10001001,
+            0b11100011,
+            0b01000100,
+            0b11101010,
+            0b00000000,
+            0b00000000,
+        ]);
+        assert_eq!(t.opcode(), Some(TSBKOpcode::GroupDataGrant));
+        let g = GroupDataGrant::new(t);
+        let o = g.opts();
+        assert!(o.emergency());
+        assert!(!o.protected());
+        assert!(o.full_duplex());
+        assert!(!o.packet_switched());
+        assert_eq!(o.prio(), 0b011);
+        assert_eq!(g.channel().id(), 0b1001);
+        assert_eq!(g.channel().number(), 0b011111111100);
+        assert_eq!(g.talkgroup(), TalkGroup::Other(0b1111000010001001));
+        assert_eq!(g.src_unit(), 0b111000110100010011101010);
     }
 }
