@@ -288,13 +288,18 @@ impl GroupVoiceGrant {
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
+/// Indicates a pair of units have been granted a voice traffic channel.
 pub struct UnitVoiceGrant(Buf);
 
 impl UnitVoiceGrant {
+    /// Create a new `UnitVoiceGrant` decoder from the base TSBK decoder.
     pub fn new(tsbk: TSBKFields) -> Self { UnitVoiceGrant(tsbk.0) }
 
+    /// Parameters for tuning to the traffic channel.
     pub fn channel(&self) -> Channel { Channel::new(&self.0[2..]) }
+    /// Destination unit of the call.
     pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[4..]) }
+    /// Originating unit of the call.
     pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..]) }
 }
 
