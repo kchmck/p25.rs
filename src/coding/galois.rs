@@ -385,13 +385,11 @@ impl<P: PolynomialCoefs> Polynomial<P> {
     /// Take the derivative of the polynomial.
     pub fn deriv(mut self) -> Polynomial<P> {
         for i in self.start..self.coefs.len() {
-            if (i - self.start) % 2 == 0 {
-                if let Some(&coef) = self.coefs.get(i + 1) {
-                    self.coefs[i] = coef
-                }
+            self.coefs[i] = if (i - self.start) % 2 == 0 {
+                self.get(i + 1)
             } else {
-                self.coefs[i] = P25Codeword::default();
-            }
+                P25Codeword::default()
+            };
         }
 
         self
@@ -481,6 +479,24 @@ mod test {
     }
 
     type TestPolynomial = Polynomial<TestCoefs>;
+
+    #[derive(Copy, Clone, Default)]
+    struct ShortCoefs([P25Codeword; 5]);
+
+    impl std::ops::Deref for ShortCoefs {
+        type Target = [P25Codeword];
+        fn deref(&self) -> &Self::Target { &self.0[..] }
+    }
+
+    impl std::ops::DerefMut for ShortCoefs {
+        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
+    }
+
+    impl PolynomialCoefs for ShortCoefs {
+        fn distance() -> usize { 3 }
+    }
+
+    type ShortPolynomial = Polynomial<ShortCoefs>;
 
     #[test]
     fn test_coefs() {
@@ -653,7 +669,7 @@ mod test {
     }
 
     #[test]
-    fn test_prime() {
+    fn test_deriv() {
         let p = TestPolynomial::new([
             P25Codeword::for_power(0),
             P25Codeword::for_power(3),
@@ -668,7 +684,7 @@ mod test {
 
         let p = TestPolynomial::new([
             P25Codeword::for_power(0),
-            P25Codeword::for_power(0),
+            P25Codeword::for_power(5),
             P25Codeword::for_power(3),
             P25Codeword::for_power(58),
         ].into_iter().cloned());
@@ -678,5 +694,116 @@ mod test {
         assert!(q.coef(0) == P25Codeword::for_power(3));
         assert!(q.coef(1) == P25Codeword::default());
         assert!(q.coef(2) == P25Codeword::default());
+
+        let p = TestPolynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+        ].into_iter().cloned()).deriv();
+
+        assert!(p.coef(0) == P25Codeword::for_power(5));
+        assert!(p.coef(1) == P25Codeword::default());
+        assert!(p.coef(2) == P25Codeword::for_power(58));
+        assert!(p.coef(3) == P25Codeword::default());
+        assert!(p.coef(4) == P25Codeword::default());
+
+        let p = TestPolynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+            P25Codeword::for_power(43),
+        ].into_iter().cloned()).deriv();
+
+        assert!(p.coef(0) == P25Codeword::for_power(5));
+        assert!(p.coef(1) == P25Codeword::default());
+        assert!(p.coef(2) == P25Codeword::for_power(58));
+        assert!(p.coef(3) == P25Codeword::default());
+        assert!(p.coef(4) == P25Codeword::default());
+        assert!(p.coef(5) == P25Codeword::default());
+
+        let p = TestPolynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+            P25Codeword::for_power(43),
+            P25Codeword::for_power(15),
+        ].into_iter().cloned()).deriv();
+
+        assert!(p.coef(0) == P25Codeword::for_power(5));
+        assert!(p.coef(1) == P25Codeword::default());
+        assert!(p.coef(2) == P25Codeword::for_power(58));
+        assert!(p.coef(3) == P25Codeword::default());
+        assert!(p.coef(4) == P25Codeword::for_power(15));
+        assert!(p.coef(5) == P25Codeword::default());
+
+        let p = ShortPolynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+            P25Codeword::for_power(43),
+        ].into_iter().cloned()).deriv();
+
+        assert!(p.coef(0) == P25Codeword::for_power(5));
+        assert!(p.coef(1) == P25Codeword::default());
+        assert!(p.coef(2) == P25Codeword::for_power(58));
+        assert!(p.coef(3) == P25Codeword::default());
+        assert!(p.coef(4) == P25Codeword::default());
+
+        let p = TestPolynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+            P25Codeword::for_power(43),
+            P25Codeword::for_power(15),
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+            P25Codeword::for_power(43),
+            P25Codeword::for_power(15),
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+            P25Codeword::for_power(43),
+            P25Codeword::for_power(15),
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+            P25Codeword::for_power(43),
+            P25Codeword::for_power(15),
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(58),
+        ].into_iter().cloned()).deriv();
+
+        assert!(p.coef(0) == P25Codeword::for_power(5));
+        assert!(p.coef(1) == P25Codeword::default());
+        assert!(p.coef(2) == P25Codeword::for_power(58));
+        assert!(p.coef(3) == P25Codeword::default());
+        assert!(p.coef(4) == P25Codeword::for_power(15));
+        assert!(p.coef(5) == P25Codeword::default());
+        assert!(p.coef(6) == P25Codeword::for_power(3));
+        assert!(p.coef(7) == P25Codeword::default());
+        assert!(p.coef(8) == P25Codeword::for_power(43));
+        assert!(p.coef(9) == P25Codeword::default());
+        assert!(p.coef(10) == P25Codeword::for_power(5));
+        assert!(p.coef(11) == P25Codeword::default());
+        assert!(p.coef(12) == P25Codeword::for_power(58));
+        assert!(p.coef(13) == P25Codeword::default());
+        assert!(p.coef(14) == P25Codeword::for_power(15));
+        assert!(p.coef(15) == P25Codeword::default());
+        assert!(p.coef(16) == P25Codeword::for_power(3));
+        assert!(p.coef(17) == P25Codeword::default());
+        assert!(p.coef(18) == P25Codeword::for_power(43));
+        assert!(p.coef(19) == P25Codeword::default());
+        assert!(p.coef(20) == P25Codeword::for_power(5));
+        assert!(p.coef(21) == P25Codeword::default());
+        assert!(p.coef(22) == P25Codeword::for_power(58));
+        assert!(p.coef(23) == P25Codeword::default());
+        assert!(p.coef(24) == P25Codeword::default());
     }
 }
