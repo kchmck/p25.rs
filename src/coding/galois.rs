@@ -207,7 +207,7 @@ impl<F: GaloisField> Codeword<F> {
     pub fn invert(self) -> Codeword<F> {
         match self.power() {
             Some(p) => Codeword::for_power(F::size() - p),
-            None => panic!("divide by zero"),
+            None => panic!("invert zero"),
         }
     }
 
