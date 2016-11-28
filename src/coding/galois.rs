@@ -316,7 +316,10 @@ impl<P: PolynomialCoefs> Polynomial<P> {
     pub fn new<T: Iterator<Item = P25Codeword>>(mut init: T) -> Self {
         // Start with all zero coefficients and add in the given ones.
         let mut coefs = P::default();
-        init.collect_slice(&mut coefs[..]);
+        (&mut init).collect_slice(&mut coefs[..]);
+
+        // Verify caller wasn't expecting a longer polynomial.
+        assert!(init.next().is_none());
 
         Self::with_coefs(coefs)
     }
