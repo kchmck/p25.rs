@@ -111,16 +111,9 @@ pub struct Errors<P: PolynomialCoefs> {
 
 impl<P: PolynomialCoefs> Errors<P> {
     /// Construct a new `Errors` from the given error and syndrome polynomials.
-    pub fn new(mut errs: Polynomial<P>, syn: Polynomial<P>) -> Errors<P> {
+    pub fn new(errs: Polynomial<P>, syn: Polynomial<P>) -> Errors<P> {
         let deriv = errs.deriv();
         let vals = (errs * syn).truncate(P::syndromes());
-
-        for (pow, cur) in errs.iter_mut().enumerate() {
-            // Since the first call to `update_terms()` multiplies by `pow` and the
-            // coefficients should equal themselves on the first iteration, divide by
-            // `pow` here.
-            *cur = *cur / P25Codeword::for_power(pow)
-        }
 
         Errors {
             errs: errs,
@@ -159,9 +152,10 @@ impl<P: PolynomialCoefs> Iterator for Errors<P> {
                 None => return None,
             };
 
+            let eval = self.sum_terms();
             self.update_terms();
 
-            if self.sum_terms().zero() {
+            if eval.zero() {
                 let root = P25Codeword::for_power(pow);
                 let loc = root.invert();
 
