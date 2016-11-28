@@ -313,11 +313,24 @@ pub struct Polynomial<P: PolynomialCoefs> {
 impl<P: PolynomialCoefs> Polynomial<P> {
     /// Construct a new `Polynomial` from the given coefficients, so p(x) = coefs[0] +
     /// coefs[1]*x + ... + coefs[n]*x^n.
-    pub fn new<T: Iterator<Item = P25Codeword>>(mut init: T) -> Polynomial<P> {
+    pub fn new<T: Iterator<Item = P25Codeword>>(mut init: T) -> Self {
         // Start with all zero coefficients and add in the given ones.
         let mut coefs = P::default();
         init.collect_slice(&mut coefs[..]);
 
+        Self::with_coefs(coefs)
+    }
+
+    /// Construct a new `Polynomial` with the single term `p(x) = x^n`.
+    pub fn unit_power(n: usize) -> Self {
+        let mut coefs = P::default();
+        coefs[n] = Codeword::for_power(0);
+
+        Self::with_coefs(coefs)
+    }
+
+    /// Construct a new `Polynomial` with the given polynomials.
+    fn with_coefs(coefs: P) -> Self {
         Polynomial {
             coefs: coefs,
             start: 0,
@@ -805,5 +818,32 @@ mod test {
         assert!(p.coef(22) == P25Codeword::for_power(58));
         assert!(p.coef(23) == P25Codeword::default());
         assert!(p.coef(24) == P25Codeword::default());
+    }
+
+    #[test]
+    fn test_unit_power() {
+        let p = TestPolynomial::unit_power(0);
+        assert_eq!(p[0], Codeword::for_power(0));
+        assert_eq!(p.degree().unwrap(), 0);
+
+        let p = TestPolynomial::unit_power(2);
+        assert_eq!(p[0], Codeword::default());
+        assert_eq!(p[1], Codeword::default());
+        assert_eq!(p[2], Codeword::for_power(0));
+        assert_eq!(p.degree().unwrap(), 2);
+
+        let p = TestPolynomial::unit_power(10);
+        assert_eq!(p[0], Codeword::default());
+        assert_eq!(p[1], Codeword::default());
+        assert_eq!(p[2], Codeword::default());
+        assert_eq!(p[3], Codeword::default());
+        assert_eq!(p[4], Codeword::default());
+        assert_eq!(p[5], Codeword::default());
+        assert_eq!(p[6], Codeword::default());
+        assert_eq!(p[7], Codeword::default());
+        assert_eq!(p[8], Codeword::default());
+        assert_eq!(p[9], Codeword::default());
+        assert_eq!(p[10], Codeword::for_power(0));
+        assert_eq!(p.degree().unwrap(), 10);
     }
 }
