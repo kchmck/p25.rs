@@ -34,7 +34,7 @@ impl<P: PolynomialCoefs> BerlMasseyDecoder<P> {
 
         BerlMasseyDecoder {
             q_saved: syn,
-            q_cur: syn.shift(),
+            q_cur: Polynomial::new(syn.iter().skip(1).cloned()),
             p_saved: p,
             p_cur: p.shift(),
             deg_saved: 0,

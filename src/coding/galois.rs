@@ -595,8 +595,10 @@ mod test {
         }));
         assert!(p.eval(P25Codeword::for_power(1)) == 0b000111);
 
-        let p = p.shift();
-        assert!(p.eval(P25Codeword::for_power(1)) == 0b000011);
+        let p = TestPolynomial::new((0..2).map(|_| {
+            P25Codeword::for_power(0)
+        }));
+        assert_eq!(p.eval(P25Codeword::for_power(1)), 0b000011);
     }
 
     #[test]
@@ -624,7 +626,9 @@ mod test {
         assert!(p.degree().unwrap() == 22);
         assert!(p.constant() == P25Codeword::for_power(0));
 
-        let p = p.shift();
+        let p = TestPolynomial::new((1..23).map(|i| {
+            P25Codeword::for_power(i)
+        }));
         assert!(p.degree().unwrap() == 21);
         assert!(p.constant() == P25Codeword::for_power(1));
 
@@ -647,11 +651,11 @@ mod test {
             P25Codeword::for_power(i)
         }));
 
-        let q = TestPolynomial::new((3..26).map(|i| {
+        let q = TestPolynomial::new((4..26).map(|i| {
             P25Codeword::for_power(i)
         }));
 
-        let r = p + q.shift();
+        let r = p + q;
 
         assert!(r.coefs[0].zero());
         assert!(r.coefs[1].zero());
@@ -716,7 +720,7 @@ mod test {
         assert!(q.coefs[2] == P25Codeword::default());
 
         let p = TestPolynomial::new([
-            P25Codeword::for_power(0),
+            P25Codeword::default(),
             P25Codeword::for_power(5),
             P25Codeword::for_power(3),
             P25Codeword::for_power(58),
