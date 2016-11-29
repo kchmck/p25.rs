@@ -305,6 +305,8 @@ pub trait PolynomialCoefs: Default + Copy + Clone + std::ops::Deref<Target = [P2
     /// Verify the implementer is well-formed.
     fn validate(&self) {
         assert!(Self::distance() % 2 == 1);
+        assert!(Self::syndromes() + 1 == Self::distance());
+        assert!(self.len() >= Self::syndromes());
     }
 }
 
