@@ -253,7 +253,7 @@ impl DerefMut for LongCoefs {
 mod test {
     use super::*;
     use super::{MedCoefs, ShortCoefs, LongCoefs};
-    use coding::galois::{PolynomialCoefs};
+    use coding::galois::{PolynomialCoefs, P25Codeword, Polynomial};
     use bits::Hexbit;
     use collect_slice::CollectSlice;
 
@@ -262,6 +262,174 @@ mod test {
         ShortCoefs::default().validate();
         MedCoefs::default().validate();
         LongCoefs::default().validate();
+    }
+
+    #[test]
+    fn verify_short_gen() {
+        let p = Polynomial::<ShortCoefs>::new([
+            P25Codeword::for_power(1),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(2),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(4),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(6),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(7),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(8),
+            P25Codeword::for_power(0),
+        ].iter().cloned());
+
+        assert_eq!(p.degree().unwrap(), 8);
+        assert_eq!(p.coef(0).bits(), 0o26);
+        assert_eq!(p.coef(1).bits(), 0o06);
+        assert_eq!(p.coef(2).bits(), 0o24);
+        assert_eq!(p.coef(3).bits(), 0o57);
+        assert_eq!(p.coef(4).bits(), 0o60);
+        assert_eq!(p.coef(5).bits(), 0o45);
+        assert_eq!(p.coef(6).bits(), 0o75);
+        assert_eq!(p.coef(7).bits(), 0o67);
+        assert_eq!(p.coef(8).bits(), 0o01);
+    }
+
+    #[test]
+    fn verify_med_gen() {
+        let p = Polynomial::<MedCoefs>::new([
+            P25Codeword::for_power(1),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(2),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(4),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(6),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(7),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(8),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(9),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(10),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(11),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(12),
+            P25Codeword::for_power(0),
+        ].iter().cloned());
+
+        assert_eq!(p.degree().unwrap(), 12);
+        assert_eq!(p.coef(0).bits(), 0o50);
+        assert_eq!(p.coef(1).bits(), 0o41);
+        assert_eq!(p.coef(2).bits(), 0o02);
+        assert_eq!(p.coef(3).bits(), 0o74);
+        assert_eq!(p.coef(4).bits(), 0o11);
+        assert_eq!(p.coef(5).bits(), 0o60);
+        assert_eq!(p.coef(6).bits(), 0o34);
+        assert_eq!(p.coef(7).bits(), 0o71);
+        assert_eq!(p.coef(8).bits(), 0o03);
+        assert_eq!(p.coef(9).bits(), 0o55);
+        assert_eq!(p.coef(10).bits(), 0o05);
+        assert_eq!(p.coef(11).bits(), 0o71);
+        assert_eq!(p.coef(12).bits(), 0o01);
+    }
+
+    #[test]
+    fn verify_long_gen() {
+        let p = Polynomial::<LongCoefs>::new([
+            P25Codeword::for_power(1),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(2),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(3),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(4),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(5),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(6),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(7),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(8),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(9),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(10),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(11),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(12),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(13),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(14),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(15),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(16),
+            P25Codeword::for_power(0),
+        ].iter().cloned());
+
+        assert_eq!(p.degree().unwrap(), 16);
+        assert_eq!(p.coef(0).bits(), 0o60);
+        assert_eq!(p.coef(1).bits(), 0o73);
+        assert_eq!(p.coef(2).bits(), 0o46);
+        assert_eq!(p.coef(3).bits(), 0o51);
+        assert_eq!(p.coef(4).bits(), 0o73);
+        assert_eq!(p.coef(5).bits(), 0o05);
+        assert_eq!(p.coef(6).bits(), 0o42);
+        assert_eq!(p.coef(7).bits(), 0o64);
+        assert_eq!(p.coef(8).bits(), 0o33);
+        assert_eq!(p.coef(9).bits(), 0o22);
+        assert_eq!(p.coef(10).bits(), 0o27);
+        assert_eq!(p.coef(11).bits(), 0o21);
+        assert_eq!(p.coef(12).bits(), 0o23);
+        assert_eq!(p.coef(13).bits(), 0o02);
+        assert_eq!(p.coef(14).bits(), 0o35);
+        assert_eq!(p.coef(15).bits(), 0o34);
+        assert_eq!(p.coef(16).bits(), 0o01);
     }
 
     #[test]
