@@ -281,6 +281,15 @@ impl<F: GaloisField> std::cmp::PartialEq<u8> for Codeword<F> {
     }
 }
 
+impl<F: GaloisField> std::fmt::Debug for Codeword<F> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        match self.power() {
+            Some(p) => write!(fmt, "Codeword::for_power({})", p),
+            None => write!(fmt, "Codeword::default()"),
+        }
+    }
+}
+
 /// Wraps a static codeword array.
 pub trait PolynomialCoefs: Default + Copy + Clone + std::ops::Deref<Target = [P25Codeword]> +
     std::ops::DerefMut
@@ -470,6 +479,12 @@ impl<P: PolynomialCoefs> std::ops::Mul<Polynomial<P>> for Polynomial<P> {
         }
 
         out
+    }
+}
+
+impl<P: PolynomialCoefs> std::fmt::Debug for Polynomial<P> {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(fmt, "Polynomial({:?})", &self.coefs[..])
     }
 }
 
