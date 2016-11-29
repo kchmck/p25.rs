@@ -373,6 +373,8 @@ impl<P: PolynomialCoefs> Polynomial<P> {
     /// replace the shifted coefficient with the zero codeword. There must be no constant
     /// term.
     pub fn shift(mut self) -> Polynomial<P> {
+        assert!(self.constant().zero());
+
         self.coefs[self.start] = P25Codeword::default();
         self.start += 1;
         self
