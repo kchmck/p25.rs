@@ -32,8 +32,9 @@ impl<P: PolynomialCoefs> BerlMasseyDecoder<P> {
         let p = Polynomial::unit_power(P::syndromes() + 1);
 
         BerlMasseyDecoder {
-            q_saved: syn,
-            q_cur: Polynomial::new(syn.iter().skip(1).cloned()),
+            q_saved: Polynomial::new(std::iter::once(P25Codeword::for_power(0))
+                .chain(syn.iter().take(P::syndromes()).cloned())),
+            q_cur: syn,
             p_saved: p,
             p_cur: p.shift(),
             deg_saved: 0,
@@ -112,7 +113,7 @@ impl<P: PolynomialCoefs> Errors<P> {
     /// Construct a new `Errors` from the given error and syndrome polynomials.
     pub fn new(errs: Polynomial<P>, syn: Polynomial<P>) -> Errors<P> {
         let deriv = errs.deriv();
-        let vals = (errs * syn).truncate(P::syndromes());
+        let vals = (errs * syn).truncate(P::syndromes() - 1);
 
         Errors {
             errs: errs,
@@ -136,8 +137,8 @@ impl<P: PolynomialCoefs> Errors<P> {
     }
 
     /// Determine the error value for the given error location/root.
-    fn value(&self, loc: P25Codeword, root: P25Codeword) -> P25Codeword {
-        self.vals.eval(root) / self.deriv.eval(root) * loc
+    fn value(&self, root: P25Codeword) -> P25Codeword {
+        self.vals.eval(root) / self.deriv.eval(root)
     }
 }
 
@@ -158,7 +159,7 @@ impl<P: PolynomialCoefs> Iterator for Errors<P> {
                 let root = P25Codeword::for_power(pow);
                 let loc = root.invert();
 
-                return Some((loc.power().unwrap(), self.value(loc, root)));
+                return Some((loc.power().unwrap(), self.value(root)));
             }
         }
     }

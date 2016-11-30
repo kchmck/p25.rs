@@ -121,17 +121,15 @@ type BCHDecoder = bmcf::BerlMasseyDecoder<BCHCoefs>;
 
 /// Generate the syndrome polynomial for the given received word.
 fn syndromes(word: u64) -> BCHPolynomial {
-    BCHPolynomial::new(std::iter::once(P25Codeword::for_power(0))
-        .chain((1..BCHCoefs::distance()).map(|pow| {
-            (0..P25Field::size()).fold(P25Codeword::default(), |s, b| {
-                if word >> b & 1 == 0 {
-                    s
-                } else {
-                    s + P25Codeword::for_power(b * pow)
-                }
-            })
-        }))
-    )
+    BCHPolynomial::new((1..BCHCoefs::distance()).map(|pow| {
+        (0..P25Field::size()).fold(P25Codeword::default(), |s, b| {
+            if word >> b & 1 == 0 {
+                s
+            } else {
+                s + P25Codeword::for_power(b * pow)
+            }
+        })
+    }))
 }
 
 #[cfg(test)]
@@ -162,9 +160,8 @@ mod test {
         let p = syndromes(w);
 
         assert_eq!(p.len(), 24);
-        assert_eq!(p.degree().unwrap(), 0);
-        assert_eq!(syndromes(w ^ 1<<60).degree().unwrap(), 22);
-        assert!(p[0] == P25Codeword::for_power(0));
+        assert_eq!(p.degree(), None);
+        assert_eq!(syndromes(w ^ 1<<60).degree().unwrap(), 21);
     }
 
     #[test]

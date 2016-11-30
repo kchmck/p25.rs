@@ -173,11 +173,9 @@ fn decode<P: PolynomialCoefs>(word: &[Hexbit]) -> Option<(Polynomial<P>, usize)>
 
 /// Calculate the syndrome polynomial for the given word.
 fn syndromes<P: PolynomialCoefs>(word: &Polynomial<P>) -> Polynomial<P> {
-    Polynomial::new(std::iter::once(P25Codeword::for_power(0))
-        .chain((1...P::syndromes()).map(|pow| {
-            word.eval(P25Codeword::for_power(pow))
-        }))
-    )
+    Polynomial::new((1...P::syndromes()).map(|pow| {
+        word.eval(P25Codeword::for_power(pow))
+    }))
 }
 
 /// Copy the data symbols in the given polynomial to the destination as bytes.
