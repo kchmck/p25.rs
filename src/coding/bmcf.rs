@@ -29,8 +29,7 @@ impl<P: PolynomialCoefs> BerlMasseyDecoder<P> {
     /// Construct a new `BerlMasseyDecoder` from the given syndrome polynomial.
     pub fn new(syn: Polynomial<P>) -> BerlMasseyDecoder<P> {
         // 2t zeroes followed by a one.
-        let p = Polynomial::new((0..P::syndromes()+1).map(|_| P25Codeword::default())
-                                    .chain(std::iter::once(P25Codeword::for_power(0))));
+        let p = Polynomial::unit_power(P::syndromes() + 1);
 
         BerlMasseyDecoder {
             q_saved: syn,
