@@ -150,17 +150,19 @@ impl GaloisField for P25Field {
     }
 }
 
+/// Codeword in the P25 Galois field.
 pub type P25Codeword = Codeword<P25Field>;
 
 pub trait GaloisField {
     /// Number of unique codewords in the field.
     fn size() -> usize;
-    /// Maps the given i in α^i to its codeword.
+    /// Map the given power i to codeword α<sup>i</sup>.
     fn codeword(pow: usize) -> u8;
-    /// Maps the given codeword to i in α^i.
+    /// Map the given codeword a<sup>i</sup> to its power i.
     fn power(codeword: usize) -> usize;
 
-    /// Maps the given i in α^i, modulo the size of the field, to its codeword.
+    /// Map the given power i to codeword α<sup>m</sup> ≡ α<sup>i</sup> (modulo the size
+    /// of the field.)
     fn codeword_modded(pow: usize) -> u8 {
         Self::codeword(pow % Self::size())
     }
