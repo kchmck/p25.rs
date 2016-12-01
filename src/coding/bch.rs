@@ -100,21 +100,8 @@ const GEN: &'static [u16] = &[
     0b0000000000000011,
 ];
 
-#[derive(Copy, Clone, Default)]
-struct BCHCoefs([P25Codeword; 22 + 2]);
-
-impl std::ops::Deref for BCHCoefs {
-    type Target = [P25Codeword];
-    fn deref(&self) -> &Self::Target { &self.0[..] }
-}
-
-impl std::ops::DerefMut for BCHCoefs {
-    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
-}
-
-impl PolynomialCoefs for BCHCoefs {
-    fn distance() -> usize { 23 }
-}
+/// Polynomial coefficients for BCH decoding.
+impl_polynomial_coefs!(BCHCoefs, 23);
 
 type BCHPolynomial = Polynomial<BCHCoefs>;
 type BCHDecoder = bmcf::BerlMasseyDecoder<BCHCoefs>;

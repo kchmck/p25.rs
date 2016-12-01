@@ -339,6 +339,46 @@ pub trait PolynomialCoefs: Default + Copy + Clone +
     }
 }
 
+/// Create a coefficient storage buffer for the code of given distance. In the first form,
+/// the polynomial is large enough to store the Berlekamp-Massey decoding polynomials. In
+/// the second form, the polynomial has the given size.
+macro_rules! impl_polynomial_coefs {
+    ($name:ident, $dist:expr) => {
+        impl_polynomial_coefs!($name, $dist, $dist + 1);
+    };
+    ($name:ident, $dist:expr, $len:expr) => {
+        #[derive(Copy)]
+        struct $name([P25Codeword; $len]);
+
+        impl PolynomialCoefs for $name {
+            fn distance() -> usize { $dist }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                $name([P25Codeword::default(); $len])
+            }
+        }
+
+        impl Clone for $name {
+            fn clone(&self) -> Self {
+                let mut coefs = [P25Codeword::default(); $len];
+                coefs.copy_from_slice(&self.0[..]);
+                $name(coefs)
+            }
+        }
+
+        impl std::ops::Deref for $name {
+            type Target = [P25Codeword];
+            fn deref(&self) -> &Self::Target { &self.0[..] }
+        }
+
+        impl std::ops::DerefMut for $name {
+            fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
+        }
+    };
+}
+
 /// Polynomial with P25's GF(2<sup>6</sup>) codewords as coefficients.
 #[derive(Copy, Clone)]
 pub struct Polynomial<P: PolynomialCoefs> {
