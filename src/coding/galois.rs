@@ -1,15 +1,21 @@
+//! Galois field arithmetic for codewords and polynomials.
+
 use std;
 
 use collect_slice::CollectSlice;
 
-/// GF(2^6) field characterized by α^6+α+1, as described in P25 specification.
+/// GF(2<sup>6</sup>) field characterized by α<sup>6</sup>+α+1, as described in the P25
+/// specification.
 #[derive(Copy, Clone, Debug)]
 pub struct P25Field;
 
 impl GaloisField for P25Field {
     fn size() -> usize { 63 }
+    fn valid_codeword(bits: u8) -> bool { bits >> 6 == 0 }
 
     fn codeword(pow: usize) -> u8 {
+        // Each codeword α^i represents the polynomial x^i mod h(x), where P25 uses h(x) =
+        // x^6 + x + 1.
         const CODEWORDS: [u8; 63] = [
             0b000001,
             0b000010,
@@ -153,9 +159,12 @@ impl GaloisField for P25Field {
 /// Codeword in the P25 Galois field.
 pub type P25Codeword = Codeword<P25Field>;
 
+/// A GF(2<sup>r</sup>) Galois field.
 pub trait GaloisField {
-    /// Number of unique codewords in the field.
+    /// Number of unique codewords in the field: 2<sup>r</sup> - 1.
     fn size() -> usize;
+    /// Check if the given bit pattern is a valid codeword in the field.
+    fn valid_codeword(bits: u8) -> bool;
     /// Map the given power i to codeword α<sup>i</sup>.
     fn codeword(pow: usize) -> u8;
     /// Map the given codeword a<sup>i</sup> to its power i.
@@ -168,7 +177,7 @@ pub trait GaloisField {
     }
 }
 
-/// Codeword in the associated field.
+/// Codeword in a Galois field.
 #[derive(Copy, Clone)]
 pub struct Codeword<F: GaloisField> {
     field: std::marker::PhantomData<F>,
@@ -176,21 +185,31 @@ pub struct Codeword<F: GaloisField> {
 }
 
 impl<F: GaloisField> Codeword<F> {
-    /// Construct a new `Codeword` with the given (valid) codeword in the field.
-    pub fn new(codeword: u8) -> Codeword<F> {
+    /// Construct a new `Codeword` α<sup>i</sup> from the given bit pattern. Panic if the
+    /// pattern is invalid in the field.
+    pub fn new(bits: u8) -> Codeword<F> {
+        assert!(F::valid_codeword(bits));
+
         Codeword {
             field: std::marker::PhantomData,
-            bits: codeword,
+            bits: bits,
         }
     }
 
-    /// Get the wrapped codeword bits.
+    /// Construct a new `Codeword` α<sup>m</sup> ≡ α<sup>i</sup> (modulo the field) for
+    /// the given power i.
+    pub fn for_power(power: usize) -> Codeword<F> {
+        Codeword::new(F::codeword_modded(power))
+    }
+
+    /// Retrieve the bit pattern of the codeword.
     pub fn bits(&self) -> u8 { self.bits }
 
     /// Check if the codeword is zero.
     pub fn zero(&self) -> bool { self.bits == 0 }
 
-    /// Return `Some(i)` if the codeword is equal to α^i and `None` if it's equal to zero.
+    /// Retrieve the power i of the current codeword α<sup>i</sup>. Return `Some(i)` if
+    /// the power is defined and `None` if the codeword is zero.
     pub fn power(&self) -> Option<usize> {
         if self.zero() {
             None
@@ -200,12 +219,8 @@ impl<F: GaloisField> Codeword<F> {
         }
     }
 
-    /// Return the codeword for the given power, which is cyclic in the field.
-    pub fn for_power(power: usize) -> Codeword<F> {
-        Codeword::new(F::codeword_modded(power))
-    }
-
-    /// Find 1/a^i for the codeword equal to a^i. Panic if the codeword is zero.
+    /// Find 1/α<sup>i</sup> for the current codeword α<sup>i</sup>. Panic if the codeword
+    /// is zero.
     pub fn invert(self) -> Codeword<F> {
         match self.power() {
             Some(p) => Codeword::for_power(F::size() - p),
@@ -213,7 +228,8 @@ impl<F: GaloisField> Codeword<F> {
         }
     }
 
-    /// Raise codeword to the given power.
+    /// Compute (α<sup>i</sup>)<sup>p</sup> for the current codeword α<sup>i</sup> and
+    /// given power p.
     pub fn pow(&self, pow: usize) -> Codeword<F> {
         match self.power() {
             Some(p) => Codeword::for_power(p * pow),
@@ -223,12 +239,31 @@ impl<F: GaloisField> Codeword<F> {
 }
 
 impl<F: GaloisField> Default for Codeword<F> {
-    /// Get the additive identity codeword.
+    /// Construct the additive identity codeword α<sup>0</sup> = 1.
     fn default() -> Self {
         Codeword::new(0)
     }
 }
 
+/// Add codewords using Galois addition.
+impl<F: GaloisField> std::ops::Add for Codeword<F> {
+    type Output = Codeword<F>;
+
+    fn add(self, rhs: Codeword<F>) -> Self::Output {
+        Codeword::new(self.bits ^ rhs.bits)
+    }
+}
+
+/// "Subtract" codewords, which is equivalent to addition.
+impl<F: GaloisField> std::ops::Sub for Codeword<F> {
+    type Output = Codeword<F>;
+
+    fn sub(self, rhs: Codeword<F>) -> Self::Output {
+        self + rhs
+    }
+}
+
+/// Mutiply codewords using Galois multiplication.
 impl<F: GaloisField> std::ops::Mul for Codeword<F> {
     type Output = Codeword<F>;
 
@@ -240,35 +275,21 @@ impl<F: GaloisField> std::ops::Mul for Codeword<F> {
     }
 }
 
+/// Divide codewords using Galois division. Panic if the divisor is zero.
 impl<F: GaloisField> std::ops::Div for Codeword<F> {
     type Output = Codeword<F>;
 
     fn div(self, rhs: Codeword<F>) -> Self::Output {
         match (self.power(), rhs.power()) {
-            // max(q) = 62 => 63-max(power) > 0
-            (Some(p), Some(q)) => Codeword::for_power(p + F::size() - q),
+            // Ensure non-negative power.
+            (Some(p), Some(q)) => Codeword::for_power(F::size() + p - q),
             (None, Some(_)) => Codeword::default(),
             (_, None) => panic!("divide by zero"),
         }
     }
 }
 
-impl<F: GaloisField> std::ops::Add for Codeword<F> {
-    type Output = Codeword<F>;
-
-    fn add(self, rhs: Codeword<F>) -> Self::Output {
-        Codeword::new(self.bits ^ rhs.bits)
-    }
-}
-
-impl<F: GaloisField> std::ops::Sub for Codeword<F> {
-    type Output = Codeword<F>;
-
-    fn sub(self, rhs: Codeword<F>) -> Self::Output {
-        self + rhs
-    }
-}
-
+/// Check equality of two codewords.
 impl<F: GaloisField> std::cmp::PartialEq for Codeword<F> {
     fn eq(&self, other: &Self) -> bool {
         self.bits == other.bits
@@ -277,6 +298,7 @@ impl<F: GaloisField> std::cmp::PartialEq for Codeword<F> {
 
 impl<F: GaloisField> std::cmp::Eq for Codeword<F> {}
 
+/// Check equality of the codeword's bit pattern with raw bits.
 impl<F: GaloisField> std::cmp::PartialEq<u8> for Codeword<F> {
     fn eq(&self, other: &u8) -> bool {
         self.bits == *other
@@ -292,27 +314,32 @@ impl<F: GaloisField> std::fmt::Debug for Codeword<F> {
     }
 }
 
-/// Wraps a static codeword array.
-pub trait PolynomialCoefs: Default + Copy + Clone + std::ops::Deref<Target = [P25Codeword]> +
-    std::ops::DerefMut
+/// Coefficient storage for a bounded-degree Galois polynomial of a particular code.
+pub trait PolynomialCoefs: Default + Copy + Clone +
+    std::ops::Deref<Target = [P25Codeword]> + std::ops::DerefMut
 {
-    /// The `d` Hamming distance in (n,k,d).
+    /// The minimum Hamming distance, d, in (n,k,d).
     fn distance() -> usize;
 
-    /// Maximum number of correctable errors: d=2t+1 => t = (d-1)/2 = floor(d/2)
-    fn errors() -> usize { Self::distance() / 2 }
-    /// Number of syndromes needed, degree of syndrome polynomial.
-    fn syndromes() -> usize { Self::errors() * 2 }
+    /// Maximum number of correctable errors: t.
+    fn errors() -> usize {
+        // Since d is odd, d = 2t+1 ⇒ t = (d-1)/2 = floor(d / 2)
+        Self::distance() / 2
+    }
+
+    /// Number of syndromes: 2t.
+    fn syndromes() -> usize { 2 * Self::errors() }
 
     /// Verify the implementer is well-formed.
     fn validate(&self) {
+        // Distance must be odd.
         assert!(Self::distance() % 2 == 1);
-        assert!(Self::syndromes() + 1 == Self::distance());
+        // Storage must at least be able to hold a full syndrome polynomial.
         assert!(self.len() >= Self::syndromes());
     }
 }
 
-/// A syndrome polynomial with GF(2^6) codewords as coefficients.
+/// Polynomial with P25's GF(2<sup>6</sup>) codewords as coefficients.
 #[derive(Copy, Clone)]
 pub struct Polynomial<P: PolynomialCoefs> {
     /// Coefficients of the polynomial. The maximum degree span in the algorithm is [0,
@@ -324,8 +351,11 @@ pub struct Polynomial<P: PolynomialCoefs> {
 }
 
 impl<P: PolynomialCoefs> Polynomial<P> {
-    /// Construct a new `Polynomial` from the given coefficients, so p(x) = coefs[0] +
-    /// coefs[1]*x + ... + coefs[n]*x^n.
+    /// Construct a new `Polynomial` from the given coefficients c<sub>0</sub>, ...,
+    /// c<sub>k</sub>.
+    ///
+    /// The resulting polynomial has the form p(x) = c<sub>0</sub> + c<sub>1</sub>x + ···
+    /// + c<sub>k</sub>x<sup>k</sup>.
     pub fn new<T: Iterator<Item = P25Codeword>>(mut init: T) -> Self {
         // Start with all zero coefficients and add in the given ones.
         let mut coefs = P::default();
@@ -337,7 +367,7 @@ impl<P: PolynomialCoefs> Polynomial<P> {
         Self::with_coefs(coefs)
     }
 
-    /// Construct a new `Polynomial` with the single term `p(x) = x^n`.
+    /// Construct a new `Polynomial` with the single term p(x) = x<sup>n</sup>.
     pub fn unit_power(n: usize) -> Self {
         let mut coefs = P::default();
         coefs[n] = Codeword::for_power(0);
@@ -353,13 +383,15 @@ impl<P: PolynomialCoefs> Polynomial<P> {
         }
     }
 
-    /// Get the degree-0 coefficient.
+    /// Retrieve the degree-0 coefficient, c<sub>0</sub>.
     pub fn constant(&self) -> P25Codeword {
         self.coefs[self.start]
     }
 
-    /// Return `Some(deg)`, where `deg` is the highest degree term in the polynomial, if
-    /// the polynomial is nonzero and `None` if it's zero.
+    /// Compute deg(p(x)), returned as `Some(deg)` if the polynomial is nonzero, or
+    /// `None` if p(x) = 0.
+    ///
+    /// Note this is a O(n) operation.
     pub fn degree(&self) -> Option<usize> {
         for (deg, coef) in self.coefs.iter().enumerate().rev() {
             if !coef.zero() {
@@ -371,9 +403,10 @@ impl<P: PolynomialCoefs> Polynomial<P> {
         None
     }
 
-    /// Divide the polynomial by x -- shift all coefficients to a lower degree -- and
-    /// replace the shifted coefficient with the zero codeword. There must be no constant
-    /// term.
+    /// Divide the polynomial by x -- shift all coefficients to a lower degree. Panic if
+    /// c<sub>0</sub> ≠ 0.
+    ///
+    /// This is a O(1) operation.
     pub fn shift(mut self) -> Polynomial<P> {
         assert!(self.constant().zero());
 
@@ -382,8 +415,8 @@ impl<P: PolynomialCoefs> Polynomial<P> {
         self
     }
 
-    /// Get the coefficient of the given absolute degree if it exists in the polynomial
-    /// or the zero codeword if it doesn't.
+    /// Retrieve the coefficient at the given absolute index into the storage buffer, or 0
+    /// if the index is out of bounds.
     fn get(&self, idx: usize) -> P25Codeword {
         match self.coefs.get(idx) {
             Some(&c) => c,
@@ -391,20 +424,23 @@ impl<P: PolynomialCoefs> Polynomial<P> {
         }
     }
 
-    /// Get the coefficient of the given degree or the zero codeword if the degree doesn't
-    /// exist in the polynomial.
-    pub fn coef(&self, deg: usize) -> P25Codeword {
-        self.get(self.start + deg)
+    /// Retrieve the coefficient c<sub>i</sub> associated with the x<sup>i</sup> term.
+    ///
+    /// If i > deg(p(x)), 0 is returned.
+    pub fn coef(&self, i: usize) -> P25Codeword {
+        self.get(self.start + i)
     }
 
-    /// Evaluate the polynomial, substituting in `x`.
+    /// Evaluate p(x), substituting in the given x.
     pub fn eval(&self, x: P25Codeword) -> P25Codeword {
         // This uses Horner's method which, unlike the naive method, doesn't require a
         // call to `pow()` at each term.
         self.iter().rev().fold(P25Codeword::default(), |s, &coef| s * x + coef)
     }
 
-    /// Truncate the polynomial to have no terms greater than the given degree.
+    /// Truncate the polynomial so that deg(p(x)) ≤ d, where d is the given degree.
+    ///
+    /// This is a O(n) operation.
     pub fn truncate(mut self, deg: usize) -> Polynomial<P> {
         for i in (self.start + deg + 1)..self.coefs.len() {
             self.coefs[i] = P25Codeword::default();
@@ -413,7 +449,7 @@ impl<P: PolynomialCoefs> Polynomial<P> {
         self
     }
 
-    /// Take the derivative of the polynomial.
+    /// Compute the formal derivative p'(x).
     pub fn deriv(mut self) -> Polynomial<P> {
         for i in self.start..self.coefs.len() {
             self.coefs[i] = if (i - self.start) % 2 == 0 {
@@ -428,11 +464,14 @@ impl<P: PolynomialCoefs> Polynomial<P> {
 }
 
 impl<P: PolynomialCoefs> Default for Polynomial<P> {
+    /// Construct an empty polynomial, p(x) = 0.
     fn default() -> Self {
         Polynomial::new(std::iter::empty())
     }
 }
 
+/// Provides a slice of coefficients starting at the degree-0 term, [c<sub>0</sub>,
+/// c<sub>1</sub>, ...].
 impl<P: PolynomialCoefs> std::ops::Deref for Polynomial<P> {
     type Target = [P25Codeword];
     fn deref(&self) -> &Self::Target { &self.coefs[self.start..] }
@@ -442,12 +481,14 @@ impl<P: PolynomialCoefs> std::ops::DerefMut for Polynomial<P> {
     fn deref_mut(&mut self) -> &mut Self::Target { &mut self.coefs[self.start..] }
 }
 
+/// Add polynomials using Galois addition for coefficients.
 impl<P: PolynomialCoefs> std::ops::Add for Polynomial<P> {
     type Output = Polynomial<P>;
 
     fn add(mut self, rhs: Polynomial<P>) -> Self::Output {
-        // Sum the coefficients and reset the degree-0 term back to index 0. Since start >
-        // 0 => start+i >= i, so there's no overwriting.
+        // Sum the coefficients and reset the degree-0 term back to index 0.
+        //
+        // Since start >= 0 => start+i >= i, so there's no overwriting.
         for i in 0..self.coefs.len() {
             self.coefs[i] = self.coef(i) + rhs.coef(i);
         }
@@ -457,6 +498,7 @@ impl<P: PolynomialCoefs> std::ops::Add for Polynomial<P> {
     }
 }
 
+/// Scale polynomial by a codeword.
 impl<P: PolynomialCoefs> std::ops::Mul<P25Codeword> for Polynomial<P> {
     type Output = Polynomial<P>;
 
@@ -469,6 +511,11 @@ impl<P: PolynomialCoefs> std::ops::Mul<P25Codeword> for Polynomial<P> {
     }
 }
 
+/// Multiply polynomials using Galois multiplication for coefficients.
+///
+/// Note that resulting terms outside the bounds of the polynomial are silently discarded,
+/// effectively computing p(x)q(x) mod x<sup>n+1</sup>, where n is the maximum degree
+/// supported by the polynomial.
 impl<P: PolynomialCoefs> std::ops::Mul<Polynomial<P>> for Polynomial<P> {
     type Output = Polynomial<P>;
 
