@@ -150,16 +150,11 @@ const PAR: [u32; 12] = [
 
 /// Try to correct errors in the given data bits using the given first-level syndrome.
 fn decode_syndrome(data: u16, s: u16) -> Option<(u16, usize)> {
-    if let Some((a, _)) = decode_parity(s, &CORE) {
-        return Some((data ^ a, a.count_ones() as usize));
-    }
-
-    if let Some((_, b)) = decode_parity(syndrome_12(s), &CORE_XPOSE) {
-        return Some((data ^ b, b.count_ones() as usize));
-    }
-
-    // More than 3 errors.
-    None
+    decode_parity(s, &CORE).map(|(a, _)| {
+        (data ^ a, a.count_ones() as usize)
+    }).or(decode_parity(syndrome_12(s), &CORE_XPOSE).map(|(_, b)| {
+        (data ^ b, b.count_ones() as usize)
+    }))
 }
 
 /// Try to find an error pattern for the given syndrome using the rows from the given
