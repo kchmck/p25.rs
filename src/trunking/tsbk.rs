@@ -46,7 +46,7 @@ impl TSBKReceiver {
             let mut dibits = [Dibit::default(); TSBK_DIBITS];
             let count = trellis::DibitDecoder::new(interleave::Deinterleaver::new(buf))
                 .filter_map(|x| x.ok())
-                .collect_slice(&mut dibits[..]);
+                .collect_slice_exhaust(&mut dibits[..]);
 
             (count, dibits)
         };
