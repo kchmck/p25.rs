@@ -328,7 +328,9 @@ impl<S, H, W, T> Iterator for ViterbiDecoder<S, H, W, T> where
     type Item = Result<S::Symbol, ()>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if !self.step() && self.remain == 0 {
+        // Stop on the symbol before last since the final symbol is always a dummy symbol
+        // used for flushing.
+        if !self.step() && self.remain == 1 {
             return None;
         }
 
@@ -484,6 +486,10 @@ mod test {
             dibits.push(lo);
         }
 
+        let (hi, lo) = fsm.finish();
+        dibits.push(hi);
+        dibits.push(lo);
+
         dibits[2] = Dibit::new(0b10);
         dibits[4] = Dibit::new(0b10);
 
@@ -517,6 +523,10 @@ mod test {
             dibits.push(hi);
             dibits.push(lo);
         }
+
+        let (hi, lo) = fsm.finish();
+        dibits.push(hi);
+        dibits.push(lo);
 
         dibits[6] = Dibit::new(0b10);
         dibits[4] = Dibit::new(0b10);
