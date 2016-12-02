@@ -334,8 +334,9 @@ pub trait PolynomialCoefs: Default + Copy + Clone +
     fn validate(&self) {
         // Distance must be odd.
         assert!(Self::distance() % 2 == 1);
-        // Storage must at least be able to hold a full syndrome polynomial.
-        assert!(self.len() >= Self::syndromes());
+        // Storage must at least be able to hold the polynomials used in the
+        // Berlekamp-Massey algorithm.
+        assert!(self.len() >= Self::syndromes() + 1);
     }
 }
 
