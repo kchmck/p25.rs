@@ -242,10 +242,7 @@ impl<R: Redirector> Iterator for Indexes<R> {
     type Item = usize;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.0.next() {
-            Some(idx) => Some(R::redirect(idx)),
-            None => None,
-        }
+        self.0.next().map(R::redirect)
     }
 }
 
@@ -271,10 +268,7 @@ impl Iterator for Interleaver {
     type Item = bits::Dibit;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.idx.next() {
-            Some(idx) => Some(self.dibits[idx]),
-            None => None
-        }
+        self.idx.next().map(|idx| self.dibits[idx])
     }
 }
 
@@ -296,10 +290,7 @@ impl<'a> Iterator for Deinterleaver<'a> {
     type Item = bits::Dibit;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.idx.next() {
-            Some(idx) => Some(self.dibits[idx]),
-            None => None,
-        }
+        self.idx.next().map(|idx| self.dibits[idx])
     }
 }
 
