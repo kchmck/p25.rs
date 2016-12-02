@@ -6,14 +6,17 @@
 //! that this code is shortened from a (17, 8, 5) code came from "Standard APCO25 Physical
 //! Layer of the Radio Transmission Chain", Simon, 2014.
 
-/// Encode the 8 data bits into a 16-bit codeword.
+/// Encode the given 8 data bits into a 16-bit codeword.
 pub fn encode(data: u8) -> u16 {
     matrix_mul_systematic!(data, GEN, u16)
 }
 
-/// Try to decode the 16-bit word to the nearest codeword, correcting up to 2 errors.
-/// Return `Some((data, err))`, where `data` are the 12 data bits and `err` is the number
-/// of errors corrected, on success and `None` on a detected unrecoverable error.
+/// Try to decode the given 16-bit word to the nearest codeword, correcting up to 2
+/// errors.
+///
+/// If decoding was successful, return `Some((data, err))`, where `data` is the 12 data
+/// bits and `err` is the number of corrected bits. Otherwise, return `None` to indicate
+/// an unrecoverable error.
 pub fn decode(word: u16) -> Option<(u8, usize)> {
     // Go through a full cycle of the codeword, so the data bits end up in their original
     // position. The word is expanded to 32 bits so it can be treated as the 17-bit word

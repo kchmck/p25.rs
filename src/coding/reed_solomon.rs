@@ -33,16 +33,19 @@ pub mod short {
         [0o47, 0o73, 0o66, 0o21, 0o50, 0o12, 0o70, 0o76, 0o76, 0o26, 0o05, 0o50],
     ];
 
-    /// Calculate the 12 parity hexbits for the 12 data hexbits.
+    /// Calculate the 12 parity hexbits for the first 12 data hexbits in the given buffer,
+    /// placing the parity hexbits at the end of the buffer.
     pub fn encode(buf: &mut [Hexbit; 24]) {
         let (data, parity) = buf.split_at_mut(12);
         super::encode(data, parity, GEN.iter().map(|r| &r[..]));
     }
 
-    /// Try to decode the 24-hexbit word to the nearest codeword, correcting up to 6
-    /// errors. Return `Some((data, err))`, where `data` are the 12 data hexbits and `err`
-    /// is the number of errors corrected, on success and `None` on an unrecoverable
-    /// error.
+    /// Try to decode the given 24-hexbit word to the nearest codeword, correcting up to 6
+    /// hexbit errors (up to 36 bit errors.)
+    ///
+    /// If decoding was successful, return `Some((data, err))`, where `data` is the 12
+    /// data hexbits and `err` is the number of corrected hexbits. Otherwise, return
+    /// `None` to indicate an unrecoverable error.
     pub fn decode(buf: &mut [Hexbit; 24]) -> Option<(&[Hexbit], usize)> {
         super::decode::<super::ShortCoefs>(buf).map(move |(poly, err)| {
             (super::extract_data(poly, &mut buf[..12]), err)
@@ -66,16 +69,19 @@ pub mod medium {
         [0o12, 0o15, 0o76, 0o11, 0o57, 0o54, 0o64, 0o61, 0o65, 0o77, 0o51, 0o36, 0o46, 0o64, 0o23, 0o26],
     ];
 
-    /// Calculate the 8 parity hexbits for the 16 data hexbits.
+    /// Calculate the 8 parity hexbits for the first 16 data hexbits in the given buffer,
+    /// placing the parity hexbits at the end of the buffer.
     pub fn encode(buf: &mut [Hexbit; 24]) {
         let (data, parity) = buf.split_at_mut(16);
         super::encode(data, parity, GEN.iter().map(|r| &r[..]));
     }
 
-    /// Try to decode the 24-hexbit word to the nearest codeword, correcting up to 4
-    /// errors. Return `Some((data, err))`, where `data` are the 16 data hexbits and `err`
-    /// is the number of errors corrected, on success and `None` on an unrecoverable
-    /// error.
+    /// Try to decode the given 24-hexbit word to the nearest codeword, correcting up to 4
+    /// hexbit errors (up to 24 bit errors.)
+    ///
+    /// If decoding was successful, return `Some((data, err))`, where `data` is the 16
+    /// data hexbits and `err` is the number of corrected hexbits. Otherwise, return
+    /// `None` to indicate an unrecoverable error.
     pub fn decode(buf: &mut [Hexbit; 24]) -> Option<(&[Hexbit], usize)> {
         super::decode::<super::MedCoefs>(buf).map(move |(poly, err)| {
             (super::extract_data(poly, &mut buf[..16]), err)
@@ -107,16 +113,19 @@ pub mod long {
         [0o05, 0o26, 0o62, 0o07, 0o21, 0o01, 0o27, 0o47, 0o63, 0o47, 0o22, 0o60, 0o72, 0o46, 0o33, 0o57, 0o06, 0o43, 0o33, 0o60],
     ];
 
-    /// Calculate the 16 parity hexbits for the 20 data hexbits.
+    /// Calculate the 16 parity hexbits for the first 20 data hexbits in the given buffer,
+    /// placing the parity hexbits at the end of the buffer.
     pub fn encode(buf: &mut [Hexbit; 36]) {
         let (data, parity) = buf.split_at_mut(20);
         super::encode(data, parity, GEN.iter().map(|r| &r[..]))
     }
 
-    /// Try to decode the 36-hexbit word to the nearest codeword, correcting up to 8
-    /// errors. Return `Some((data, err))`, where `data` are the 20 data hexbits and `err`
-    /// is the number of errors corrected, on success and `None` on an unrecoverable
-    /// error.
+    /// Try to decode the given 36-hexbit word to the nearest codeword, correcting up to 8
+    /// hexbit errors (up to 48 bit errors.)
+    ///
+    /// If decoding was successful, return `Some((data, err))`, where `data` is the 20
+    /// data hexbits and `err` is the number of corrected hexbits. Otherwise, return
+    /// `None` to indicate an unrecoverable error.
     pub fn decode(buf: &mut [Hexbit; 36]) -> Option<(&[Hexbit], usize)> {
         super::decode::<super::LongCoefs>(buf).map(move |(poly, err)| {
             (super::extract_data(poly, &mut buf[..20]), err)
@@ -139,6 +148,11 @@ fn encode<'g, G>(data: &[Hexbit], parity: &mut [Hexbit], gen: G)
 }
 
 /// Try to fix any errors in the given word.
+///
+/// On success, return `Some((poly, err))`, where `poly` is the polynomial representation
+/// of the corrected word (with the last data symbol as the degree-0 coefficient) and
+/// `err` is the number of corrected hexbit symbols. Otherwise, return `None` to indicate
+/// an unrecoverable error.
 fn decode<P: PolynomialCoefs>(word: &[Hexbit]) -> Option<(Polynomial<P>, usize)> {
     // In a received hexbit word, the least most significant hexbit symbol (the first data
     // symbol) maps to the highest degree.

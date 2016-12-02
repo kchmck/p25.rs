@@ -8,15 +8,18 @@
 pub mod standard {
     use super::HammingDecoder;
 
-    /// Encode the 11 bits of data to a 15-bit codeword.
+    /// Encode the given 11 bits of data into a 15-bit codeword.
     pub fn encode(data: u16) -> u16 {
         assert!(data >> 11 == 0);
         matrix_mul_systematic!(data, GEN, u16)
     }
 
-    /// Try to decode the 15-bit word to the nearest codeword, correcting up to 1 error.
-    /// Return `Some((data, err))`, where `data` are the 11 data bits and `err` is the
-    /// number of errors, on success and `None` on an unrecoverable error.
+    /// Try to decode the given 15-bit word to the nearest codeword, correcting up to 1
+    /// error.
+    ///
+    /// If decoding was successful, return `Some((data, err))`, where `data` is the 11
+    /// data bits and `err` is the number of corrected bits. Otherwise, return `None` to
+    /// indicate an unrecoverable error.
     pub fn decode(word: u16) -> Option<(u16, usize)> {
         assert!(word >> 15 == 0);
         StandardHamming::decode(word)
@@ -73,15 +76,18 @@ pub mod standard {
 pub mod shortened {
     use super::HammingDecoder;
 
-    /// Encode the 6 data bits to a 10-bit codeword.
+    /// Encode the given 6 data bits into a 10-bit codeword.
     pub fn encode(data: u8) -> u16 {
         assert!(data >> 6 == 0);
         matrix_mul_systematic!(data, GEN, u16)
     }
 
-    /// Try to decode the 10-bit word to the nearest codeword, correcting up to 1 error.
-    /// Return `Some((data, err))`, where `data` are the 6 data bits and `err` is the
-    /// number of errors, on success and `None` on an unrecoverable error.
+    /// Try to decode the given 10-bit word to the nearest codeword, correcting up to 1
+    /// error.
+    ///
+    /// If decoding was successful, return `Some((data, err))`, where `data` is the 6
+    /// data bits and `err` is the number of corrected bits. Otherwise, return `None` to
+    /// indicate an unrecoverable error.
     pub fn decode(word: u16) -> Option<(u8, usize)> {
         assert!(word >> 10 == 0);
         ShortHamming::decode(word)

@@ -6,16 +6,18 @@
 
 /// Encoding and decoding of the (23, 12, 7) code.
 pub mod standard {
-    /// Encode the 12 data bits into a 23-bit codeword.
+    /// Encode the given 12 data bits into a 23-bit codeword.
     pub fn encode(data: u16) -> u32 {
         assert!(data >> 12 == 0);
         matrix_mul_systematic!(data, super::CORE_SHORT, u32)
     }
 
-    /// Try to decode the 23-bit word to the nearest codeword, correcting up to 3 errors.
-    /// Return `Some((data, err))`, where `data` are the 12 data bits and `err` is the
-    /// number of errors corrected in the data bits, on success and `None` on an
-    /// unrecoverable error.
+    /// Try to decode the given 23-bit word to the nearest codeword, correcting up to 3
+    /// errors.
+    ///
+    /// If decoding was successful, return `Some((data, err))`, where `data` is the 12
+    /// data bits and `err` is the number of bits corrected in the data bits. Otherwise,
+    /// return `None` to indicate an unrecoverable error.
     pub fn decode(word: u32) -> Option<(u16, usize)> {
         assert!(word >> 23 == 0);
 
@@ -39,16 +41,18 @@ pub mod standard {
 
 /// Encoding and decoding of the (24, 12, 8) code.
 pub mod extended {
-    /// Encode the 12 data bits into a 24-bit codeword.
+    /// Encode the given 12 data bits into a 24-bit codeword.
     pub fn encode(data: u16) -> u32 {
         assert!(data >> 12 == 0);
         matrix_mul_systematic!(data, super::CORE, u32)
     }
 
-    /// Try to decode the 24-bit word to the nearest codeword, correcting up to 3 errors.
-    /// Return `Some((data, err))`, where `data` are the 12 data bits and `err` is the
-    /// number of errors corrected in the data bits, on success and `None` on an
-    /// unrecoverable error.
+    /// Try to decode the given  24-bit word to the nearest codeword, correcting up to 3
+    /// errors.
+    ///
+    /// If decoding was successful, return `Some((data, err))`, where `data` is the 12
+    /// data bits and `err` is the number of bits corrected in the data bits. Otherwise,
+    /// return `None` to indicate an unrecoverable error.
     pub fn decode(word: u32) -> Option<(u16, usize)> {
         assert!(word >> 24 == 0);
         super::decode_syndrome(super::word_data(word), super::syndrome_24(word))
@@ -59,16 +63,18 @@ pub mod extended {
 pub mod shortened {
     use super::extended;
 
-    /// Encode the 6 data bits to an 18-bit codeword.
+    /// Encode the given 6 data bits to an 18-bit codeword.
     pub fn encode(data: u8) -> u32 {
         assert!(data >> 6 == 0);
         extended::encode(data as u16)
     }
 
-    /// Try to decode the 18-bit word to the nearest codeword, correcting up to 3 errors.
-    /// Return `Some((data, err))`, where `data` are the 6 data bits and `err` is the
-    /// number of errors corrected in the data bits, on success and `None` on an
-    /// unrecoverable error.
+    /// Try to decode the given 18-bit word to the nearest codeword, correcting up to 3
+    /// errors.
+    ///
+    /// If decoding was successful, return `Some((data, err))`, where `data` is the 6
+    /// data bits and `err` is the number of bits corrected in the data bits. Otherwise,
+    /// return `None` to indicate an unrecoverable error.
     pub fn decode(word: u32) -> Option<(u8, usize)> {
         assert!(word >> 18 == 0);
 

@@ -8,14 +8,17 @@ use std;
 use coding::galois::{GaloisField, P25Field, P25Codeword, Polynomial, PolynomialCoefs};
 use coding::bmcf;
 
-/// Encode the 16 data bits into a 64-bit codeword.
+/// Encode the given 16 data bits into a 64-bit codeword.
 pub fn encode(word: u16) -> u64 {
     matrix_mul_systematic!(word, GEN, u64)
 }
 
-/// Try to decode the 64-bit word to the nearest codeword, correcting up to 11 errors.
-/// Return `Some((data, err))`, where `data` is the 16 data bits and `err` is the number
-/// of errors, if the codeword could be corrected and `None` if it couldn't.
+/// Try to decode the given 64-bit word to the nearest codeword, correcting up to 11
+/// bit errors.
+///
+/// If decoding was successful, return `Some((data, err))`, where `data` is the 16 data
+/// bits and `err` is the number of bits corrected. Otherwise, return `None` to indicate
+/// an unrecoverable error.
 pub fn decode(word: u64) -> Option<(u16, usize)> {
     // The BCH code is only over the first 63 bits, so strip off the P25 parity bit.
     let word = word >> 1;
