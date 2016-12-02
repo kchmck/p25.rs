@@ -14,7 +14,7 @@ pub type UnconfirmedHeader = Header<UnconfirmedFields>;
 
 /// Write some bytes into a buffer.
 pub trait BufWrite {
-    fn write<'a, 'b, T: Iterator<Item = &'a mut u8>>(&self, mut buf: &'b mut T);
+    fn write<'a, 'b, T: Iterator<Item = &'a mut u8>>(&self, buf: &'b mut T);
 }
 
 /// Field is only a single byte.
