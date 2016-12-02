@@ -559,10 +559,10 @@ impl<P: PolynomialCoefs> std::ops::Mul<Polynomial<P>> for Polynomial<P> {
     fn mul(self, rhs: Polynomial<P>) -> Self::Output {
         let mut out = Polynomial::<P>::default();
 
-        for (i, coef) in self.iter().enumerate() {
-            for (j, mult) in rhs.iter().enumerate() {
+        for (i, &coef) in self.iter().enumerate() {
+            for (j, &mult) in rhs.iter().enumerate() {
                 match out.coefs.get_mut(i + j) {
-                    Some(c) => *c = *c + *coef * *mult,
+                    Some(c) => *c = *c + coef * mult,
                     None => {},
                 }
             }
