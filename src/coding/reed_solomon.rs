@@ -44,10 +44,9 @@ pub mod short {
     /// is the number of errors corrected, on success and `None` on an unrecoverable
     /// error.
     pub fn decode(buf: &mut [Hexbit; 24]) -> Option<(&[Hexbit], usize)> {
-        match super::decode::<super::ShortCoefs>(buf) {
-            Some((poly, err)) => Some((super::copy_data(poly, &mut buf[..12]), err)),
-            None => None,
-        }
+        super::decode::<super::ShortCoefs>(buf).map(move |(poly, err)| {
+            (super::extract_data(poly, &mut buf[..12]), err)
+        })
     }
 }
 
@@ -78,10 +77,9 @@ pub mod medium {
     /// is the number of errors corrected, on success and `None` on an unrecoverable
     /// error.
     pub fn decode(buf: &mut [Hexbit; 24]) -> Option<(&[Hexbit], usize)> {
-        match super::decode::<super::MedCoefs>(buf) {
-            Some((poly, err)) => Some((super::copy_data(poly, &mut buf[..16]), err)),
-            None => None,
-        }
+        super::decode::<super::MedCoefs>(buf).map(move |(poly, err)| {
+            (super::extract_data(poly, &mut buf[..16]), err)
+        })
     }
 }
 
@@ -120,10 +118,9 @@ pub mod long {
     /// is the number of errors corrected, on success and `None` on an unrecoverable
     /// error.
     pub fn decode(buf: &mut [Hexbit; 36]) -> Option<(&[Hexbit], usize)> {
-        match super::decode::<super::LongCoefs>(buf) {
-            Some((poly, err)) => Some((super::copy_data(poly, &mut buf[..20]), err)),
-            None => None,
-        }
+        super::decode::<super::LongCoefs>(buf).map(move |(poly, err)| {
+            (super::extract_data(poly, &mut buf[..20]), err)
+        })
     }
 }
 
