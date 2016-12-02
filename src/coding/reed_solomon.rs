@@ -5,7 +5,6 @@
 //! Hankerson, Hoffman, et al, 2000.
 
 use std;
-use std::ops::{Deref, DerefMut};
 
 use collect_slice::CollectSlice;
 
@@ -154,42 +153,36 @@ fn encode<'g, G>(data: &[Hexbit], parity: &mut [Hexbit], gen: G)
 /// `err` is the number of corrected hexbit symbols. Otherwise, return `None` to indicate
 /// an unrecoverable error.
 fn decode<P: PolynomialCoefs>(word: &[Hexbit]) -> Option<(Polynomial<P>, usize)> {
-    // In a received hexbit word, the least most significant hexbit symbol (the first data
-    // symbol) maps to the highest degree.
-    let mut poly = Polynomial::<P>::new(word.iter().rev().map(|&b| {
+    // In the polynomial representation, the first received symbol corresponds to the
+    // coefficient of the highest-degree term.
+    let mut poly = Polynomial::new(word.iter().rev().map(|&b|
         P25Codeword::new(b.bits())
-    }));
+    ));
 
-    let syn = syndromes(&poly);
-    let dec = bmcf::BerlMasseyDecoder::new(syn).decode();
-    let errors = dec.degree().expect("invalid error polynomial");
-
-    let fixed = bmcf::Errors::new(dec, syn)
-        .take(errors)
-        .fold(0, |count, (loc, val)| {
+    bmcf::Errors::new(syndromes(&poly)).map(|(nerr, errs)| {
+        for (loc, pat) in errs {
             match poly.get_mut(loc) {
-                Some(coef) => *coef = *coef + val,
-                None => {},
+                Some(coef) => *coef = *coef + pat,
+                None => panic!("out of bounds correction"),
             }
+        }
 
-            count + 1
-        });
-
-    if fixed == errors {
-        Some((poly, fixed))
-    } else {
-        None
-    }
+        (poly, nerr)
+    })
 }
 
-/// Calculate the syndrome polynomial for the given word.
+/// Generate the syndrome polynomial s(x) from the given received word r(x).
+///
+/// The resulting polynomial has the form s(x) = s<sub>1</sub> + s<sub>2</sub>x + ··· +
+/// s<sub>2t</sub>x<sup>2t</sup>, where s<sub>i</sub> = r(α<sup>i</sup>).
 fn syndromes<P: PolynomialCoefs>(word: &Polynomial<P>) -> Polynomial<P> {
-    Polynomial::new((1...P::syndromes()).map(|pow| {
-        word.eval(P25Codeword::for_power(pow))
+    Polynomial::new((1...P::syndromes()).map(|p| {
+        // Compute r(α^p).
+        word.eval(P25Codeword::for_power(p))
     }))
 }
 
-/// Extract the data symbols from the given word in polynomial form and write them to the
+/// Extract the data symbols from the given polynomial-form word and write them to the
 /// given slice.
 fn extract_data<P>(poly: Polynomial<P>, data: &mut [Hexbit]) -> &[Hexbit]
     where P: PolynomialCoefs
@@ -199,67 +192,13 @@ fn extract_data<P>(poly: Polynomial<P>, data: &mut [Hexbit]) -> &[Hexbit]
 }
 
 /// Polynomial coefficients for the short code.
-#[derive(Copy, Clone, Default)]
-struct ShortCoefs([P25Codeword; 24]);
-
-impl PolynomialCoefs for ShortCoefs {
-    fn distance() -> usize { 13 }
-}
-
-impl Deref for ShortCoefs {
-    type Target = [P25Codeword];
-    fn deref(&self) -> &Self::Target { &self.0[..] }
-}
-
-impl DerefMut for ShortCoefs {
-    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
-}
+impl_polynomial_coefs!(ShortCoefs, 13, 24);
 
 /// Polynomial coefficients for the medium code.
-#[derive(Copy, Clone, Default)]
-struct MedCoefs([P25Codeword; 24]);
-
-impl PolynomialCoefs for MedCoefs {
-    fn distance() -> usize { 9 }
-}
-
-impl Deref for MedCoefs {
-    type Target = [P25Codeword];
-    fn deref(&self) -> &Self::Target { &self.0[..] }
-}
-
-impl DerefMut for MedCoefs {
-    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
-}
+impl_polynomial_coefs!(MedCoefs, 9, 24);
 
 /// Polynomial coefficients for the long code.
-#[derive(Copy)]
-struct LongCoefs([P25Codeword; 36]);
-
-impl PolynomialCoefs for LongCoefs {
-    fn distance() -> usize { 17 }
-}
-
-impl Clone for LongCoefs {
-    fn clone(&self) -> Self {
-        let mut coefs = [P25Codeword::default(); 36];
-        coefs.copy_from_slice(&self.0[..]);
-        LongCoefs(coefs)
-    }
-}
-
-impl Default for LongCoefs {
-    fn default() -> LongCoefs { LongCoefs([P25Codeword::default(); 36]) }
-}
-
-impl Deref for LongCoefs {
-    type Target = [P25Codeword];
-    fn deref(&self) -> &Self::Target { &self.0[..] }
-}
-
-impl DerefMut for LongCoefs {
-    fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
-}
+impl_polynomial_coefs!(LongCoefs, 17, 36);
 
 #[cfg(test)]
 mod test {
@@ -461,18 +400,9 @@ mod test {
 
         let dec = short::decode(&mut buf);
         let exp = [
-           Hexbit::new(1),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
+           Hexbit::new(1), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+           Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+           Hexbit::new(0), Hexbit::new(0),
         ];
 
         assert_eq!(dec, Some((&exp[..], 6)));
@@ -493,21 +423,9 @@ mod test {
 
         let dec = medium::decode(&mut buf);
         let exp = [
-           Hexbit::new(1),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
+           Hexbit::new(1), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+           Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+           Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
            Hexbit::new(0),
         ];
 
@@ -516,6 +434,7 @@ mod test {
 
     #[test]
     fn test_decode_long() {
+        // Test random error locations.
         let mut buf = [Hexbit::default(); 36];
         [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].iter()
             .map(|&b| Hexbit::new(b)).collect_slice(&mut buf[..]);
@@ -533,28 +452,171 @@ mod test {
 
         let dec = long::decode(&mut buf);
         let exp = [
-           Hexbit::new(1),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
-           Hexbit::new(0),
+           Hexbit::new(1), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+           Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+           Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+           Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
         ];
 
         assert_eq!(dec, Some((&exp[..], 8)));
+
+        let exp = [
+           Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77),
+           Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77),
+           Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77),
+           Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77), Hexbit::new(0o77),
+        ];
+
+        // Test 6-bit error in each location.
+        for i in 0..36 {
+            let mut buf = [Hexbit::default(); 36];
+            [0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77,
+             0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77].iter().cloned()
+                .map(Hexbit::new).collect_slice(&mut buf[..]);
+            long::encode(&mut buf);
+
+            buf[i] = Hexbit::new(0);
+            let dec = long::decode(&mut buf);
+
+            assert_eq!(dec, Some((&exp[..], 1)));
+        }
+
+        // Test contiguous 48-bit error.
+        for i in 0..29 {
+            let mut buf = [Hexbit::default(); 36];
+            [0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77,
+             0o77, 0o77, 0o77, 0o77, 0o77, 0o77, 0o77].iter().cloned()
+                .map(Hexbit::new).collect_slice(&mut buf[..]);
+            long::encode(&mut buf);
+
+            buf[i] = Hexbit::new(0);
+            buf[i+1] = Hexbit::new(0);
+            buf[i+2] = Hexbit::new(0);
+            buf[i+3] = Hexbit::new(0);
+            buf[i+4] = Hexbit::new(0);
+            buf[i+5] = Hexbit::new(0);
+            buf[i+6] = Hexbit::new(0);
+            buf[i+7] = Hexbit::new(0);
+            let dec = long::decode(&mut buf);
+
+            assert_eq!(dec, Some((&exp[..], 8)));
+        }
+    }
+
+    #[test]
+    fn test_unrecoverable() {
+        // These unrecoverable received words caused divide-by-zero errors due to
+        // detectable discrepancy between the degree of the error locator polynomial and
+        // the number of roots found.
+
+        let mut w = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(8), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(6), Hexbit::new(46), Hexbit::new(28), Hexbit::new(27), Hexbit::new(63), Hexbit::new(38),
+            Hexbit::new(0), Hexbit::new(36), Hexbit::new(4), Hexbit::new(0), Hexbit::new(0), Hexbit::new(24),
+            Hexbit::new(0), Hexbit::new(27), Hexbit::new(47), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0)
+        ];
+        assert_eq!(long::decode(&mut w), None);
+
+        let mut w = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(8), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(3), Hexbit::new(28), Hexbit::new(0), Hexbit::new(0), Hexbit::new(29), Hexbit::new(4),
+            Hexbit::new(8), Hexbit::new(46), Hexbit::new(0), Hexbit::new(19), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(11), Hexbit::new(0), Hexbit::new(52), Hexbit::new(0), Hexbit::new(53), Hexbit::new(35), Hexbit::new(3)
+        ];
+        assert_eq!(long::decode(&mut w), None);
+
+        // More general unrecoverable words.
+
+        let mut w = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0),
+            Hexbit::new(4), Hexbit::new(51), Hexbit::new(0), Hexbit::new(33), Hexbit::new(39), Hexbit::new(34),
+            Hexbit::new(0), Hexbit::new(20), Hexbit::new(48), Hexbit::new(44), Hexbit::new(0), Hexbit::new(25), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(16), Hexbit::new(40), Hexbit::new(0), Hexbit::new(0), Hexbit::new(60),
+            Hexbit::new(51), Hexbit::new(38)
+        ];
+        assert_eq!(long::decode(&mut w), None);
+
+        let mut w = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(8),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(19),
+            Hexbit::new(39), Hexbit::new(0), Hexbit::new(11), Hexbit::new(12), Hexbit::new(0), Hexbit::new(0), Hexbit::new(33),
+            Hexbit::new(35), Hexbit::new(3), Hexbit::new(36), Hexbit::new(0), Hexbit::new(0), Hexbit::new(37), Hexbit::new(46),
+            Hexbit::new(0), Hexbit::new(20)
+        ];
+        assert_eq!(long::decode(&mut w), None);
+    }
+
+    #[test]
+    fn test_received_decode() {
+        // Just a few examples of received words that should be recoverable.
+
+        let mut w = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(8), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(13), Hexbit::new(21), Hexbit::new(46), Hexbit::new(4), Hexbit::new(22), Hexbit::new(12), Hexbit::new(9),
+            Hexbit::new(52), Hexbit::new(25), Hexbit::new(13), Hexbit::new(58), Hexbit::new(28), Hexbit::new(58), Hexbit::new(0),
+            Hexbit::new(51), Hexbit::new(62), Hexbit::new(41), Hexbit::new(34), Hexbit::new(22)
+        ];
+        let exp = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(8),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(13), Hexbit::new(21), Hexbit::new(46)
+        ];
+        assert_eq!(long::decode(&mut w), Some((&exp[..], 6)));
+
+        let mut w = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(8), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(3), Hexbit::new(18), Hexbit::new(63), Hexbit::new(14), Hexbit::new(62), Hexbit::new(37), Hexbit::new(37),
+            Hexbit::new(41), Hexbit::new(45), Hexbit::new(54), Hexbit::new(14), Hexbit::new(49), Hexbit::new(31), Hexbit::new(15),
+            Hexbit::new(48), Hexbit::new(46), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0)
+        ];
+        let exp = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(8),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(3), Hexbit::new(18), Hexbit::new(63)
+        ];
+        assert_eq!(long::decode(&mut w), Some((&exp[..], 3)));
+
+        let mut w = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(8), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(3), Hexbit::new(18), Hexbit::new(63), Hexbit::new(14), Hexbit::new(62), Hexbit::new(37), Hexbit::new(37),
+            Hexbit::new(41), Hexbit::new(45), Hexbit::new(54), Hexbit::new(14), Hexbit::new(49), Hexbit::new(31), Hexbit::new(15),
+            Hexbit::new(48), Hexbit::new(46), Hexbit::new(58), Hexbit::new(51), Hexbit::new(54)
+        ];
+        let exp = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(8), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(3), Hexbit::new(18), Hexbit::new(63)
+        ];
+        assert_eq!(long::decode(&mut w), Some((&exp[..], 0)));
+
+        let mut w = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(8), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+
+            Hexbit::new(3), Hexbit::new(18), Hexbit::new(63), Hexbit::new(14), Hexbit::new(62), Hexbit::new(37), Hexbit::new(37),
+            Hexbit::new(41), Hexbit::new(45), Hexbit::new(54), Hexbit::new(14), Hexbit::new(49), Hexbit::new(31), Hexbit::new(15),
+            Hexbit::new(48), Hexbit::new(47), Hexbit::new(40), Hexbit::new(0), Hexbit::new(12)
+        ];
+        let exp = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(8), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(3), Hexbit::new(18), Hexbit::new(63)
+        ];
+        assert_eq!(long::decode(&mut w), Some((&exp[..], 4)));
     }
 }

@@ -19,36 +19,20 @@ pub fn encode(word: u16) -> u64 {
 /// If decoding was successful, return `Some((data, err))`, where `data` is the 16 data
 /// bits and `err` is the number of bits corrected. Otherwise, return `None` to indicate
 /// an unrecoverable error.
-pub fn decode(word: u64) -> Option<(u16, usize)> {
+pub fn decode(bits: u64) -> Option<(u16, usize)> {
     // The BCH code is only over the first 63 bits, so strip off the P25 parity bit.
-    let word = word >> 1;
+    let word = bits >> 1;
 
-    // Compute the syndrome polynomial.
-    let syn = syndromes(word);
+    bmcf::Errors::new(syndromes(word)).map(|(nerr, errs)| {
+        // Flip all error bits.
+        let fixed = errs.fold(word, |w, (loc, pat)| {
+            assert!(pat.power().unwrap() == 0);
+            w ^ 1 << loc
+        });
 
-    // Get the error location polynomial.
-    let poly = BCHDecoder::new(syn).decode();
-
-    // The degree indicates the number of errors that need to be corrected.
-    let errors = poly.degree().expect("invalid error polynomial");
-
-    // Get the error locations from the polynomial.
-    let locs = bmcf::Errors::new(poly, syn);
-
-    // Correct the codeword and count the number of corrected errors. Stop the iteration
-    // after `errors` iterations since it won't yield any more locations after that
-    // anyway.
-    let (word, count) = locs.take(errors).fold((word, 0), |(w, s), (loc, val)| {
-        assert!(val.power().unwrap() == 0);
-        (w ^ 1 << loc, s + 1)
-    });
-
-    if count == errors {
-        // Strip off the (corrected) parity-check bits.
-        Some(((word >> 47) as u16, errors))
-    } else {
-        None
-    }
+        // Strip off the parity bits.
+        ((fixed >> 47) as u16, nerr)
+    })
 }
 
 /// Generator matrix from P25, transformed for more efficient codeword generation.
@@ -106,17 +90,22 @@ const GEN: &'static [u16] = &[
 /// Polynomial coefficients for BCH decoding.
 impl_polynomial_coefs!(BCHCoefs, 23);
 
+/// Polynomial with BCH coefficients.
 type BCHPolynomial = Polynomial<BCHCoefs>;
-type BCHDecoder = bmcf::BerlMasseyDecoder<BCHCoefs>;
 
-/// Generate the syndrome polynomial for the given received word.
+/// Generate the syndrome polynomial s(x) from the given received word r(x).
+///
+/// The resulting polynomial has the form s(x) = s<sub>1</sub> + s<sub>2</sub>x + ··· +
+/// s<sub>2t</sub>x<sup>2t</sup>, where s<sub>i</sub> = r(α<sup>i</sup>).
 fn syndromes(word: u64) -> BCHPolynomial {
-    BCHPolynomial::new((1..BCHCoefs::distance()).map(|pow| {
+    BCHPolynomial::new((1...BCHCoefs::syndromes()).map(|p| {
+        // Compute r(α^p) with the polynomial representation of the bitmap. The LSB of
+        // `word` maps to the coefficient of the degree-0 term.
         (0..P25Field::size()).fold(P25Codeword::default(), |s, b| {
             if word >> b & 1 == 0 {
                 s
             } else {
-                s + P25Codeword::for_power(b * pow)
+                s + P25Codeword::for_power(b * p)
             }
         })
     }))
@@ -124,14 +113,103 @@ fn syndromes(word: u64) -> BCHPolynomial {
 
 #[cfg(test)]
 mod test {
+    use std;
     use super::*;
-    use super::{syndromes, BCHDecoder, BCHCoefs, BCHPolynomial};
-    use coding::galois::{P25Codeword, PolynomialCoefs};
-    use coding::bmcf::Errors;
+    use super::{syndromes, BCHCoefs};
+    use coding::galois::{PolynomialCoefs, P25Codeword, Polynomial};
+
+    impl_polynomial_coefs!(TestCoefs, 23, 50);
+    type TestPolynomial = Polynomial<TestCoefs>;
 
     #[test]
     fn validate_coefs() {
         BCHCoefs::default().validate();
+    }
+
+    #[test]
+    fn verify_gen() {
+        // Verify construction of BCH generator polynomial g(x).
+
+        let p = Polynomial::<TestCoefs>::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+        ].iter().cloned()) * Polynomial::new([
+            P25Codeword::for_power(0),
+            P25Codeword::for_power(0),
+            P25Codeword::default(),
+            P25Codeword::default(),
+            P25Codeword::default(),
+            P25Codeword::default(),
+            P25Codeword::for_power(0),
+        ].iter().cloned());
+
+        assert_eq!(p.degree().unwrap(), 47);
+
+        let gen = 0o6331_1413_6723_5453u64;
+
+        for i in 0...47 {
+            let coef = gen >> i & 1;
+
+            assert_eq!(p[i].power(), if coef == 0 {
+                None
+            } else {
+                Some(0)
+            });
+        }
     }
 
     #[test]
@@ -147,39 +225,9 @@ mod test {
     #[test]
     fn test_syndromes() {
         let w = encode(0b1111111100000000)>>1;
-        let p = syndromes(w);
 
-        assert_eq!(p.len(), 24);
-        assert_eq!(p.degree(), None);
+        assert_eq!(syndromes(w).degree(), None);
         assert_eq!(syndromes(w ^ 1<<60).degree().unwrap(), 21);
-    }
-
-    #[test]
-    fn test_decoder() {
-        let w = encode(0b1111111100000000)^0b11<<61;
-        let poly = BCHDecoder::new(syndromes(w >> 1)).decode();
-
-        assert!(poly.coef(0).power().unwrap() == 0);
-        assert!(poly.coef(1).power().unwrap() == 3);
-        assert!(poly.coef(2).power().unwrap() == 58);
-    }
-
-    #[test]
-    fn test_locs() {
-        let w = encode(0b0000111100001111)^0b11<<61;
-        let p = syndromes(w >> 1);
-
-        let coefs = BCHPolynomial::new([
-            P25Codeword::for_power(0),
-            P25Codeword::for_power(3),
-            P25Codeword::for_power(58),
-        ].into_iter().cloned());
-
-        let mut locs = Errors::new(coefs, p);
-
-        assert!(locs.next().unwrap() == (61, P25Codeword::for_power(0)));
-        assert!(locs.next().unwrap() == (60, P25Codeword::for_power(0)));
-        assert!(locs.next().is_none());
     }
 
     #[test]
