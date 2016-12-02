@@ -584,40 +584,10 @@ mod test {
     use std;
     use super::*;
 
-    #[derive(Copy, Clone, Default)]
-    struct TestCoefs([P25Codeword; 24]);
-
-    impl std::ops::Deref for TestCoefs {
-        type Target = [P25Codeword];
-        fn deref(&self) -> &Self::Target { &self.0[..] }
-    }
-
-    impl std::ops::DerefMut for TestCoefs {
-        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
-    }
-
-    impl PolynomialCoefs for TestCoefs {
-        fn distance() -> usize { 23 }
-    }
-
+    impl_polynomial_coefs!(TestCoefs, 23);
     type TestPolynomial = Polynomial<TestCoefs>;
 
-    #[derive(Copy, Clone, Default)]
-    struct ShortCoefs([P25Codeword; 5]);
-
-    impl std::ops::Deref for ShortCoefs {
-        type Target = [P25Codeword];
-        fn deref(&self) -> &Self::Target { &self.0[..] }
-    }
-
-    impl std::ops::DerefMut for ShortCoefs {
-        fn deref_mut(&mut self) -> &mut Self::Target { &mut self.0[..] }
-    }
-
-    impl PolynomialCoefs for ShortCoefs {
-        fn distance() -> usize { 3 }
-    }
-
+    impl_polynomial_coefs!(ShortCoefs, 5);
     type ShortPolynomial = Polynomial<ShortCoefs>;
 
     #[test]
