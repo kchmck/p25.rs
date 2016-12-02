@@ -178,8 +178,11 @@ fn syndromes<P: PolynomialCoefs>(word: &Polynomial<P>) -> Polynomial<P> {
     }))
 }
 
-/// Copy the data symbols in the given polynomial to the destination as bytes.
-fn copy_data<P: PolynomialCoefs>(poly: Polynomial<P>, data: &mut [Hexbit]) -> &[Hexbit] {
+/// Extract the data symbols from the given word in polynomial form and write them to the
+/// given slice.
+fn extract_data<P>(poly: Polynomial<P>, data: &mut [Hexbit]) -> &[Hexbit]
+    where P: PolynomialCoefs
+{
     poly.iter().rev().map(|coef| Hexbit::new(coef.bits())).collect_slice_fill(data);
     data
 }
