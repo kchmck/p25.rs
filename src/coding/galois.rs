@@ -4,6 +4,9 @@ use std;
 
 use collect_slice::CollectSlice;
 
+/// Codeword in the P25 Galois field.
+pub type P25Codeword = Codeword<P25Field>;
+
 /// GF(2<sup>6</sup>) field characterized by α<sup>6</sup>+α+1, as described in the P25
 /// specification.
 #[derive(Copy, Clone, Debug)]
@@ -155,9 +158,6 @@ impl GaloisField for P25Field {
         POWERS[codeword]
     }
 }
-
-/// Codeword in the P25 Galois field.
-pub type P25Codeword = Codeword<P25Field>;
 
 /// A GF(2<sup>r</sup>) Galois field.
 pub trait GaloisField {
