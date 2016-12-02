@@ -323,7 +323,8 @@ pub trait PolynomialCoefs: Default + Copy + Clone +
 
     /// Maximum number of correctable errors: t.
     fn errors() -> usize {
-        // Since d is odd, d = 2t+1 ⇒ t = (d-1)/2 = floor(d / 2)
+        // Since d is odd, d = 2t+1 ⇒ t = (d-1)/2 = floor(d / 2). Formula taken from [1,
+        // p135-137].
         Self::distance() / 2
     }
 
