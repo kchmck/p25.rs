@@ -5,8 +5,8 @@
 #![feature(inclusive_range_syntax)]
 
 extern crate collect_slice;
-extern crate static_ewma;
 extern crate num;
+extern crate static_ewma;
 
 #[macro_use]
 extern crate static_fir;
