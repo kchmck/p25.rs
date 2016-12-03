@@ -9,42 +9,32 @@ use self::StreamSymbol::*;
 /// Number of dibits output per status period, including the status symbol.
 const DIBITS_PER_UPDATE: u32 = 70 / 2 + 1;
 
-/// A source of status symbols.
-pub trait StatusSource {
-    /// The current status.
-    fn status(&mut self) -> StatusCode;
-}
-
 /// Interleaves status symbols into a stream of dibits.
-pub struct StatusInterleaver<T, S> where
-    T: Iterator<Item = bits::Dibit>,
-    S: StatusSource
-{
+pub struct StatusInterleaver<T: Iterator<Item = bits::Dibit>> {
     /// Source of dibits to interleave status symbols into.
     src: T,
-    /// Source of status updates.
-    status: S,
+    /// Current status to be output.
+    status: StatusCode,
     /// Current dibit index in output stream.
     pos: u32,
 }
 
-impl<T, S> StatusInterleaver<T, S> where
-    T: Iterator<Item = bits::Dibit>,
-    S: StatusSource
-{
-    pub fn new(src: T, status: S) -> StatusInterleaver<T, S> {
+impl<T: Iterator<Item = bits::Dibit>> StatusInterleaver<T> {
+    /// Create a new `StatusInterleaver` that will interleave status symbols into the
+    /// given source of data symbols, using the given initial status code.
+    pub fn new(src: T, status: StatusCode) -> StatusInterleaver<T> {
         StatusInterleaver {
-            status: status,
             src: src,
+            status: status,
             pos: 0,
         }
     }
+
+    /// Update current output status to the given status code.
+    pub fn update_status(&mut self, status: StatusCode) { self.status = status; }
 }
 
-impl<T, S> Iterator for StatusInterleaver<T, S> where
-    T: Iterator<Item = bits::Dibit>,
-    S: StatusSource
-{
+impl<T: Iterator<Item = bits::Dibit>> Iterator for StatusInterleaver<T> {
     type Item = bits::Dibit;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -52,7 +42,7 @@ impl<T, S> Iterator for StatusInterleaver<T, S> where
         self.pos %= DIBITS_PER_UPDATE;
 
         if self.pos == 0 {
-            return Some(self.status.status().to_dibit());
+            return Some(self.status.to_dibit());
         }
 
         match self.src.next() {
@@ -150,13 +140,8 @@ mod test {
 
     #[test]
     fn test_interleave() {
-        struct TestSource;
-        impl StatusSource for TestSource {
-            fn status(&mut self) -> StatusCode { StatusCode::InboundBusy }
-        }
-
         let src = std::iter::repeat(bits::Dibit::new(0b10));
-        let mut i = StatusInterleaver::new(src, TestSource);
+        let mut i = StatusInterleaver::new(src, StatusCode::InboundBusy);
 
         for _ in 0..35 {
             assert_eq!(i.next(), Some(bits::Dibit::new(0b10)));
