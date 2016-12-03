@@ -36,7 +36,7 @@ pub struct HeaderPreamble {
     /// Whether the packet is an outbound message.
     pub outbound: bool,
     /// Packet type.
-    pub format: fields::DataPacket,
+    pub format: fields::DataPacketOpcode,
 }
 
 impl ByteField for HeaderPreamble {
@@ -54,7 +54,7 @@ impl ConfirmedPreamble {
         ConfirmedPreamble(HeaderPreamble {
             confirmed: true,
             outbound: outbound,
-            format: fields::DataPacket::ConfirmedPacket,
+            format: fields::DataPacketOpcode::ConfirmedPacket,
         })
     }
 
@@ -74,7 +74,7 @@ impl UnconfirmedPreamble {
         UnconfirmedPreamble(HeaderPreamble {
             confirmed: false,
             outbound: outbound,
-            format: fields::DataPacket::UnconfirmedPacket
+            format: fields::DataPacketOpcode::UnconfirmedPacket
         })
     }
 

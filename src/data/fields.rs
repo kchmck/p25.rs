@@ -1,15 +1,15 @@
 /// Type of a data packet.
-pub enum DataPacket {
+pub enum DataPacketOpcode {
     ConfirmedPacket,
     UnconfirmedPacket,
     ResponsePacket,
     TrunkingPacket,
 }
 
-impl DataPacket {
+impl DataPacketOpcode {
     /// Convert a symbolic type to its associated identifier.
     pub fn to_bits(&self) -> u8 {
-        use self::DataPacket::*;
+        use self::DataPacketOpcode::*;
 
         match *self {
             ConfirmedPacket => 0b10110,
@@ -20,8 +20,8 @@ impl DataPacket {
     }
 
     /// Parse a packet type from the given 5 bits.
-    pub fn from_bits(bits: u8) -> Option<DataPacket> {
-        use self::DataPacket::*;
+    pub fn from_bits(bits: u8) -> Option<DataPacketOpcode> {
+        use self::DataPacketOpcode::*;
 
         assert!(bits >> 5 == 0);
 
