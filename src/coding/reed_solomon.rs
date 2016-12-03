@@ -159,15 +159,15 @@ fn decode<P: PolynomialCoefs>(word: &[Hexbit]) -> Option<(Polynomial<P>, usize)>
         P25Codeword::new(b.bits())
     ));
 
-    bmcf::Errors::new(syndromes(&poly)).map(|(nerr, errs)| {
+    bmcf::Errors::new(syndromes(&poly)).and_then(|(nerr, errs)| {
         for (loc, pat) in errs {
             match poly.get_mut(loc) {
                 Some(coef) => *coef = *coef + pat,
-                None => panic!("out of bounds correction"),
+                None => return None,
             }
         }
 
-        (poly, nerr)
+        Some((poly, nerr))
     })
 }
 
@@ -618,5 +618,30 @@ mod test {
             Hexbit::new(8), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(3), Hexbit::new(18), Hexbit::new(63)
         ];
         assert_eq!(long::decode(&mut w), Some((&exp[..], 4)));
+    }
+
+    #[test]
+    fn test_out_of_bounds() {
+        // Tests received words that cause attempted out-of-bounds corrections
+
+        // 4 errors, attempted access at location 34.
+        let mut w = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(51), Hexbit::new(19), Hexbit::new(8),
+            Hexbit::new(35), Hexbit::new(48), Hexbit::new(61), Hexbit::new(0), Hexbit::new(1), Hexbit::new(11),
+            Hexbit::new(44), Hexbit::new(10), Hexbit::new(0), Hexbit::new(11), Hexbit::new(0), Hexbit::new(15),
+            Hexbit::new(56), Hexbit::new(50), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0)
+        ];
+
+        assert_eq!(medium::decode(&mut w), None);
+
+        // 6 errors, attempted access at location 61.
+        let mut w = [
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(4), Hexbit::new(0), Hexbit::new(3), Hexbit::new(34),
+            Hexbit::new(28), Hexbit::new(7), Hexbit::new(13), Hexbit::new(61), Hexbit::new(32), Hexbit::new(27),
+            Hexbit::new(55), Hexbit::new(49), Hexbit::new(7), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0),
+            Hexbit::new(0), Hexbit::new(0), Hexbit::new(0), Hexbit::new(0)
+        ];
+
+        assert_eq!(short::decode(&mut w), None);
     }
 }
