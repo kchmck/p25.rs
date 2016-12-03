@@ -2,13 +2,13 @@
 
 pub mod coder;
 pub mod crc;
+pub mod fields;
 pub mod fragment;
 pub mod header;
 pub mod interleave;
 pub mod packet;
 pub mod params;
 pub mod payload;
-pub mod values;
 
 pub use self::fragment::{ConfirmedFragments, UnconfirmedFragments};
 

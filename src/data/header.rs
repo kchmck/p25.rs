@@ -4,7 +4,7 @@
 //! fields.
 
 use data::crc;
-use data::values;
+use data::fields;
 
 /// Packet header block for confirmed data packet.
 pub type ConfirmedHeader = Header<ConfirmedFields>;
@@ -36,7 +36,7 @@ pub struct HeaderPreamble {
     /// Whether the packet is an outbound message.
     pub outbound: bool,
     /// Packet type.
-    pub format: values::DataPacket,
+    pub format: fields::DataPacket,
 }
 
 impl ByteField for HeaderPreamble {
@@ -54,7 +54,7 @@ impl ConfirmedPreamble {
         ConfirmedPreamble(HeaderPreamble {
             confirmed: true,
             outbound: outbound,
-            format: values::DataPacket::ConfirmedPacket,
+            format: fields::DataPacket::ConfirmedPacket,
         })
     }
 
@@ -74,7 +74,7 @@ impl UnconfirmedPreamble {
         UnconfirmedPreamble(HeaderPreamble {
             confirmed: false,
             outbound: outbound,
-            format: values::DataPacket::UnconfirmedPacket
+            format: fields::DataPacket::UnconfirmedPacket
         })
     }
 
@@ -87,7 +87,7 @@ impl ByteField for UnconfirmedPreamble {
 }
 
 /// Service access point (SAP) field.
-pub struct ServiceAccessPoint(pub values::ServiceAccessPoint);
+pub struct ServiceAccessPoint(pub fields::ServiceAccessPoint);
 
 impl ByteField for ServiceAccessPoint {
     fn byte(&self) -> u8 {
@@ -263,7 +263,7 @@ fn bool_to_bit(b: bool) -> u8 {
 #[cfg(test)]
 mod test {
     use super::*;
-    use data::values;
+    use data::fields;
 
     #[test]
     fn test_preamble() {
@@ -275,7 +275,7 @@ mod test {
 
     #[test]
     fn test_sap() {
-        let s = ServiceAccessPoint(values::ServiceAccessPoint::ExtendedAddressing);
+        let s = ServiceAccessPoint(fields::ServiceAccessPoint::ExtendedAddressing);
         assert_eq!(s.byte(), 0b11011111);
     }
 
@@ -329,7 +329,7 @@ mod test {
     fn test_confirmed_fields() {
         let fields = ConfirmedFields {
             preamble: ConfirmedPreamble::outbound(),
-            sap: ServiceAccessPoint(values::ServiceAccessPoint::Paging),
+            sap: ServiceAccessPoint(fields::ServiceAccessPoint::Paging),
             mfg: Manufacturer(0x12),
             addr: LogicalLink(0x342134),
             blocks: BlockCount {
@@ -366,7 +366,7 @@ mod test {
     fn test_confirmed_header() {
         let (fields, checksum) = ConfirmedHeader::new(ConfirmedFields {
             preamble: ConfirmedPreamble::outbound(),
-            sap: ServiceAccessPoint(values::ServiceAccessPoint::PacketData),
+            sap: ServiceAccessPoint(fields::ServiceAccessPoint::PacketData),
             mfg: Manufacturer(0x12),
             addr: LogicalLink(0x342134),
             blocks: BlockCount {
