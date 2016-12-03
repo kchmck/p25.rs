@@ -91,8 +91,8 @@ impl StatusCode {
     }
 
     /// Convert the current status code into a dibit.
-    pub fn to_dibit(&self) -> bits::Dibit {
-        bits::Dibit::new(match *self {
+    pub fn to_dibit(self) -> bits::Dibit {
+        bits::Dibit::new(match self {
             InboundBusy => 0b01,
             SubscriberDirect => 0b00,
             SubscriberRepeater => 0b10,
