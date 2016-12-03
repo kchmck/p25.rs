@@ -1,4 +1,5 @@
 /// Type of a data packet.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum DataPacketOpcode {
     ConfirmedPacket,
     UnconfirmedPacket,
@@ -35,6 +36,7 @@ impl DataPacketOpcode {
     }
 }
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ServiceAccessPoint {
     UnencryptedUserData,
     EncryptedUserData,
