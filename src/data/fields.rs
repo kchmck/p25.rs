@@ -1,14 +1,21 @@
-/// Type of a data packet.
+//! Data packet fields.
+
+/// Data packet type present in every header.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum DataPacketOpcode {
+    /// Confirmed packet that requires an acknowledgement response from the recipient.
     ConfirmedPacket,
+    /// Unconfirmed packet that doesn't require an acknowledgement response from the
+    /// recipient.
     UnconfirmedPacket,
+    /// Response to the sender of a confirmed data packet.
     ResponsePacket,
+    /// Multiblock trunking data packet.
     TrunkingPacket,
 }
 
 impl DataPacketOpcode {
-    /// Convert a symbolic type to its associated identifier.
+    /// Convert packet type to its 5-bit representation.
     pub fn to_bits(&self) -> u8 {
         use self::DataPacketOpcode::*;
 
@@ -36,6 +43,7 @@ impl DataPacketOpcode {
     }
 }
 
+/// Destination service for data packet.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum ServiceAccessPoint {
     UnencryptedUserData,
@@ -61,6 +69,7 @@ pub enum ServiceAccessPoint {
 }
 
 impl ServiceAccessPoint {
+    /// Convert the given 6 bits to a SAP identifier.
     pub fn from_bits(bits: u8) -> Option<ServiceAccessPoint> {
         use self::ServiceAccessPoint::*;
 
@@ -91,6 +100,7 @@ impl ServiceAccessPoint {
         }
     }
 
+    /// Convert SAP identifier to its 6-bit representation.
     pub fn to_bits(&self) -> u8 {
         use self::ServiceAccessPoint::*;
 
