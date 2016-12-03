@@ -34,10 +34,10 @@ impl NetworkAccessCode {
     }
 
     /// Convert NAC to a 12-bit word.
-    pub fn to_bits(&self) -> u16 {
+    pub fn to_bits(self) -> u16 {
         use self::NetworkAccessCode::*;
 
-        match *self {
+        match self {
             Default => 0x293,
             ReceiveAny => 0xF7E,
             RepeatAny => 0xF7F,
@@ -85,10 +85,10 @@ impl DataUnit {
     }
 
     /// Convert data unit to 4-bit word.
-    pub fn to_bits(&self) -> u8 {
+    pub fn to_bits(self) -> u8 {
         use self::DataUnit::*;
 
-        match *self {
+        match self {
             VoiceHeader => 0b0000,
             VoiceSimpleTerminator => 0b0011,
             VoiceLCTerminator => 0b1111,

@@ -16,10 +16,10 @@ pub enum DataPacketOpcode {
 
 impl DataPacketOpcode {
     /// Convert packet type to its 5-bit representation.
-    pub fn to_bits(&self) -> u8 {
+    pub fn to_bits(self) -> u8 {
         use self::DataPacketOpcode::*;
 
-        match *self {
+        match self {
             ConfirmedPacket => 0b10110,
             UnconfirmedPacket => 0b10101,
             ResponsePacket => 0b00011,
@@ -101,10 +101,10 @@ impl ServiceAccessPoint {
     }
 
     /// Convert SAP identifier to its 6-bit representation.
-    pub fn to_bits(&self) -> u8 {
+    pub fn to_bits(self) -> u8 {
         use self::ServiceAccessPoint::*;
 
-        match *self {
+        match self {
             UnencryptedUserData => 0x00,
             EncryptedUserData => 0x01,
             CircuitData => 0x02,
