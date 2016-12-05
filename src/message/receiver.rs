@@ -17,27 +17,26 @@ use voice::frame_group::{
     VoiceLCFrameGroupReceiver,
 };
 
-/// Set of callbacks to handle events and messages that occur when receiving the air
-/// interface.
-pub trait MessageHandler {
+/// Events that can occur when receiving P25 messages.
+pub enum MessageEvent {
     /// A runtime error occured.
-    fn handle_error(&mut self, recv: &mut DataUnitReceiver, err: P25Error);
-    /// An NID was decoded.
-    fn handle_nid(&mut self, recv: &mut DataUnitReceiver, nid: NetworkID);
+    Error(P25Error),
+    /// An NID at the start of a packet was decoded.
+    PacketNID(NetworkID),
     /// A voice header was received.
-    fn handle_header(&mut self, recv: &mut DataUnitReceiver, header: VoiceHeaderFields);
+    VoiceHeader(VoiceHeaderFields),
     /// A voice frame was received.
-    fn handle_frame(&mut self, recv: &mut DataUnitReceiver, frame: VoiceFrame);
+    VoiceFrame(VoiceFrame),
     /// A link control word was decoded.
-    fn handle_lc(&mut self, recv: &mut DataUnitReceiver, lc: LinkControlFields);
+    LinkControl(LinkControlFields),
     /// A crypto control word was decoded.
-    fn handle_cc(&mut self, recv: &mut DataUnitReceiver, cc: CryptoControlFields);
+    CryptoControl(CryptoControlFields),
     /// A voice low-speed data fragment was decoded.
-    fn handle_data_frag(&mut self, recv: &mut DataUnitReceiver, data: u32);
+    LowSpeedDataFragment(u32),
     /// A trunking signalling packet was received.
-    fn handle_tsbk(&mut self, recv: &mut DataUnitReceiver, tsbk: TSBKFields);
-    /// A voice terminator packet was received, optionally with link control word.
-    fn handle_term(&mut self, recv: &mut DataUnitReceiver);
+    TrunkingControl(TSBKFields),
+    /// A voice terminator link control was received.
+    VoiceTerm(LinkControlFields),
 }
 
 /// Internal state of the state machine.
@@ -54,6 +53,16 @@ enum State {
     DecodeLCTerminator(VoiceLCTerminatorReceiver),
     /// Decoding a trunking signalling packet.
     DecodeTSBK(TSBKReceiver),
+}
+
+/// Action the state machine should take.
+enum StateChange {
+    /// Propagate an event.
+    Event(MessageEvent),
+    /// Propagate an event and change state.
+    EventChange(MessageEvent, State),
+    /// Do nothing.
+    NoChange,
 }
 
 /// State machine for high-level message reception.
@@ -77,28 +86,38 @@ impl MessageReceiver {
 
     /// Feed in a baseband sample, possibly producing a new event or message to be handled
     /// by the given handler.
-    pub fn feed<H: MessageHandler>(&mut self, s: f32, handler: &mut H) {
+    pub fn feed(&mut self, s: f32) -> Option<MessageEvent> {
+        match self.handle(s) {
+            StateChange::Event(e) => Some(e),
+            StateChange::EventChange(e, s) => {
+                self.state = s;
+                Some(e)
+            },
+            StateChange::NoChange => None,
+        }
+    }
+
+    /// Process the given sample and determine how to update state.
+    fn handle(&mut self, s: f32) -> StateChange {
         use self::State::*;
+        use self::StateChange::*;
         use message::nid::DataUnit::*;
 
         let event = match self.recv.feed(s) {
             Some(Ok(event)) => event,
             Some(Err(err)) => {
-                handler.handle_error(&mut self.recv, err);
                 self.recv.resync();
-
-                return;
+                return Event(MessageEvent::Error(err));
             },
-            None => return,
+            None => return NoChange,
         };
 
         let dibit = match event {
             ReceiverEvent::NetworkID(nid) => {
-                self.state = match nid.data_unit {
+                let next = match nid.data_unit {
                     VoiceHeader =>
                         DecodeHeader(VoiceHeaderReceiver::new()),
                     VoiceSimpleTerminator => {
-                        handler.handle_term(&mut self.recv);
                         self.recv.flush_pads();
                         Idle
                     },
@@ -116,91 +135,91 @@ impl MessageReceiver {
                     },
                 };
 
-                handler.handle_nid(&mut self.recv, nid);
-
-                return;
+                return EventChange(MessageEvent::PacketNID(nid), next);
             },
-            ReceiverEvent::Symbol(StreamSymbol::Status(_)) => return,
+            ReceiverEvent::Symbol(StreamSymbol::Status(_)) => return NoChange,
             ReceiverEvent::Symbol(StreamSymbol::Data(dibit)) => dibit,
         };
 
         match self.state {
             DecodeHeader(ref mut head) => match head.feed(dibit) {
                 Some(Ok(h)) => {
-                    handler.handle_header(&mut self.recv, h);
                     self.recv.flush_pads();
+                    EventChange(MessageEvent::VoiceHeader(h), Idle)
                 },
                 Some(Err(err)) => {
-                    handler.handle_error(&mut self.recv, err);
                     self.recv.resync();
+                    EventChange(MessageEvent::Error(err), Idle)
                 },
-                None => {},
+                None => NoChange,
             },
             DecodeLCFrameGroup(ref mut fg) => match fg.feed(dibit) {
-                Some(Ok(event)) => match event {
-                    FrameGroupEvent::VoiceFrame(vf) => {
-                        handler.handle_frame(&mut self.recv, vf);
+                Some(Ok(event)) => {
+                    if fg.done() {
+                        self.recv.flush_pads();
+                    }
 
-                        if fg.done() {
-                            self.recv.flush_pads();
-                        }
-                    },
-                    FrameGroupEvent::Extra(lc) => handler.handle_lc(&mut self.recv, lc),
-                    FrameGroupEvent::DataFragment(data) =>
-                        handler.handle_data_frag(&mut self.recv, data),
+                    match event {
+                        FrameGroupEvent::VoiceFrame(vf) =>
+                            Event(MessageEvent::VoiceFrame(vf)),
+                        FrameGroupEvent::Extra(lc) =>
+                            Event(MessageEvent::LinkControl(lc)),
+                        FrameGroupEvent::DataFragment(frag) =>
+                            Event(MessageEvent::LowSpeedDataFragment(frag)),
+                    }
                 },
                 Some(Err(err)) => {
-                    handler.handle_error(&mut self.recv, err);
                     self.recv.resync();
+                    EventChange(MessageEvent::Error(err), Idle)
                 },
-                None => {},
+                None => NoChange,
             },
             DecodeCCFrameGroup(ref mut fg) => match fg.feed(dibit) {
                 Some(Ok(event)) => match event {
                     FrameGroupEvent::VoiceFrame(vf) => {
-                        handler.handle_frame(&mut self.recv, vf);
-
                         if fg.done() {
                             self.recv.flush_pads();
                         }
+
+                        Event(MessageEvent::VoiceFrame(vf))
                     },
-                    FrameGroupEvent::Extra(cc) => handler.handle_cc(&mut self.recv, cc),
-                    FrameGroupEvent::DataFragment(data) =>
-                        handler.handle_data_frag(&mut self.recv, data),
+                    FrameGroupEvent::Extra(cc) =>
+                        Event(MessageEvent::CryptoControl(cc)),
+                    FrameGroupEvent::DataFragment(frag) =>
+                        Event(MessageEvent::LowSpeedDataFragment(frag))
                 },
                 Some(Err(err)) => {
-                    handler.handle_error(&mut self.recv, err);
                     self.recv.resync();
+                    EventChange(MessageEvent::Error(err), Idle)
                 },
-                None => {},
+                None => NoChange,
             },
             DecodeLCTerminator(ref mut term) => match term.feed(dibit) {
                 Some(Ok(lc)) => {
-                    handler.handle_lc(&mut self.recv, lc);
-                    handler.handle_term(&mut self.recv);
                     self.recv.flush_pads();
+                    EventChange(MessageEvent::VoiceTerm(lc), Idle)
                 },
                 Some(Err(err)) => {
-                    handler.handle_error(&mut self.recv, err);
                     self.recv.resync();
+                    EventChange(MessageEvent::Error(err), Idle)
                 },
-                None => {},
+                None => NoChange,
             },
             DecodeTSBK(ref mut dec) => match dec.feed(dibit) {
                 Some(Ok(tsbk)) => {
-                    handler.handle_tsbk(&mut self.recv, tsbk);
-
                     if tsbk.is_tail() {
                         self.recv.flush_pads();
                     }
+
+                    Event(MessageEvent::TrunkingControl(tsbk))
                 },
                 Some(Err(err)) => {
-                    handler.handle_error(&mut self.recv, err);
                     self.recv.resync();
+                    EventChange(MessageEvent::Error(err), Idle)
                 },
-                None => {},
+                None => NoChange,
             },
-            Idle => {},
+            Idle => NoChange,
         }
     }
 }
