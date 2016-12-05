@@ -68,7 +68,7 @@ enum StateChange {
 /// State machine for high-level message reception.
 pub struct MessageReceiver {
     /// Lower-level stream receiver.
-    recv: DataUnitReceiver,
+    pub recv: DataUnitReceiver,
     /// Current state.
     state: State,
 }
@@ -81,8 +81,6 @@ impl MessageReceiver {
             state: State::Idle,
         }
     }
-
-    pub fn resync(&mut self) { self.recv.resync(); }
 
     /// Feed in a baseband sample, possibly producing a new event or message to be handled
     /// by the given handler.
