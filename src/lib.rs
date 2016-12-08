@@ -1,4 +1,4 @@
-//! Implements the Project (P25) air interface radio protocol, including baseband frame
+//! Implements the Project 25 (P25) air interface radio protocol, including baseband frame
 //! synchronization, symbol decoding, error correction coding, and packet reconstuction.
 
 #![feature(const_fn)]

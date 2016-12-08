@@ -39,7 +39,7 @@
 //! # Chien Search
 //!
 //! With Λ(x) = Λ<sub>0</sub> + Λ<sub>1</sub>x + Λ<sub>2</sub>x<sup>2</sup> + ··· +
-//! Λ<sub>e</sub>x<sup>e</sup> (where Λ<sub>0</sub> = 1.), let P<sub>i</sub> =
+//! Λ<sub>e</sub>x<sup>e</sup> (where Λ<sub>0</sub> = 1), let P<sub>i</sub> =
 //! [p<sub>0</sub>, ..., p<sub>e</sub>], 0 ≤ i < n, which is indexed as P<sub>i</sub>[k],
 //! 0 ≤ k ≤ e.
 //!
