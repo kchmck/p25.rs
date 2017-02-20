@@ -33,7 +33,7 @@ pub enum CryptoAlgorithm {
     Unencrypted,
     Des,
     TripleDES,
-    AES,
+    Aes,
     Other(u8),
 }
 
@@ -52,7 +52,7 @@ impl CryptoAlgorithm {
             0x80 => Unencrypted,
             0x81 => Des,
             0x83 => TripleDES,
-            0x84 => AES,
+            0x84 => Aes,
             b => Other(b),
         }
     }
@@ -72,7 +72,7 @@ mod test {
         ]);
 
         assert_eq!(c.init(), &[0,0,0,1,0,0,0,2,0]);
-        assert_eq!(c.alg(), AES);
+        assert_eq!(c.alg(), Aes);
         assert_eq!(c.key(), 0xDEAD);
     }
 }
