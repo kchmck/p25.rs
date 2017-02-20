@@ -4,24 +4,24 @@ use bits;
 use consts;
 
 /// Yields a series of scaled impulses vs time corresponding to given dibits.
-pub struct C4FMImpulses<T> {
+pub struct C4fmImpulses<T> {
     /// The dibit source to iterate over.
     src: T,
     /// Current global sample index.
     sample: usize,
 }
 
-impl<T: Iterator<Item = bits::Dibit>> C4FMImpulses<T> {
-    /// Construct a new `C4FMImpulses<T>` from the given source and sample rate.
-    pub fn new(src: T) -> C4FMImpulses<T> {
-        C4FMImpulses {
+impl<T: Iterator<Item = bits::Dibit>> C4fmImpulses<T> {
+    /// Construct a new `C4fmImpulses<T>` from the given source and sample rate.
+    pub fn new(src: T) -> C4fmImpulses<T> {
+        C4fmImpulses {
             src: src,
             sample: 0,
         }
     }
 }
 
-impl<T: Iterator<Item = bits::Dibit>> Iterator for C4FMImpulses<T> {
+impl<T: Iterator<Item = bits::Dibit>> Iterator for C4fmImpulses<T> {
     type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -94,7 +94,7 @@ mod test {
         ];
 
         let d = bits::Dibits::new(BITS.iter().cloned());
-        let mut imp = C4FMImpulses::new(d);
+        let mut imp = C4fmImpulses::new(d);
 
         assert!(imp.next().unwrap() == 0.06);
         assert!(imp.next().unwrap() == 0.0);
