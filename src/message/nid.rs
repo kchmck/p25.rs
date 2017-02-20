@@ -174,7 +174,7 @@ impl NIDReceiver {
 
         let data = match bch::decode(buf) {
             Some((data, err)) => data,
-            None => return Some(Err(P25Error::BCHUnrecoverable)),
+            None => return Some(Err(P25Error::BchUnrecoverable)),
         };
 
         match NetworkID::from_bits(data) {

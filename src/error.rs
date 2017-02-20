@@ -8,7 +8,7 @@ pub enum P25Error {
     /// Too many errors were detected when attempting a RS decode.
     ReedSolomonUnrecoverable,
     /// Too many errors were detected when attempting a BCH decode.
-    BCHUnrecoverable,
+    BchUnrecoverable,
     /// Too many errors were detected when attempting a Golay decode.
     GolayUnrecoverable,
     /// Too many errors were detected when attempting a Hamming decode.
