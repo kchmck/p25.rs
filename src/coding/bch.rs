@@ -91,14 +91,14 @@ const GEN: &'static [u16] = &[
 impl_polynomial_coefs!(BCHCoefs, 23);
 
 /// Polynomial with BCH coefficients.
-type BCHPolynomial = Polynomial<BCHCoefs>;
+type BchPolynomial = Polynomial<BCHCoefs>;
 
 /// Generate the syndrome polynomial s(x) from the given received word r(x).
 ///
 /// The resulting polynomial has the form s(x) = s<sub>1</sub> + s<sub>2</sub>x + ··· +
 /// s<sub>2t</sub>x<sup>2t</sup>, where s<sub>i</sub> = r(α<sup>i</sup>).
-fn syndromes(word: u64) -> BCHPolynomial {
-    BCHPolynomial::new((1...BCHCoefs::syndromes()).map(|p| {
+fn syndromes(word: u64) -> BchPolynomial {
+    BchPolynomial::new((1...BCHCoefs::syndromes()).map(|p| {
         // Compute r(α^p) with the polynomial representation of the bitmap. The LSB of
         // `word` maps to the coefficient of the degree-0 term.
         (0..P25Field::size()).fold(P25Codeword::default(), |s, b| {
