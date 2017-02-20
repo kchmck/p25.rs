@@ -20,15 +20,15 @@ use trunking::fields::{Channel, TalkGroup, ServiceOptions, RegResponse};
 /// 2. Descramble symbols using the same deinterleaver as data packets
 /// 3. Decode 1/2-rate convolutional code and attempt to correct any errors
 /// 4. Group dibits into a buffer of bytes for further interpretation
-pub struct TSBKReceiver {
+pub struct TsbkReceiver {
     /// Current buffered dibits.
     dibits: Buffer<DataPayloadStorage>,
 }
 
-impl TSBKReceiver {
-    /// Create a new `TSBKReceiver` in the initial state.
-    pub fn new() -> TSBKReceiver {
-        TSBKReceiver {
+impl TsbkReceiver {
+    /// Create a new `TsbkReceiver` in the initial state.
+    pub fn new() -> TsbkReceiver {
+        TsbkReceiver {
             dibits: Buffer::new(DataPayloadStorage::new()),
         }
     }

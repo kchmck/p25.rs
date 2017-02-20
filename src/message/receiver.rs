@@ -4,7 +4,7 @@ use error::P25Error;
 use message::data_unit::{DataUnitReceiver, ReceiverEvent};
 use message::nid::NetworkID;
 use message::status::StreamSymbol;
-use trunking::tsbk::{TSBKFields, TSBKReceiver};
+use trunking::tsbk::{TSBKFields, TsbkReceiver};
 use voice::control::LinkControlFields;
 use voice::crypto::CryptoControlFields;
 use voice::frame::VoiceFrame;
@@ -52,7 +52,7 @@ enum State {
     /// Decoding a link control voice terminator.
     DecodeLCTerminator(VoiceLCTerminatorReceiver),
     /// Decoding a trunking signalling packet.
-    DecodeTSBK(TSBKReceiver),
+    DecodeTSBK(TsbkReceiver),
 }
 
 /// Action the state machine should take.
@@ -126,7 +126,7 @@ impl MessageReceiver {
                     VoiceCCFrameGroup =>
                         DecodeCCFrameGroup(VoiceCCFrameGroupReceiver::new()),
                     TrunkingSignaling =>
-                        DecodeTSBK(TSBKReceiver::new()),
+                        DecodeTSBK(TsbkReceiver::new()),
                     DataPacket => {
                         self.recv.resync();
                         Idle
