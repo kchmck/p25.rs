@@ -102,26 +102,26 @@ impl DataUnit {
 
 /// NID word associated with each P25 packet.
 #[derive(Copy, Clone, Debug)]
-pub struct NetworkID {
+pub struct NetworkId {
     /// NAC field.
     pub access_code: NetworkAccessCode,
     /// DUID field.
     pub data_unit: DataUnit,
 }
 
-impl NetworkID {
+impl NetworkId {
     /// Create an NID word from the given NAC and data unit.
-    pub fn new(access_code: NetworkAccessCode, data_unit: DataUnit) -> NetworkID {
-        NetworkID {
+    pub fn new(access_code: NetworkAccessCode, data_unit: DataUnit) -> NetworkId {
+        NetworkId {
             access_code: access_code,
             data_unit: data_unit,
         }
     }
 
     /// Parse NID from the given 16-bit word.
-    pub fn from_bits(bits: u16) -> Option<NetworkID> {
+    pub fn from_bits(bits: u16) -> Option<NetworkId> {
         match DataUnit::from_bits(bits as u8 & 0b1111) {
-            Some(du) => Some(NetworkID::new(NetworkAccessCode::from_bits(bits >> 4), du)),
+            Some(du) => Some(NetworkId::new(NetworkAccessCode::from_bits(bits >> 4), du)),
             None => None,
         }
     }
@@ -166,7 +166,7 @@ impl NidReceiver {
     /// Feed in a data symbol, possibly producing a decoded NID. Return `Some(Ok(nid))` if
     /// an NID was successfully parsed, `Some(Err(err))` if an unrecoverable error
     /// occurred, and `None` for no event.
-    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<NetworkID>> {
+    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<NetworkId>> {
         let buf = match self.dibits.feed(dibit) {
             Some(buf) => *buf,
             None => return None,
@@ -177,7 +177,7 @@ impl NidReceiver {
             None => return Some(Err(P25Error::BchUnrecoverable)),
         };
 
-        match NetworkID::from_bits(data) {
+        match NetworkId::from_bits(data) {
             Some(nid) => Some(Ok(nid)),
             None => Some(Err(P25Error::UnknownNid)),
         }

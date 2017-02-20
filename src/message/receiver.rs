@@ -2,7 +2,7 @@
 
 use error::P25Error;
 use message::data_unit::{DataUnitReceiver, ReceiverEvent};
-use message::nid::NetworkID;
+use message::nid::NetworkId;
 use message::status::StreamSymbol;
 use trunking::tsbk::{TsbkFields, TsbkReceiver};
 use voice::control::LinkControlFields;
@@ -22,7 +22,7 @@ pub enum MessageEvent {
     /// A runtime error occured.
     Error(P25Error),
     /// An NID at the start of a packet was decoded.
-    PacketNID(NetworkID),
+    PacketNID(NetworkId),
     /// A voice header was received.
     VoiceHeader(VoiceHeaderFields),
     /// A voice frame was received.
@@ -111,7 +111,7 @@ impl MessageReceiver {
         };
 
         let dibit = match event {
-            ReceiverEvent::NetworkID(nid) => {
+            ReceiverEvent::NetworkId(nid) => {
                 let next = match nid.data_unit {
                     VoiceHeader =>
                         DecodeHeader(VoiceHeaderReceiver::new()),

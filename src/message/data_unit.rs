@@ -49,7 +49,7 @@ pub enum ReceiverEvent {
     /// Data or status symbol.
     Symbol(StreamSymbol),
     /// Decoded NID information.
-    NetworkID(nid::NetworkID),
+    NetworkId(nid::NetworkId),
 }
 
 /// Internal state of the state machine.
@@ -163,7 +163,7 @@ impl DataUnitReceiver {
                 };
 
                 match nid.feed(dibit) {
-                    Some(Ok(nid)) => EventChange(ReceiverEvent::NetworkID(nid),
+                    Some(Ok(nid)) => EventChange(ReceiverEvent::NetworkId(nid),
                                                  State::decode_packet(*recv)),
                     Some(Err(e)) => Error(e),
                     None => NoChange,
