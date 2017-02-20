@@ -37,7 +37,7 @@ pub enum LinkControlOpcode {
     AltControlChannelExplicit,
     AdjacentSiteExplicit,
     ChannelParamsExplicit,
-    RFSSStatusExplicit,
+    RfssStatusExplicit,
     NetworkStatusExplicit,
 }
 
@@ -75,7 +75,7 @@ impl LinkControlOpcode {
             0b100110 => Some(AltControlChannelExplicit),
             0b100111 => Some(AdjacentSiteExplicit),
             0b011001 => Some(ChannelParamsExplicit),
-            0b101000 => Some(RFSSStatusExplicit),
+            0b101000 => Some(RfssStatusExplicit),
             0b101001 => Some(NetworkStatusExplicit),
             _ => None,
         }
