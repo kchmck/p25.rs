@@ -100,7 +100,20 @@ impl SystemServices {
 }
 
 /// Maps channel identifiers (maximum 16 per control channel) to their tuning parameters.
-pub type ChannelParamsMap = [Option<ChannelParams>; 16];
+#[derive(Default)]
+pub struct ChannelParamsMap([Option<ChannelParams>; 16]);
+
+impl ChannelParamsMap {
+    /// Update the map with the given channel parameters.
+    pub fn update(&mut self, upd: &ChannelParamsUpdate) {
+        self.0[upd.id() as usize] = Some(upd.params());
+    }
+
+    /// Try to retrieve channel parameters for the given channel ID.
+    pub fn lookup(&self, id: u8) -> Option<ChannelParams> {
+        self.0[id as usize]
+    }
+}
 
 /// Computes TX/RX frequencies and bandwidth for channel numbers within a site.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
