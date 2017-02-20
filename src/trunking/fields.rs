@@ -325,6 +325,7 @@ impl<'a> NetworkStatusBroadcast<'a> {
 
 /// Registration response.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "ser", derive(Serialize))]
 pub enum RegResponse {
     /// Registration is accepted.
     Accept,
