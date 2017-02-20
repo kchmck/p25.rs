@@ -4,7 +4,7 @@ use error::P25Error;
 use message::data_unit::{DataUnitReceiver, ReceiverEvent};
 use message::nid::NetworkID;
 use message::status::StreamSymbol;
-use trunking::tsbk::{TSBKFields, TsbkReceiver};
+use trunking::tsbk::{TsbkFields, TsbkReceiver};
 use voice::control::LinkControlFields;
 use voice::crypto::CryptoControlFields;
 use voice::frame::VoiceFrame;
@@ -34,7 +34,7 @@ pub enum MessageEvent {
     /// A voice low-speed data fragment was decoded.
     LowSpeedDataFragment(u32),
     /// A trunking signalling packet was received.
-    TrunkingControl(TSBKFields),
+    TrunkingControl(TsbkFields),
     /// A voice terminator link control was received.
     VoiceTerm(LinkControlFields),
 }

@@ -36,7 +36,7 @@ impl TsbkReceiver {
     /// Feed in a baseband symbol, possibly producing a complete TSBK packet. Return
     /// `Some(Ok(pkt))` if a packet was successfully received, `Some(Err(err))` if an
     /// error occurred, and `None` in the case of no event.
-    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<TSBKFields>> {
+    pub fn feed(&mut self, dibit: Dibit) -> Option<Result<TsbkFields>> {
         let (count, dibits) = {
             let buf = match self.dibits.feed(dibit) {
                 Some(buf) => buf,
@@ -58,7 +58,7 @@ impl TsbkReceiver {
         let mut bytes = [0; TSBK_BYTES];
         DibitBytes::new(dibits.iter().cloned()).collect_slice_checked(&mut bytes[..]);
 
-        Some(Ok(TSBKFields::new(bytes)))
+        Some(Ok(TsbkFields::new(bytes)))
     }
 }
 
@@ -183,11 +183,11 @@ pub type Buf = [u8; TSBK_BYTES];
 
 /// A Trunking Signalling Block packet.
 #[derive(Copy, Clone)]
-pub struct TSBKFields(Buf);
+pub struct TsbkFields(Buf);
 
-impl TSBKFields {
+impl TsbkFields {
     /// Interpret the given bytes as a TSBK packet.
-    pub fn new(buf: Buf) -> TSBKFields { TSBKFields(buf) }
+    pub fn new(buf: Buf) -> TsbkFields { TsbkFields(buf) }
 
     /// Whether this packet is the last one in the TSBK group.
     pub fn is_tail(&self) -> bool { self.0[0] >> 7 == 1 }
@@ -221,7 +221,7 @@ pub struct LocRegResponse(Buf);
 
 impl LocRegResponse {
     /// Create a new `LocRegResponse` decoder from the base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { LocRegResponse(tsbk.0) }
+    pub fn new(tsbk: TsbkFields) -> Self { LocRegResponse(tsbk.0) }
 
     /// System response to the registration request.
     pub fn response(&self) -> RegResponse { RegResponse::from_bits(self.0[2] & 0b11) }
@@ -240,7 +240,7 @@ pub struct UnitRegResponse(Buf);
 
 impl UnitRegResponse {
     /// Create a new `UnitRegResponse` decoder from the base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { UnitRegResponse(tsbk.0) }
+    pub fn new(tsbk: TsbkFields) -> Self { UnitRegResponse(tsbk.0) }
 
     /// System response to user registration request.
     pub fn response(&self) -> RegResponse {
@@ -261,7 +261,7 @@ pub struct UnitDeregAck(Buf);
 
 impl UnitDeregAck {
     /// Create a new `UnitDeregAck` decoder from the base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { UnitDeregAck(tsbk.0) }
+    pub fn new(tsbk: TsbkFields) -> Self { UnitDeregAck(tsbk.0) }
 
     /// WACN ID within the communication network.
     pub fn wacn(&self) -> u32 { slice_u24(&self.0[3...5]) >> 4 }
@@ -276,7 +276,7 @@ pub struct GroupVoiceGrant(Buf);
 
 impl GroupVoiceGrant {
     /// Create a new `GroupVoiceGrant` decoder from the base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { GroupVoiceGrant(tsbk.0) }
+    pub fn new(tsbk: TsbkFields) -> Self { GroupVoiceGrant(tsbk.0) }
 
     /// Options requested/granted for the traffic channel.
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
@@ -296,7 +296,7 @@ pub struct UnitTrafficChannel(Buf);
 
 impl UnitTrafficChannel {
     /// Create a new `UnitTrafficChannel` decoder from the base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { UnitTrafficChannel(tsbk.0) }
+    pub fn new(tsbk: TsbkFields) -> Self { UnitTrafficChannel(tsbk.0) }
 
     /// Parameters for tuning to the traffic channel.
     pub fn channel(&self) -> Channel { Channel::new(&self.0[2..]) }
@@ -311,7 +311,7 @@ pub struct PhoneGrant(Buf);
 
 impl PhoneGrant {
     /// Create a new `PhoneGrant` decoder from the base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { PhoneGrant(tsbk.0) }
+    pub fn new(tsbk: TsbkFields) -> Self { PhoneGrant(tsbk.0) }
 
     /// Options requested/granted for the traffic channel.
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
@@ -329,7 +329,7 @@ pub struct GroupDataGrant(Buf);
 
 impl GroupDataGrant {
     /// Create a new `GroupDataGrant` decoder from the base TSBK decoder.
-    pub fn new(tsbk: TSBKFields) -> Self { GroupDataGrant(tsbk.0) }
+    pub fn new(tsbk: TsbkFields) -> Self { GroupDataGrant(tsbk.0) }
 
     /// Options requested/granted for the traffic channel.
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
@@ -348,7 +348,7 @@ mod test {
 
     #[test]
     fn test_tsbk_fields() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b10111001,
             0b00000001,
             0b11110000,
@@ -384,7 +384,7 @@ mod test {
 
     #[test]
     fn test_adjacent_site() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00111100,
             0b00000000,
             0b11001100,
@@ -423,7 +423,7 @@ mod test {
 
     #[test]
     fn test_channel_params_update() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00111101,
             0b00000000,
             0b0110_0011,
@@ -447,7 +447,7 @@ mod test {
 
     #[test]
     fn test_group_traffic_update() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00000010,
             0b00000000,
             0b01101111,
@@ -474,7 +474,7 @@ mod test {
 
     #[test]
     fn test_alt_control_channel() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00111001,
             0b00000000,
             0b11100011,
@@ -517,7 +517,7 @@ mod test {
 
     #[test]
     fn test_rfss_status_broadcast() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00111010,
             0b00000000,
             0b11001100,
@@ -552,7 +552,7 @@ mod test {
 
     #[test]
     fn test_network_status_broadcast() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00111011,
             0b00000000,
             0b11001010,
@@ -585,7 +585,7 @@ mod test {
 
     #[test]
     fn test_unit_reg_response() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00101100,
             0b00000000,
             0b11011010,
@@ -609,7 +609,7 @@ mod test {
 
     #[test]
     fn test_unit_dereg_ack() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00101111,
             0b00000000,
             0b11111111,
@@ -632,7 +632,7 @@ mod test {
 
     #[test]
     fn test_loc_reg_response() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00101011,
             0b00000000,
             0b01010011,
@@ -657,7 +657,7 @@ mod test {
 
     #[test]
     fn test_call_alert() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00011111,
             0b00000000,
             0b11111111,
@@ -679,7 +679,7 @@ mod test {
 
     #[test]
     fn test_call_request() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00000101,
             0b00000000,
             0b01010101,
@@ -707,7 +707,7 @@ mod test {
 
     #[test]
     fn test_group_voice_grant() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00000000,
             0b11111111,
             0b10100011,
@@ -737,7 +737,7 @@ mod test {
 
     #[test]
     fn test_unit_traffic_channel() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00000100,
             0b11111111,
             0b11001110,
@@ -761,7 +761,7 @@ mod test {
 
     #[test]
     fn test_phone_alert() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00001010,
             0b00000000,
             0b11110011,
@@ -789,7 +789,7 @@ mod test {
 
     #[test]
     fn test_phone_grant() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00001000,
             0b00000000,
             0b10100011,
@@ -819,7 +819,7 @@ mod test {
 
     #[test]
     fn test_group_data_grant() {
-        let t = TSBKFields::new([
+        let t = TsbkFields::new([
             0b00010001,
             0b00000000,
             0b10100011,
