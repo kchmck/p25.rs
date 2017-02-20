@@ -32,7 +32,7 @@ pub enum CryptoAlgorithm {
     BatonOdd,
     Unencrypted,
     Des,
-    TripleDES,
+    TripleDes,
     Aes,
     Other(u8),
 }
@@ -51,7 +51,7 @@ impl CryptoAlgorithm {
             0x41 => BatonOdd,
             0x80 => Unencrypted,
             0x81 => Des,
-            0x83 => TripleDES,
+            0x83 => TripleDes,
             0x84 => Aes,
             b => Other(b),
         }
