@@ -59,7 +59,7 @@ enum State {
     /// Lock onto frame synchronization.
     Sync(SyncDetector),
     /// Decode NID.
-    DecodeNID(SymbolReceiver, nid::NIDReceiver),
+    DecodeNID(SymbolReceiver, nid::NidReceiver),
     /// Decode data and status symbols.
     DecodePacket(SymbolReceiver),
     /// Flush pads at end of packet.
@@ -89,7 +89,7 @@ impl State {
 
     /// Initial NID decode state.
     pub fn decode_nid(decoder: Decoder) -> State {
-        DecodeNID(SymbolReceiver::new(decoder), nid::NIDReceiver::new())
+        DecodeNID(SymbolReceiver::new(decoder), nid::NidReceiver::new())
     }
 
     /// Initial symbol decode state.

@@ -150,15 +150,15 @@ impl NetworkID {
 }
 
 /// State machine that attempts to parse a stream of dibits into an NID word.
-pub struct NIDReceiver {
+pub struct NidReceiver {
     /// Buffered dibits.
     dibits: buffer::Buffer<buffer::NIDStorage>,
 }
 
-impl NIDReceiver {
-    /// Create a new `NIDReceiver` with an empty buffer.
-    pub fn new() -> NIDReceiver {
-        NIDReceiver {
+impl NidReceiver {
+    /// Create a new `NidReceiver` with an empty buffer.
+    pub fn new() -> NidReceiver {
+        NidReceiver {
             dibits: buffer::Buffer::new(buffer::NIDStorage::new()),
         }
     }
