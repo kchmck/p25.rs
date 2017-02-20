@@ -64,7 +64,7 @@ impl TSBKReceiver {
 
 /// Type of a TSBK payload.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum TSBKOpcode {
+pub enum TsbkOpcode {
     GroupVoiceGrant,
     GroupVoiceUpdate,
     GroupVoiceUpdateExplicit,
@@ -106,10 +106,10 @@ pub enum TSBKOpcode {
     Reserved,
 }
 
-impl TSBKOpcode {
+impl TsbkOpcode {
     /// Try to parse an opcode from the given 6 bits.
-    pub fn from_bits(bits: u8) -> Option<TSBKOpcode> {
-        use self::TSBKOpcode::*;
+    pub fn from_bits(bits: u8) -> Option<TsbkOpcode> {
+        use self::TsbkOpcode::*;
 
         assert!(bits >> 6 == 0);
 
@@ -194,7 +194,7 @@ impl TSBKFields {
     /// Whether the packet is encrypted.
     pub fn protected(&self) -> bool { self.0[0] >> 6 & 1 == 1 }
     /// Type of data contained in the payload.
-    pub fn opcode(&self) -> Option<TSBKOpcode> { TSBKOpcode::from_bits(self.0[0] & 0x3F) }
+    pub fn opcode(&self) -> Option<TsbkOpcode> { TsbkOpcode::from_bits(self.0[0] & 0x3F) }
     /// Manufacturer ID, which determines if the packet is standardized.
     pub fn mfg(&self) -> u8 { self.0[1] }
     /// Transmitted CRC.
@@ -365,7 +365,7 @@ mod test {
 
         assert!(t.is_tail());
         assert!(!t.protected());
-        assert_eq!(t.opcode(), Some(TSBKOpcode::AltControlChannel));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::AltControlChannel));
         assert_eq!(t.mfg(), 0b00000001);
         assert_eq!(t.crc(), 0b1101011111010111);
         assert_eq!(t.calc_crc(), 0b0111010000111100);
@@ -398,7 +398,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::AdjacentSite));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::AdjacentSite));
         let a = AdjacentSite::new(t.payload());
 
         assert_eq!(a.area(), 0b11001100);
@@ -437,7 +437,7 @@ mod test {
             0b11111111,
             0b11111111,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::ChannelParamsUpdate));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::ChannelParamsUpdate));
         let p = ChannelParamsUpdate::new(t.payload());
 
         assert_eq!(p.id(), 0b0110);
@@ -461,7 +461,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::GroupVoiceUpdate));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::GroupVoiceUpdate));
         let u = GroupTrafficUpdate::new(t.payload()).updates();
 
         assert_eq!(u[0].0.id(), 0b0110);
@@ -488,7 +488,7 @@ mod test {
             0b00000000,
             0b11111111,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::AltControlChannel));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::AltControlChannel));
         let a = AltControlChannel::new(t.payload());
         assert_eq!(a.rfss(), 0b11100011);
         assert_eq!(a.site(), 0b01010101);
@@ -531,7 +531,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::RfssStatusBroadcast));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::RfssStatusBroadcast));
         let a = RfssStatusBroadcast::new(t.payload());
         assert_eq!(a.area(), 0b11001100);
         assert!(a.networked());
@@ -566,7 +566,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::NetworkStatusBroadcast));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::NetworkStatusBroadcast));
         let n = NetworkStatusBroadcast::new(t.payload());
         assert_eq!(n.area(), 0b11001010);
         assert_eq!(n.wacn(), 0b11111100001010111100);
@@ -599,7 +599,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::UnitRegResponse));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::UnitRegResponse));
         let r = UnitRegResponse::new(t);
         assert_eq!(r.response(), RegResponse::Fail);
         assert_eq!(r.system(), 0b101011100111);
@@ -623,7 +623,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::UnitDeregAck));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::UnitDeregAck));
         let a = UnitDeregAck::new(t);
         assert_eq!(a.wacn(), 0b11001100001100111010);
         assert_eq!(a.system(), 0b000111110011);
@@ -646,7 +646,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::LocRegResponse));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::LocRegResponse));
         let r = LocRegResponse::new(t);
         assert_eq!(r.response(), RegResponse::Refuse);
         assert_eq!(r.talkgroup(), TalkGroup::Other(0b1111100000011100));
@@ -671,7 +671,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::UnitCallAlert));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::UnitCallAlert));
         let c = UnitCallAlert::new(t.payload());
         assert_eq!(c.dest_unit(), 0b010101011010101011001100);
         assert_eq!(c.src_unit(), 0b001100111110011100011000);
@@ -693,7 +693,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::UnitCallRequest));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::UnitCallRequest));
         let r = UnitCallRequest::new(t.payload());
         let o = r.opts();
         assert!(!o.emergency());
@@ -721,7 +721,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::GroupVoiceGrant));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::GroupVoiceGrant));
         let g = GroupVoiceGrant::new(t);
         let o = g.opts();
         assert!(o.emergency());
@@ -751,7 +751,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::UnitVoiceGrant));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::UnitVoiceGrant));
         let g = UnitTrafficChannel::new(t);
         assert_eq!(g.channel().id(), 0b1100);
         assert_eq!(g.channel().number(), 0b111010101010);
@@ -775,7 +775,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::PhoneAlert));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::PhoneAlert));
         let a = PhoneAlert::new(t.payload());
         assert_eq!(a.digits(), &[
             0b11110011,
@@ -803,7 +803,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::PhoneGrant));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::PhoneGrant));
         let g = PhoneGrant::new(t);
         let o = g.opts();
         assert!(o.emergency());
@@ -833,7 +833,7 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::GroupDataGrant));
+        assert_eq!(t.opcode(), Some(TsbkOpcode::GroupDataGrant));
         let g = GroupDataGrant::new(t);
         let o = g.opts();
         assert!(o.emergency());
