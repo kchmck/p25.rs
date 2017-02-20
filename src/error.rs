@@ -18,7 +18,7 @@ pub enum P25Error {
     /// An ambiguous symbol or too many errors were detected when attempting convolutional decode.
     ViterbiUnrecoverable,
     /// An unknown or corrupted NID was encountered.
-    UnknownNID,
+    UnknownNid,
 }
 
 /// Standard result using `P25Error`.

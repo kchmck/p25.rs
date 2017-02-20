@@ -179,7 +179,7 @@ impl NidReceiver {
 
         match NetworkID::from_bits(data) {
             Some(nid) => Some(Ok(nid)),
-            None => Some(Err(P25Error::UnknownNID)),
+            None => Some(Err(P25Error::UnknownNid)),
         }
     }
 }
