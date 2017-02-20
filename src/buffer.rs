@@ -80,7 +80,7 @@ storage_type!(VoiceExtraStorage, [bits::Hexbit; consts::EXTRA_HEXBITS]);
 /// Stores dibits that make up a data/TSBK payload packet.
 storage_type!(DataPayloadStorage, [bits::Dibit; consts::CODING_DIBITS]);
 /// Stores dibits that make up the NID word.
-small_storage_type!(NIDStorage, consts::NID_DIBITS);
+small_storage_type!(NidStorage, consts::NID_DIBITS);
 /// Stores dibits that make up each coded word in a voice extra component.
 small_storage_type!(VoiceExtraWordStorage, consts::EXTRA_WORD_DIBITS);
 /// Stores dibits that make up a voice data fragment.
