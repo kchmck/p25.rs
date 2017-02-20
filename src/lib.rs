@@ -8,6 +8,13 @@ extern crate collect_slice;
 extern crate num;
 extern crate static_ewma;
 
+#[cfg(feature = "ser")]
+#[macro_use]
+extern crate serde_derive;
+
+#[cfg(feature = "ser")]
+extern crate serde;
+
 #[macro_use]
 extern crate static_fir;
 
