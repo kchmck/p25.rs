@@ -44,6 +44,7 @@ impl Channel {
 /// Additionally, the user directs each transmission to a talkgroup selected on the
 /// radio.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "ser", derive(Serialize))]
 pub enum TalkGroup {
     /// Includes nobody.
     Nobody,
