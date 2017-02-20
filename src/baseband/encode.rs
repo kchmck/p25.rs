@@ -51,21 +51,21 @@ impl<T: Iterator<Item = bits::Dibit>> Iterator for C4fmImpulses<T> {
 
 /// Generates the alternating series of dibits used for the C4FM deviation test. The
 /// resulting filtered waveform approximates a 1200Hz sine wave.
-pub struct C4FMDeviationDibits {
+pub struct C4fmDeviationDibits {
     /// Used to alternate dibits.
     idx: usize,
 }
 
-impl C4FMDeviationDibits {
-    /// Construct a new `C4FMDeviationDibits`.
-    pub fn new() -> C4FMDeviationDibits {
-        C4FMDeviationDibits {
+impl C4fmDeviationDibits {
+    /// Construct a new `C4fmDeviationDibits`.
+    pub fn new() -> C4fmDeviationDibits {
+        C4fmDeviationDibits {
             idx: 0,
         }
     }
 }
 
-impl Iterator for C4FMDeviationDibits {
+impl Iterator for C4fmDeviationDibits {
     type Item = bits::Dibit;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -141,7 +141,7 @@ mod test {
 
     #[test]
     fn test_deviation() {
-        let mut d = C4FMDeviationDibits::new();
+        let mut d = C4fmDeviationDibits::new();
 
         assert!(d.next().unwrap().bits() == 0b01);
         assert!(d.next().unwrap().bits() == 0b01);
