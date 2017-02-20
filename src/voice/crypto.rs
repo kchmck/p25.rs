@@ -23,6 +23,7 @@ impl CryptoControlFields {
 
 /// Type of cryptographic algorithm.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "ser", derive(Serialize))]
 pub enum CryptoAlgorithm {
     Accordion,
     BatonEven,
