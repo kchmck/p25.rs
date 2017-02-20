@@ -26,7 +26,7 @@ pub enum LinkControlOpcode {
     SystemServiceBroadcast,
     AltControlChannel,
     AdjacentSite,
-    RFSSStatusBroadcast,
+    RfssStatusBroadcast,
     NetworkStatusBroadcast,
     UnitStatusUpdate,
     UnitShortMessage,
@@ -64,7 +64,7 @@ impl LinkControlOpcode {
             0b100000 => Some(SystemServiceBroadcast),
             0b100001 => Some(AltControlChannel),
             0b100010 => Some(AdjacentSite),
-            0b100011 => Some(RFSSStatusBroadcast),
+            0b100011 => Some(RfssStatusBroadcast),
             0b100100 => Some(NetworkStatusBroadcast),
             0b010100 => Some(UnitStatusUpdate),
             0b010101 => Some(UnitShortMessage),
@@ -332,8 +332,8 @@ mod test {
             0b01110011,
             0b01010001,
         ]);
-        assert_eq!(l.opcode(), Some(LinkControlOpcode::RFSSStatusBroadcast));
-        let a = RFSSStatusBroadcast::new(l.payload());
+        assert_eq!(l.opcode(), Some(LinkControlOpcode::RfssStatusBroadcast));
+        let a = RfssStatusBroadcast::new(l.payload());
         assert_eq!(a.area(), 0b11001100);
         assert!(a.networked());
         assert_eq!(a.system(), 0b000010101010);

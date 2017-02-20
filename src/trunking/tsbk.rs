@@ -97,7 +97,7 @@ pub enum TSBKOpcode {
     RoamingAddrUpdate,
     SystemServiceBroadcast,
     AltControlChannel,
-    RFSSStatusBroadcast,
+    RfssStatusBroadcast,
     NetworkStatusBroadcast,
     AdjacentSite,
     ChannelParamsUpdate,
@@ -166,7 +166,7 @@ impl TSBKOpcode {
 
             0b111000 => Some(SystemServiceBroadcast),
             0b111001 => Some(AltControlChannel),
-            0b111010 => Some(RFSSStatusBroadcast),
+            0b111010 => Some(RfssStatusBroadcast),
             0b111011 => Some(NetworkStatusBroadcast),
             0b111100 => Some(AdjacentSite),
             0b111101 => Some(ChannelParamsUpdate),
@@ -531,8 +531,8 @@ mod test {
             0b00000000,
             0b00000000,
         ]);
-        assert_eq!(t.opcode(), Some(TSBKOpcode::RFSSStatusBroadcast));
-        let a = RFSSStatusBroadcast::new(t.payload());
+        assert_eq!(t.opcode(), Some(TSBKOpcode::RfssStatusBroadcast));
+        let a = RfssStatusBroadcast::new(t.payload());
         assert_eq!(a.area(), 0b11001100);
         assert!(a.networked());
         assert_eq!(a.system(), 0b000010101010);

@@ -266,11 +266,11 @@ impl<'a> AltControlChannel<'a> {
 }
 
 /// Site and RFSS information of current control channel.
-pub struct RFSSStatusBroadcast<'a>(&'a [u8]);
+pub struct RfssStatusBroadcast<'a>(&'a [u8]);
 
-impl<'a> RFSSStatusBroadcast<'a> {
-    /// Create a new `RFSSStatusBroadcast` decoder from the given payload bytes.
-    pub fn new(payload: &'a [u8]) -> Self { RFSSStatusBroadcast(payload) }
+impl<'a> RfssStatusBroadcast<'a> {
+    /// Create a new `RfssStatusBroadcast` decoder from the given payload bytes.
+    pub fn new(payload: &'a [u8]) -> Self { RfssStatusBroadcast(payload) }
 
     /// Location registration area of current site.
     pub fn area(&self) -> u8 { self.0[0] }
