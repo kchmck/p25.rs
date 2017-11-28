@@ -176,7 +176,7 @@ fn decode<P: PolynomialCoefs>(word: &[Hexbit]) -> Option<(Polynomial<P>, usize)>
 /// The resulting polynomial has the form s(x) = s<sub>1</sub> + s<sub>2</sub>x + ··· +
 /// s<sub>2t</sub>x<sup>2t</sup>, where s<sub>i</sub> = r(α<sup>i</sup>).
 fn syndromes<P: PolynomialCoefs>(word: &Polynomial<P>) -> Polynomial<P> {
-    Polynomial::new((1...P::syndromes()).map(|p| {
+    Polynomial::new((1..=P::syndromes()).map(|p| {
         // Compute r(α^p).
         word.eval(P25Codeword::for_power(p))
     }))

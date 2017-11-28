@@ -99,7 +99,7 @@ impl LinkControlFields {
     }
 
     /// Bytes that make up the payload.
-    pub fn payload(&self) -> &[u8] { &self.0[1...8] }
+    pub fn payload(&self) -> &[u8] { &self.0[1..=8] }
 }
 
 /// Identity of unit transmitting on the current talkgroup traffic channel.
@@ -147,9 +147,9 @@ impl PhoneTraffic {
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
     /// Maximum amount of time (in units of 100ms) that the phone call can occupy the
     /// traffic channel.
-    pub fn call_timer(&self) -> u16 { slice_u16(&self.0[4...5]) }
+    pub fn call_timer(&self) -> u16 { slice_u16(&self.0[4..=5]) }
     /// Unit participating in call.
-    pub fn unit(&self) -> u32 { slice_u24(&self.0[6...8]) }
+    pub fn unit(&self) -> u32 { slice_u24(&self.0[6..=8]) }
 }
 
 #[cfg(test)]

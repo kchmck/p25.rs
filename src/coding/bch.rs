@@ -98,7 +98,7 @@ type BchPolynomial = Polynomial<BchCoefs>;
 /// The resulting polynomial has the form s(x) = s<sub>1</sub> + s<sub>2</sub>x + ··· +
 /// s<sub>2t</sub>x<sup>2t</sup>, where s<sub>i</sub> = r(α<sup>i</sup>).
 fn syndromes(word: u64) -> BchPolynomial {
-    BchPolynomial::new((1...BchCoefs::syndromes()).map(|p| {
+    BchPolynomial::new((1..=BchCoefs::syndromes()).map(|p| {
         // Compute r(α^p) with the polynomial representation of the bitmap. The LSB of
         // `word` maps to the coefficient of the degree-0 term.
         (0..P25Field::size()).fold(P25Codeword::default(), |s, b| {
@@ -201,7 +201,7 @@ mod test {
 
         let gen = 0o6331_1413_6723_5453u64;
 
-        for i in 0...47 {
+        for i in 0..=47 {
             let coef = gen >> i & 1;
 
             assert_eq!(p[i].power(), if coef == 0 {

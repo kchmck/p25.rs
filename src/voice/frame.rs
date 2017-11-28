@@ -38,7 +38,7 @@ impl VoiceFrame {
         errors[0] = err;
 
         // Decode "higher-priority" Golay chunks.
-        for idx in 1...3 {
+        for idx in 1..=3 {
             let bits = descramble(dibits, idx) ^ prand.next_23();
 
             let (data, err) = match golay::standard::decode(bits) {
@@ -51,7 +51,7 @@ impl VoiceFrame {
         }
 
         // Decode "lower-priority" Hamming chunks.
-        for idx in 4...6 {
+        for idx in 4..=6 {
             let bits = descramble(dibits, idx) ^ prand.next_15();
 
             let (data, err) = match hamming::standard::decode(bits as u16) {

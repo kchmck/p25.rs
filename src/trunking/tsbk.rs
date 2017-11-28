@@ -213,7 +213,7 @@ impl TsbkFields {
     }
 
     /// Bytes that make up the payload of the packet.
-    pub fn payload(&self) -> &[u8] { &self.0[2...9] }
+    pub fn payload(&self) -> &[u8] { &self.0[2..=9] }
 }
 
 /// Response given to a location registration request.
@@ -226,13 +226,13 @@ impl LocRegResponse {
     /// System response to the registration request.
     pub fn response(&self) -> RegResponse { RegResponse::from_bits(self.0[2] & 0b11) }
     /// Talkgroup of requesting unit.
-    pub fn talkgroup(&self)  -> TalkGroup { TalkGroup::new(&self.0[3...4]) }
+    pub fn talkgroup(&self)  -> TalkGroup { TalkGroup::new(&self.0[3..=4]) }
     /// RF Subsystem ID of site within System.
     pub fn rfss(&self) -> u8 { self.0[5] }
     /// Site ID of site within RFSS.
     pub fn site(&self) -> u8 { self.0[6] }
     /// Address of requesting unit.
-    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[7...9]) }
+    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[7..=9]) }
 }
 
 /// Response given to an attempted user registration.
@@ -248,12 +248,12 @@ impl UnitRegResponse {
     }
 
     /// System ID within WACN.
-    pub fn system(&self) -> u16 { slice_u16(&self.0[2...3]) & 0xFFF }
+    pub fn system(&self) -> u16 { slice_u16(&self.0[2..=3]) & 0xFFF }
     /// Address of originating unit, which uniquely identifies the unit within the System.
-    pub fn src_id(&self) -> u32 { slice_u24(&self.0[4...6]) }
+    pub fn src_id(&self) -> u32 { slice_u24(&self.0[4..=6]) }
     /// ID of originating unit which, along with the WACN and System ID, uniquely
     /// identifies the unit.
-    pub fn src_addr(&self) -> u32 { slice_u24(&self.0[7...9]) }
+    pub fn src_addr(&self) -> u32 { slice_u24(&self.0[7..=9]) }
 }
 
 /// Acknowledgement of successful user deregistration request.
@@ -264,11 +264,11 @@ impl UnitDeregAck {
     pub fn new(tsbk: TsbkFields) -> Self { UnitDeregAck(tsbk.0) }
 
     /// WACN ID within the communication network.
-    pub fn wacn(&self) -> u32 { slice_u24(&self.0[3...5]) >> 4 }
+    pub fn wacn(&self) -> u32 { slice_u24(&self.0[3..=5]) >> 4 }
     /// System ID within WACN.
-    pub fn system(&self) -> u16 { slice_u16(&self.0[5...6]) & 0xFFF }
+    pub fn system(&self) -> u16 { slice_u16(&self.0[5..=6]) & 0xFFF }
     /// ID of affected unit.
-    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7...9]) }
+    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..=9]) }
 }
 
 /// Indicates a talkgroup has been granted a voice traffic channel.
@@ -281,7 +281,7 @@ impl GroupVoiceGrant {
     /// Options requested/granted for the traffic channel.
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
     /// Parameters for tuning to the traffic channel.
-    pub fn channel(&self) -> Channel { Channel::new(&self.0[3...4]) }
+    pub fn channel(&self) -> Channel { Channel::new(&self.0[3..=4]) }
     /// Talkgroup for the conversation.
     pub fn talkgroup(&self) -> TalkGroup { TalkGroup::new(&self.0[5..]) }
     /// Unit that initiated the conversation.
@@ -334,11 +334,11 @@ impl GroupDataGrant {
     /// Options requested/granted for the traffic channel.
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[2]) }
     /// Parameters for tuning to the traffic channel.
-    pub fn channel(&self) -> Channel { Channel::new(&self.0[3...4]) }
+    pub fn channel(&self) -> Channel { Channel::new(&self.0[3..=4]) }
     /// Talkgroup assigned to the channel.
-    pub fn talkgroup(&self) -> TalkGroup { TalkGroup::new(&self.0[5...6]) }
+    pub fn talkgroup(&self) -> TalkGroup { TalkGroup::new(&self.0[5..=6]) }
     /// Originating unit for the data traffic.
-    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7...9]) }
+    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[7..=9]) }
 }
 
 #[cfg(test)]

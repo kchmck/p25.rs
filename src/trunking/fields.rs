@@ -190,8 +190,8 @@ impl<'a> GroupTrafficUpdate<'a> {
     /// parameters for tuning to the traffic channel of each.
     pub fn updates(&self) -> [(Channel, TalkGroup); 2] {
         [
-            (Channel::new(&self.0[0...1]), TalkGroup::new(&self.0[2...3])),
-            (Channel::new(&self.0[4...5]), TalkGroup::new(&self.0[6...7])),
+            (Channel::new(&self.0[0..=1]), TalkGroup::new(&self.0[2..=3])),
+            (Channel::new(&self.0[4..=5]), TalkGroup::new(&self.0[6..=7])),
         ]
     }
 }
@@ -210,13 +210,13 @@ impl<'a> AdjacentSite<'a> {
     /// Description of adjacent site.
     pub fn opts(&self) -> SiteOptions { SiteOptions::new(self.0[1] >> 4) }
     /// System ID of adjacent site within WACN.
-    pub fn system(&self) -> u16 { slice_u16(&self.0[1...2]) & 0xFFF }
+    pub fn system(&self) -> u16 { slice_u16(&self.0[1..=2]) & 0xFFF }
     /// RF Subsystem ID of adjacent site within the System.
     pub fn rfss(&self) -> u8 { self.0[3] }
     /// Site ID of adjacent site within the RFSS.
     pub fn site(&self) -> u8 { self.0[4] }
     /// Channel information for computing TX/RX frequencies.
-    pub fn channel(&self) -> Channel { Channel::new(&self.0[5...6]) }
+    pub fn channel(&self) -> Channel { Channel::new(&self.0[5..=6]) }
     /// Services supported by the adjacent site.
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[7]) }
 }
@@ -254,7 +254,7 @@ impl<'a> ChannelParamsUpdate<'a> {
     }
 
     /// Base RX frequency in steps of 5Hz.
-    fn base(&self) -> u32 { slice_u32(&self.0[4...7]) }
+    fn base(&self) -> u32 { slice_u32(&self.0[4..=7]) }
 }
 
 /// Advertisement of one or more alternative control channels for the current site.
@@ -273,8 +273,8 @@ impl<'a> AltControlChannel<'a> {
     /// services.
     pub fn alts(&self) -> [(Channel, SystemServices); 2] {
         [
-            (Channel::new(&self.0[2...3]), SystemServices::new(self.0[4])),
-            (Channel::new(&self.0[5...6]), SystemServices::new(self.0[7])),
+            (Channel::new(&self.0[2..=3]), SystemServices::new(self.0[4])),
+            (Channel::new(&self.0[5..=6]), SystemServices::new(self.0[7])),
         ]
     }
 }
@@ -292,13 +292,13 @@ impl<'a> RfssStatusBroadcast<'a> {
     /// communicate with other sites.
     pub fn networked(&self) -> bool { self.0[1] & 0b10000 != 0 }
     /// System ID of current site within WACN.
-    pub fn system(&self) -> u16 { slice_u16(&self.0[1...2]) & 0xFFF }
+    pub fn system(&self) -> u16 { slice_u16(&self.0[1..=2]) & 0xFFF }
     /// RF Subsystem ID of current site within System.
     pub fn rfss(&self) -> u8 { self.0[3] }
     /// Site ID of current site within RFSS.
     pub fn site(&self) -> u8 { self.0[4] }
     /// Channel information for computing TX/RX frequencies.
-    pub fn channel(&self) -> Channel { Channel::new(&self.0[5...6]) }
+    pub fn channel(&self) -> Channel { Channel::new(&self.0[5..=6]) }
     /// Services supported by the current site.
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[7]) }
 }
@@ -314,11 +314,11 @@ impl<'a> NetworkStatusBroadcast<'a> {
     /// Location registration area of site.
     pub fn area(&self) -> u8 { self.0[0] }
     /// WACN ID within the communications network.
-    pub fn wacn(&self) -> u32 { slice_u24(&self.0[1...3]) >> 4 }
+    pub fn wacn(&self) -> u32 { slice_u24(&self.0[1..=3]) >> 4 }
     /// System ID of site within WACN.
-    pub fn system(&self) -> u16 { slice_u16(&self.0[3...4]) & 0xFFF }
+    pub fn system(&self) -> u16 { slice_u16(&self.0[3..=4]) & 0xFFF }
     /// Channel information for computing TX/RX frequencies.
-    pub fn channel(&self) -> Channel { Channel::new(&self.0[5...6]) }
+    pub fn channel(&self) -> Channel { Channel::new(&self.0[5..=6]) }
     /// Services supported by the current site.
     pub fn services(&self) -> SystemServices { SystemServices::new(self.0[7]) }
 }
@@ -362,9 +362,9 @@ impl<'a> UnitCallAlert<'a> {
     pub fn new(payload: &'a [u8]) -> Self { UnitCallAlert(payload) }
 
     /// Target unit.
-    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[2...4]) }
+    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[2..=4]) }
     /// Requesting unit.
-    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[5...7]) }
+    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[5..=7]) }
 }
 
 /// Signals a target unit that a unit-to-unit all has been requested.
@@ -377,9 +377,9 @@ impl<'a> UnitCallRequest<'a> {
     /// Options requested/granted for resulting channel.
     pub fn opts(&self) -> ServiceOptions { ServiceOptions::new(self.0[0]) }
     /// Target unit.
-    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[2...4]) }
+    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[2..=4]) }
     /// Requesting unit.
-    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[5...7]) }
+    pub fn src_unit(&self) -> u32 { slice_u24(&self.0[5..=7]) }
 }
 
 /// Alerts a unit of a call from the public phone network.
@@ -390,9 +390,9 @@ impl<'a> PhoneAlert<'a> {
     pub fn new(payload: &'a [u8]) -> Self { PhoneAlert(payload) }
 
     /// The 10-digit phone number of the calling party, as encoded bytes.
-    pub fn digits(&self) -> &[u8] { &self.0[0...4] }
+    pub fn digits(&self) -> &[u8] { &self.0[0..=4] }
     /// Unit the call is for.
-    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[5...7]) }
+    pub fn dest_unit(&self) -> u32 { slice_u24(&self.0[5..=7]) }
 }
 
 #[cfg(test)]
