@@ -24,7 +24,7 @@ pub trait ByteField {
 
 /// Just write the single byte.
 impl<B: ByteField> BufWrite for B {
-    fn write<'a, 'b, T: Iterator<Item = &'a mut u8>>(&self, mut buf: &'b mut T) {
+    fn write<'a, 'b, T: Iterator<Item = &'a mut u8>>(&self, buf: &'b mut T) {
         *buf.next().unwrap() = self.byte();
     }
 }
@@ -106,7 +106,7 @@ impl ByteField for Manufacturer {
 pub struct LogicalLink(pub u32);
 
 impl BufWrite for LogicalLink {
-    fn write<'a, 'b, T: Iterator<Item = &'a mut u8>>(&self, mut buf: &'b mut T) {
+    fn write<'a, 'b, T: Iterator<Item = &'a mut u8>>(&self, buf: &'b mut T) {
         assert!(self.0 >> 24 == 0);
 
         *buf.next().unwrap() = (self.0 >> 16) as u8;
@@ -183,7 +183,7 @@ pub struct ConfirmedFields {
 }
 
 impl BufWrite for ConfirmedFields {
-    fn write<'a, 'b, T: Iterator<Item = &'a mut u8>>(&self, mut buf: &'b mut T) {
+    fn write<'a, 'b, T: Iterator<Item = &'a mut u8>>(&self, buf: &'b mut T) {
         self.preamble.write(buf);
         self.sap.write(buf);
         self.mfg.write(buf);
@@ -207,7 +207,7 @@ pub struct UnconfirmedFields {
 }
 
 impl BufWrite for UnconfirmedFields {
-    fn write<'a, 'b, T: Iterator<Item = &'a mut u8>>(&self, mut buf: &'b mut T) {
+    fn write<'a, 'b, T: Iterator<Item = &'a mut u8>>(&self, buf: &'b mut T) {
         self.preamble.write(buf);
         self.sap.write(buf);
         self.mfg.write(buf);

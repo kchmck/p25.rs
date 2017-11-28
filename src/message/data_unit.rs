@@ -174,8 +174,8 @@ impl DataUnitReceiver {
                 None => NoChange,
             },
             FlushPads(ref mut recv) => match recv.feed(s) {
-                /// According to the spec, the stream is padded until the next status
-                /// symbol boundary.
+                // According to the spec, the stream is padded until the next status
+                // symbol boundary.
                 Some(StreamSymbol::Status(_)) => Change(State::sync()),
                 _ => NoChange,
             },
