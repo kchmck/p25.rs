@@ -7,8 +7,8 @@
 extern crate binfield_matrix;
 extern crate cai_cyclic;
 extern crate collect_slice;
+extern crate moving_avg;
 extern crate num;
-extern crate static_ewma;
 
 #[cfg(feature = "ser")]
 #[macro_use]

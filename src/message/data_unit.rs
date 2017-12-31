@@ -2,17 +2,13 @@
 //! symbol decoding.
 
 use baseband::decode::{Decoder, Decider};
-use baseband::sync::{SyncCorrelator, SyncDetector};
+use baseband::sync::{SyncCorrelator, SyncDetector, SymbolThresholds, sync_threshold};
 use error::{P25Error, Result};
 use message::nid;
 use message::status::{StreamSymbol, StatusDeinterleaver};
 
 use self::State::*;
 use self::StateChange::*;
-
-/// Number of samples used to initially prime the correlator's moving average before starting to
-/// look for sync.
-const PRIME_SAMPLES: u32 = 6000;
 
 /// Low-level receiver for decoding samples into symbols and deinterleaving status
 /// symbols.
@@ -54,8 +50,6 @@ pub enum ReceiverEvent {
 
 /// Internal state of the state machine.
 enum State {
-    /// Prime the signal power tracker.
-    Prime(u32),
     /// Lock onto frame synchronization.
     Sync(SyncDetector),
     /// Decode NID.
@@ -81,9 +75,6 @@ enum StateChange {
 }
 
 impl State {
-    /// Initial prime state.
-    pub fn prime() -> State { Prime(1) }
-
     /// Initial synchronization state.
     pub fn sync() -> State { Sync(SyncDetector::new()) }
 
@@ -114,14 +105,17 @@ pub struct DataUnitReceiver {
     state: State,
     /// Tracks input signal power and frame synchronization statistics.
     corr: SyncCorrelator,
+    /// Tracks thresholds for symbol decisions.
+    symthresh: SymbolThresholds,
 }
 
 impl DataUnitReceiver {
     /// Create a new `DataUnitReceiver` in the initial reception state.
     pub fn new() -> DataUnitReceiver {
         DataUnitReceiver {
-            state: State::prime(),
+            state: State::sync(),
             corr: SyncCorrelator::new(),
+            symthresh: SymbolThresholds::new(),
         }
     }
 
@@ -141,16 +135,15 @@ impl DataUnitReceiver {
     /// Determine the next action to take based on the given sample.
     fn handle(&mut self, s: f32) -> StateChange {
         // Continuously track the input signal power.
-        let (power, thresh) = self.corr.feed(s);
+        let (corrpow, sigpow) = self.corr.feed(s);
 
         match self.state {
-            Prime(t) => if t == PRIME_SAMPLES {
-                Change(State::sync())
-            } else {
-                Change(Prime(t + 1))
-            },
-            Sync(ref mut sync) => if sync.feed(power, thresh) {
-                let (p, m, n) = self.corr.thresholds();
+            Sync(ref mut sync) => if sync.detect(corrpow, sync_threshold(sigpow)) {
+                let history = self.corr.history();
+                let (p, m, n) = self.symthresh.thresholds(&history);
+
+                println!("pos:{} mid:{} neg:{}", p, m, n);
+
                 Change(State::decode_nid(Decoder::new(Decider::new(p, m, n))))
             } else {
                 NoChange
