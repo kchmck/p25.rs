@@ -5,6 +5,7 @@
 #![feature(inclusive_range_syntax)]
 
 extern crate binfield_matrix;
+extern crate cai_cyclic;
 extern crate collect_slice;
 extern crate num;
 extern crate static_ewma;
