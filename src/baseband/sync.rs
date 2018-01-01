@@ -38,7 +38,7 @@ impl SyncCorrelator {
     }
 
     fn sig_power(&self) -> f32 {
-        self.corr.history().fold(0.0, |sum, &x| sum + x.powi(2)) /
+        self.corr.history_unordered().fold(0.0, |sum, &x| sum + x.powi(2)) /
             FINGERPRINT_SAMPS as f32
     }
 
