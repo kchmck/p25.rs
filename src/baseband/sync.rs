@@ -5,7 +5,7 @@ use std;
 
 use collect_slice::CollectSlice;
 use moving_avg::MovingAverage;
-use static_fir::FIRFilter;
+use static_fir::FirFilter;
 
 /// Number of samples in the frame sync fingerprint, from first impulse to last, at 48kHz
 /// sample rate.
@@ -17,14 +17,14 @@ const SMOOTH_AVG: usize = 4;
 /// Continuously cross-correlates input signal with frame sync fingerprint.
 pub struct SyncCorrelator {
     /// Fingerprint cross-correlator.
-    corr: FIRFilter<SyncFingerprint>,
+    corr: FirFilter<SyncFingerprint>,
 }
 
 impl SyncCorrelator {
     /// Create a new `SyncCorrelator` with default state.
     pub fn new() -> SyncCorrelator {
         SyncCorrelator {
-            corr: FIRFilter::new(),
+            corr: FirFilter::new(),
         }
     }
 
@@ -457,7 +457,7 @@ pub const SYNC_GENERATOR: &'static [u8] = &[
 #[cfg(test)]
 mod test {
     use super::{SyncFingerprint, calc_averages, calc_thresholds, SyncDetector};
-    use static_fir::FIRFilter;
+    use static_fir::FirFilter;
 
     #[test]
     fn test_calc_averages() {
@@ -600,7 +600,7 @@ mod test {
             -1.0,
         ];
 
-        let mut corr = FIRFilter::<SyncFingerprint>::new();
+        let mut corr = FirFilter::<SyncFingerprint>::new();
 
         let val = samps.iter().fold(0.0, |_, &s| {
             corr.feed(s)
@@ -847,7 +847,7 @@ mod test {
             -0.1800000071525574,
         ];
 
-        let mut corr = FIRFilter::<SyncFingerprint>::new();
+        let mut corr = FirFilter::<SyncFingerprint>::new();
 
         let val = samps.iter().fold(0.0, |_, &s| {
             corr.feed(s)
