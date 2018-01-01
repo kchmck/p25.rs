@@ -4,6 +4,7 @@ use bits::Dibit;
 use buffer;
 use coding::bch;
 use error::{Result, P25Error};
+use stats::{Stats, HasStats};
 
 /// "Digital squelch" NAC field of the NID.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -153,6 +154,11 @@ impl NetworkId {
 pub struct NidReceiver {
     /// Buffered dibits.
     dibits: buffer::Buffer<buffer::NidStorage>,
+    stats: Stats,
+}
+
+impl HasStats for NidReceiver {
+    fn stats(&mut self) -> &mut Stats { &mut self.stats }
 }
 
 impl NidReceiver {
@@ -160,6 +166,7 @@ impl NidReceiver {
     pub fn new() -> NidReceiver {
         NidReceiver {
             dibits: buffer::Buffer::new(buffer::NidStorage::new()),
+            stats: Stats::default(),
         }
     }
 
@@ -173,7 +180,10 @@ impl NidReceiver {
         };
 
         let data = match bch::decode(buf) {
-            Some((data, err)) => data,
+            Some((data, err)) => {
+                self.stats.record_bch(err);
+                data
+            },
             None => return Some(Err(P25Error::BchUnrecoverable)),
         };
 

@@ -10,6 +10,7 @@ use collect_slice::CollectSlice;
 use bits::{Hexbit, HexbitBytes, Dibit};
 use coding::{cyclic, hamming, reed_solomon};
 use error::{P25Error, Result};
+use stats::{Stats, HasStats};
 use voice::frame::VoiceFrame;
 use voice::{control, crypto};
 
@@ -92,6 +93,7 @@ pub struct FrameGroupReceiver<E: Extra> {
     extra: ExtraReceiver<E>,
     /// The current frame position within the frame group.
     frame: usize,
+    stats: Stats,
 }
 
 impl<E: Extra> FrameGroupReceiver<E> {
@@ -101,6 +103,7 @@ impl<E: Extra> FrameGroupReceiver<E> {
             state: State::decode_voice_frame(),
             extra: ExtraReceiver::new(),
             frame: 0,
+            stats: Stats::default(),
         }
     }
 
@@ -111,7 +114,7 @@ impl<E: Extra> FrameGroupReceiver<E> {
 
     /// Determine what action to take based on the given symbol.
     fn handle(&mut self, dibit: Dibit) -> StateChange<E> {
-        match self.state {
+        let next = match self.state {
             DecodeVoiceFrame(ref mut decoder) => match decoder.feed(dibit) {
                 Some(Ok(vf)) => {
                     self.frame += 1;
@@ -144,7 +147,16 @@ impl<E: Extra> FrameGroupReceiver<E> {
                 None => NoChange,
             },
             _ => unreachable!(),
+        };
+
+        match self.state {
+            DecodeVoiceFrame(ref mut vf) => self.stats.merge(vf),
+            DecodeExtra => self.stats.merge(&mut self.extra),
+            DecodeDataFragment(ref mut df) => self.stats.merge(df),
+            Done => {},
         }
+
+        next
     }
 
     /// Feed in a baseband symbol, possibly producing an event. Return `Some(Ok(event))`
@@ -166,13 +178,18 @@ impl<E: Extra> FrameGroupReceiver<E> {
     }
 }
 
+impl<E: Extra> HasStats for FrameGroupReceiver<E> {
+    fn stats(&mut self) -> &mut Stats { &mut self.stats }
+}
+
 /// An "extra" information packet carried along in a frame group.
 pub trait Extra {
     /// Base decoder for the packet.
     type Fields;
 
     /// Decode the inner Reed Soloman code.
-    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)>;
+    fn decode_rs<'a>(buf: &'a mut [Hexbit; EXTRA_HEXBITS], s: &mut Stats)
+        -> Option<&'a [Hexbit]>;
     /// Transform the given hexbits into a base packet decoder.
     fn decode_extra(buf: &[Hexbit]) -> Self::Fields;
 }
@@ -183,8 +200,13 @@ pub struct LinkControlExtra;
 impl Extra for LinkControlExtra {
     type Fields = control::LinkControlFields;
 
-    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)> {
-        reed_solomon::short::decode(buf)
+    fn decode_rs<'a>(buf: &'a mut [Hexbit; EXTRA_HEXBITS], s: &mut Stats)
+        -> Option<&'a [Hexbit]>
+    {
+        reed_solomon::short::decode(buf).map(|(data, err)| {
+            s.record_rs_short(err);
+            data
+        })
     }
 
     fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
@@ -201,8 +223,13 @@ pub struct CryptoControlExtra;
 impl Extra for CryptoControlExtra {
     type Fields = crypto::CryptoControlFields;
 
-    fn decode_rs(buf: &mut [Hexbit; EXTRA_HEXBITS]) -> Option<(&[Hexbit], usize)> {
-        reed_solomon::medium::decode(buf)
+    fn decode_rs<'a>(buf: &'a mut [Hexbit; EXTRA_HEXBITS], s: &mut Stats)
+        -> Option<&'a [Hexbit]>
+    {
+        reed_solomon::medium::decode(buf).map(|(data, err)| {
+            s.record_rs_med(err);
+            data
+        })
     }
 
     fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
@@ -217,6 +244,7 @@ impl Extra for CryptoControlExtra {
 struct VoiceFrameReceiver {
     /// Current buffered dibits.
     dibits: Buffer<VoiceFrameStorage>,
+    stats: Stats,
 }
 
 impl VoiceFrameReceiver {
@@ -224,6 +252,7 @@ impl VoiceFrameReceiver {
     pub fn new() -> VoiceFrameReceiver {
         VoiceFrameReceiver {
             dibits: Buffer::new(VoiceFrameStorage::new()),
+            stats: Stats::default(),
         }
     }
 
@@ -231,11 +260,25 @@ impl VoiceFrameReceiver {
     /// `Some(Ok(frame))` if a voice frame was successfully decoded, `Some(Err(err))` if
     /// an error occurred, and `None` in the case of no event.
     pub fn feed(&mut self, dibit: Dibit) -> Option<Result<VoiceFrame>> {
-        match self.dibits.feed(dibit) {
-            Some(buf) => Some(VoiceFrame::new(buf)),
-            None => None,
-        }
+        // HACK: work around borrow checker.
+        let stats = &mut self.stats;
+
+        self.dibits.feed(dibit).map(|buf| VoiceFrame::new(buf).map(|vf| {
+            for idx in 0..4 {
+                stats.record_golay_std(vf.errors[idx]);
+            }
+
+            for idx in 4..7 {
+                stats.record_hamming_std(vf.errors[idx]);
+            }
+
+            vf
+        }))
     }
+}
+
+impl HasStats for VoiceFrameReceiver {
+    fn stats(&mut self) -> &mut Stats { &mut self.stats }
 }
 
 /// Receives and decodes a frame group extra packet.
@@ -247,6 +290,7 @@ struct ExtraReceiver<E: Extra> {
     hexbits: Buffer<VoiceExtraStorage>,
     /// Number of dibits that have been received into the packet.
     dibit: usize,
+    stats: Stats,
 }
 
 impl<E: Extra> ExtraReceiver<E> {
@@ -257,6 +301,7 @@ impl<E: Extra> ExtraReceiver<E> {
             dibits: Buffer::new(VoiceExtraWordStorage::new()),
             hexbits: Buffer::new(VoiceExtraStorage::new()),
             dibit: 0,
+            stats: Stats::default(),
         }
     }
 
@@ -275,7 +320,10 @@ impl<E: Extra> ExtraReceiver<E> {
         };
 
         let bits = match hamming::shortened::decode(buf) {
-            Some((data, err)) => data,
+            Some((data, err)) => {
+                self.stats.record_hamming_short(err);
+                data
+            },
             // Let the following RS code attempt to fix these errors.
             None => 0,
         };
@@ -285,13 +333,17 @@ impl<E: Extra> ExtraReceiver<E> {
             None => return None,
         };
 
-        let data = match E::decode_rs(hexbits) {
-            Some((data, err)) => data,
+        let data = match E::decode_rs(hexbits, &mut self.stats) {
+            Some(data) => data,
             None => return Some(Err(ReedSolomonUnrecoverable)),
         };
 
         Some(Ok(E::decode_extra(data)))
     }
+}
+
+impl<E: Extra> HasStats for ExtraReceiver<E> {
+    fn stats(&mut self) -> &mut Stats { &mut self.stats }
 }
 
 /// Receives a 16-bit fragment of the 32-bit "low-speed data" word embedded in each frame
@@ -303,6 +355,7 @@ struct DataFragmentReceiver {
     byte: u8,
     /// Current decoded fragment.
     data: u32,
+    stats: Stats,
 }
 
 impl DataFragmentReceiver {
@@ -312,6 +365,7 @@ impl DataFragmentReceiver {
             dibits: Buffer::new(VoiceDataFragStorage::new()),
             byte: 0,
             data: 0,
+            stats: Stats::default(),
         }
     }
 
@@ -325,7 +379,10 @@ impl DataFragmentReceiver {
         };
 
         let bits = match cyclic::decode(buf) {
-            Some((data, err)) => data,
+            Some((data, err)) => {
+                self.stats.record_cyclic(err);
+                data
+            },
             None => return Some(Err(CyclicUnrecoverable)),
         };
 
@@ -340,4 +397,8 @@ impl DataFragmentReceiver {
             None
         }
     }
+}
+
+impl HasStats for DataFragmentReceiver {
+    fn stats(&mut self) -> &mut Stats { &mut self.stats }
 }

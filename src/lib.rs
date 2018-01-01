@@ -30,5 +30,6 @@ pub mod consts;
 pub mod data;
 pub mod error;
 pub mod message;
+pub mod stats;
 pub mod trunking;
 pub mod voice;

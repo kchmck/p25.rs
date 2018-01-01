@@ -7,6 +7,7 @@ use buffer::{Buffer, VoiceLCTermWordStorage, VoiceExtraStorage};
 use coding::{reed_solomon, golay};
 use consts::LINK_CONTROL_BYTES;
 use error::Result;
+use stats::{Stats, HasStats};
 use voice::control::LinkControlFields;
 
 use error::P25Error::*;
@@ -17,6 +18,7 @@ pub struct VoiceLCTerminatorReceiver {
     outer: Buffer<VoiceLCTermWordStorage>,
     /// Current buffered hexbits.
     inner: Buffer<VoiceExtraStorage>,
+    stats: Stats,
 }
 
 impl VoiceLCTerminatorReceiver {
@@ -25,6 +27,7 @@ impl VoiceLCTerminatorReceiver {
         VoiceLCTerminatorReceiver {
             outer: Buffer::new(VoiceLCTermWordStorage::new()),
             inner: Buffer::new(VoiceExtraStorage::new()),
+            stats: Stats::default(),
         }
     }
 
@@ -38,7 +41,10 @@ impl VoiceLCTerminatorReceiver {
         };
 
         let data = match golay::extended::decode(*buf as u32) {
-            Some((data, err)) => data,
+            Some((data, err)) => {
+                self.stats.record_golay_ext(err);
+                data
+            },
             // Let the following RS code attempt to correct these errors.
             None => 0,
         };
@@ -52,7 +58,10 @@ impl VoiceLCTerminatorReceiver {
         };
 
         let data = match reed_solomon::short::decode(hexbits) {
-            Some((data, err)) => data,
+            Some((data, err)) => {
+                self.stats.record_rs_short(err);
+                data
+            },
             None => return Some(Err(ReedSolomonUnrecoverable)),
         };
 
@@ -62,4 +71,8 @@ impl VoiceLCTerminatorReceiver {
 
         Some(Ok(LinkControlFields::new(bytes)))
     }
+}
+
+impl HasStats for VoiceLCTerminatorReceiver {
+    fn stats(&mut self) -> &mut Stats { &mut self.stats }
 }

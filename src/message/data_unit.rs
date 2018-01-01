@@ -6,6 +6,7 @@ use baseband::sync::{SyncCorrelator, SyncDetector, SymbolThresholds, sync_thresh
 use error::{P25Error, Result};
 use message::nid;
 use message::status::{StreamSymbol, StatusDeinterleaver};
+use stats::{Stats, HasStats};
 
 use self::State::*;
 use self::StateChange::*;
@@ -107,6 +108,7 @@ pub struct DataUnitReceiver {
     corr: SyncCorrelator,
     /// Tracks thresholds for symbol decisions.
     symthresh: SymbolThresholds,
+    stats: Stats,
 }
 
 impl DataUnitReceiver {
@@ -116,6 +118,7 @@ impl DataUnitReceiver {
             state: State::sync(),
             corr: SyncCorrelator::new(),
             symthresh: SymbolThresholds::new(),
+            stats: Stats::default(),
         }
     }
 
@@ -148,16 +151,19 @@ impl DataUnitReceiver {
             } else {
                 NoChange
             },
-            DecodeNID(ref mut recv, ref mut nid) => {
+            DecodeNID(ref mut recv, ref mut nidrecv) => {
                 let dibit = match recv.feed(s) {
                     Some(StreamSymbol::Data(d)) => d,
                     Some(s) => return Event(ReceiverEvent::Symbol(s)),
                     None => return NoChange,
                 };
 
-                match nid.feed(dibit) {
-                    Some(Ok(nid)) => EventChange(ReceiverEvent::NetworkId(nid),
-                                                 State::decode_packet(*recv)),
+                match nidrecv.feed(dibit) {
+                    Some(Ok(nid)) => {
+                        self.stats.merge(nidrecv);
+                        EventChange(ReceiverEvent::NetworkId(nid),
+                                    State::decode_packet(*recv))
+                    },
                     Some(Err(e)) => Error(e),
                     None => NoChange,
                 }
@@ -193,4 +199,8 @@ impl DataUnitReceiver {
             NoChange => None,
         }
     }
+}
+
+impl HasStats for DataUnitReceiver {
+    fn stats(&mut self) -> &mut Stats { &mut self.stats }
 }

@@ -10,6 +10,7 @@ use voice::crypto::CryptoControlFields;
 use voice::frame::VoiceFrame;
 use voice::header::{VoiceHeaderReceiver, VoiceHeaderFields};
 use voice::term::VoiceLCTerminatorReceiver;
+use stats::{Stats, HasStats};
 
 use voice::frame_group::{
     FrameGroupEvent,
@@ -71,6 +72,7 @@ pub struct MessageReceiver {
     pub recv: DataUnitReceiver,
     /// Current state.
     state: State,
+    stats: Stats,
 }
 
 impl MessageReceiver {
@@ -79,6 +81,7 @@ impl MessageReceiver {
         MessageReceiver {
             recv: DataUnitReceiver::new(),
             state: State::Idle,
+            stats: Stats::default(),
         }
     }
 
@@ -110,6 +113,8 @@ impl MessageReceiver {
             None => return NoChange,
         };
 
+        self.stats.merge(&mut self.recv);
+
         let dibit = match event {
             ReceiverEvent::NetworkId(nid) => {
                 let next = match nid.data_unit {
@@ -139,7 +144,7 @@ impl MessageReceiver {
             ReceiverEvent::Symbol(StreamSymbol::Data(dibit)) => dibit,
         };
 
-        match self.state {
+        let next = match self.state {
             DecodeHeader(ref mut head) => match head.feed(dibit) {
                 Some(Ok(h)) => {
                     self.recv.flush_pads();
@@ -218,6 +223,20 @@ impl MessageReceiver {
                 None => NoChange,
             },
             Idle => NoChange,
+        };
+
+        match self.state {
+            DecodeHeader(ref mut head) => self.stats.merge(head),
+            DecodeLCFrameGroup(ref mut fg) => self.stats.merge(fg),
+            DecodeCCFrameGroup(ref mut fg) => self.stats.merge(fg),
+            DecodeLCTerminator(ref mut term) => self.stats.merge(term),
+            DecodeTSBK(_) | Idle => {},
         }
+
+        next
     }
+}
+
+impl HasStats for MessageReceiver {
+    fn stats(&mut self) -> &mut Stats { &mut self.stats }
 }

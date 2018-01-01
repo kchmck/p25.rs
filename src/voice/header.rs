@@ -7,6 +7,7 @@ use buffer::{Buffer, VoiceHeaderWordStorage, VoiceHeaderStorage};
 use coding::{reed_solomon, golay};
 use consts::HEADER_BYTES;
 use error::Result;
+use stats::{Stats, HasStats};
 use trunking::fields::TalkGroup;
 use util::slice_u16;
 use voice::crypto::CryptoAlgorithm;
@@ -19,6 +20,11 @@ pub struct VoiceHeaderReceiver {
     dibits: Buffer<VoiceHeaderWordStorage>,
     /// Current buffered hexbits.
     hexbits: Buffer<VoiceHeaderStorage>,
+    stats: Stats,
+}
+
+impl HasStats for VoiceHeaderReceiver {
+    fn stats(&mut self) -> &mut Stats { &mut self.stats }
 }
 
 impl VoiceHeaderReceiver {
@@ -27,6 +33,7 @@ impl VoiceHeaderReceiver {
         VoiceHeaderReceiver {
             dibits: Buffer::new(VoiceHeaderWordStorage::new()),
             hexbits: Buffer::new(VoiceHeaderStorage::new()),
+            stats: Stats::default(),
         }
     }
 
@@ -40,7 +47,10 @@ impl VoiceHeaderReceiver {
         };
 
         let data = match golay::shortened::decode(buf) {
-            Some((data, err)) => data,
+            Some((data, err)) => {
+                self.stats.record_golay_short(err);
+                data
+            },
             // Let the following RS code attempt to fix these errors.
             None => 0,
         };
@@ -51,7 +61,10 @@ impl VoiceHeaderReceiver {
         };
 
         let data = match reed_solomon::long::decode(hexbits) {
-            Some((data, err)) => data,
+            Some((data, err)) => {
+                self.stats.record_rs_long(err);
+                data
+            },
             None => return Some(Err(ReedSolomonUnrecoverable)),
         };
 
