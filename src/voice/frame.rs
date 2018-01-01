@@ -29,7 +29,7 @@ impl VoiceFrame {
         // Decode u_0 to recover the PN seed.
         let (init, err) = match golay::standard::decode(descramble(dibits, 0)) {
             Some(x) => x,
-            None => return Err(GolayUnrecoverable),
+            None => return Err(GolayStdUnrecoverable),
         };
 
         let mut prand = rand::PseudoRand::new(init);
@@ -43,7 +43,7 @@ impl VoiceFrame {
 
             let (data, err) = match golay::standard::decode(bits) {
                 Some(x) => x,
-                None => return Err(GolayUnrecoverable),
+                None => return Err(GolayStdUnrecoverable),
             };
 
             errors[idx] = err;
@@ -56,7 +56,7 @@ impl VoiceFrame {
 
             let (data, err) = match hamming::standard::decode(bits as u16) {
                 Some(x) => x,
-                None => return Err(HammingUnrecoverable),
+                None => return Err(HammingStdUnrecoverable),
             };
 
             errors[idx] = err;

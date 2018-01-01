@@ -65,7 +65,7 @@ impl VoiceHeaderReceiver {
                 self.stats.record_rs_long(err);
                 data
             },
-            None => return Some(Err(ReedSolomonUnrecoverable)),
+            None => return Some(Err(RsLongUnrecoverable)),
         };
 
         let mut bytes = [0; HEADER_BYTES];

@@ -62,7 +62,7 @@ impl VoiceLCTerminatorReceiver {
                 self.stats.record_rs_short(err);
                 data
             },
-            None => return Some(Err(ReedSolomonUnrecoverable)),
+            None => return Some(Err(RsShortUnrecoverable)),
         };
 
         let mut bytes = [0; LINK_CONTROL_BYTES];

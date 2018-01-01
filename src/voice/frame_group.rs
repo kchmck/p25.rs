@@ -189,7 +189,7 @@ pub trait Extra {
 
     /// Decode the inner Reed Soloman code.
     fn decode_rs<'a>(buf: &'a mut [Hexbit; EXTRA_HEXBITS], s: &mut Stats)
-        -> Option<&'a [Hexbit]>;
+        -> Result<&'a [Hexbit]>;
     /// Transform the given hexbits into a base packet decoder.
     fn decode_extra(buf: &[Hexbit]) -> Self::Fields;
 }
@@ -201,12 +201,12 @@ impl Extra for LinkControlExtra {
     type Fields = control::LinkControlFields;
 
     fn decode_rs<'a>(buf: &'a mut [Hexbit; EXTRA_HEXBITS], s: &mut Stats)
-        -> Option<&'a [Hexbit]>
+        -> Result<&'a [Hexbit]>
     {
         reed_solomon::short::decode(buf).map(|(data, err)| {
             s.record_rs_short(err);
             data
-        })
+        }).ok_or(RsShortUnrecoverable)
     }
 
     fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
@@ -224,12 +224,12 @@ impl Extra for CryptoControlExtra {
     type Fields = crypto::CryptoControlFields;
 
     fn decode_rs<'a>(buf: &'a mut [Hexbit; EXTRA_HEXBITS], s: &mut Stats)
-        -> Option<&'a [Hexbit]>
+        -> Result<&'a [Hexbit]>
     {
         reed_solomon::medium::decode(buf).map(|(data, err)| {
             s.record_rs_med(err);
             data
-        })
+        }).ok_or(RsMediumUnrecoverable)
     }
 
     fn decode_extra(buf: &[Hexbit]) -> Self::Fields {
@@ -333,12 +333,9 @@ impl<E: Extra> ExtraReceiver<E> {
             None => return None,
         };
 
-        let data = match E::decode_rs(hexbits, &mut self.stats) {
-            Some(data) => data,
-            None => return Some(Err(ReedSolomonUnrecoverable)),
-        };
-
-        Some(Ok(E::decode_extra(data)))
+        Some(E::decode_rs(hexbits, &mut self.stats).map(|data| {
+            E::decode_extra(data)
+        }))
     }
 }
 

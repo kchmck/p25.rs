@@ -1,5 +1,7 @@
 //! Runtime statistics.
 
+use error::P25Error;
+
 /// Records various runtime statistics.
 #[derive(Copy, Clone)]
 pub struct Stats {
@@ -112,6 +114,26 @@ impl Stats {
     /// Clear all stats.
     pub fn clear(&mut self) {
         *self = Stats::default();
+    }
+
+    /// Record the given error into the current stats.
+    pub fn record_err(&mut self, err: P25Error) {
+        use error::P25Error::*;
+
+        match err {
+            BchUnrecoverable => self.record_bch(64),
+            CyclicUnrecoverable => self.record_cyclic(16),
+            GolayStdUnrecoverable => self.record_golay_std(23),
+            GolayExtUnrecoverable => self.record_golay_ext(24),
+            GolayShortUnrecoverable => self.record_golay_short(18),
+            HammingStdUnrecoverable => self.record_hamming_std(15),
+            HammingShortUnrecoverable => self.record_hamming_short(10),
+            RsShortUnrecoverable => self.record_rs_short(24),
+            RsMediumUnrecoverable => self.record_rs_med(24),
+            RsLongUnrecoverable => self.record_rs_long(36),
+            ViterbiUnrecoverable => {},
+            UnknownNid => {},
+        }
     }
 
     /// Record BCH errors.
