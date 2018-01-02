@@ -5,6 +5,7 @@
 //! and Cryptography: The Essentials*, Hankerson, Hoffman, et al, 2000.
 
 use binfield_matrix::{matrix_mul, matrix_mul_systematic};
+use num::PrimInt;
 
 /// Encoding and decoding of the (15, 11, 3) code.
 pub mod standard {
@@ -24,10 +25,10 @@ pub mod standard {
     /// indicate an unrecoverable error.
     pub fn decode(word: u16) -> Option<(u16, usize)> {
         assert!(word >> 15 == 0);
-        StandardHamming::decode(word)
+        super::decode(word, PAR, LOCATIONS).map(|(w, n)| (w >> 4, n))
     }
 
-    /// Generator patterns for 4 parity bits.
+    /// Generator matrix from the standard, without identity part.
     const GEN: &[u16] = &[
         0b11111110000,
         0b11110001110,
@@ -35,7 +36,7 @@ pub mod standard {
         0b10101011011,
     ];
 
-    /// Parity-check patterns for 4 syndromes.
+    /// Parity-check matrix derived from generator using standard method.
     const PAR: &[u16] = &[
         0b111111100001000,
         0b111100011100100,
@@ -44,7 +45,7 @@ pub mod standard {
     ];
 
     /// Maps 4-bit syndrome values to bit error locations.
-    const LOCATIONS: [u16; 16] = [
+    const LOCATIONS: &[u16] = &[
         0,
         0b0000000000000001,
         0b0000000000000010,
@@ -62,16 +63,6 @@ pub mod standard {
         0b0010000000000000,
         0b0100000000000000,
     ];
-
-    struct StandardHamming;
-
-    impl super::HammingDecoder for StandardHamming {
-        type Data = u16;
-
-        fn data(word: u16) -> u16 { word >> 4 }
-        fn par() -> &'static [u16] { PAR }
-        fn locs() -> [u16; 16] { LOCATIONS }
-    }
 }
 
 /// Encoding and decoding of the (10, 6, 3) code.
@@ -92,7 +83,7 @@ pub mod shortened {
     /// indicate an unrecoverable error.
     pub fn decode(word: u16) -> Option<(u8, usize)> {
         assert!(word >> 10 == 0);
-        ShortHamming::decode(word)
+        super::decode(word, PAR, LOCATIONS).map(|(w, n)| ((w >> 4) as u8, n))
     }
 
     const GEN: &[u8] = &[
@@ -109,7 +100,7 @@ pub mod shortened {
         0b0111100001,
     ];
 
-    const LOCATIONS: [u16; 16] = [
+    const LOCATIONS: &[u16] = &[
         0,
         0b0000000000000001,
         0b0000000000000010,
@@ -127,50 +118,20 @@ pub mod shortened {
         0b0000001000000000,
         0,
     ];
-
-    struct ShortHamming;
-
-    impl super::HammingDecoder for ShortHamming {
-        type Data = u8;
-
-        fn data(word: u16) -> u8 { (word >> 4) as u8 }
-        fn par() -> &'static [u16] { PAR }
-        fn locs() -> [u16; 16] { LOCATIONS }
-    }
 }
 
-/// Defines code-specific decoding functions.
-trait HammingDecoder {
-    /// The type of the data bit output.
-    type Data;
+fn decode<T: PrimInt>(word: T, par: &[T], locs: &[T]) -> Option<(T, usize)> {
+    let s: usize = matrix_mul(word, par);
 
-    /// Convert the codeword to data bits.
-    fn data(word: u16) -> Self::Data;
-
-    /// Return the parity-check patterns for 4 syndromes.
-    fn par() -> &'static [u16];
-
-    /// Return the syndrome-error location map.
-    fn locs() -> [u16; 16];
-
-    /// Use the current decoder to decode the given word.
-    fn decode(word: u16) -> Option<(Self::Data, usize)> {
-        // Compute the 4-bit syndrome.
-        let s: usize = matrix_mul(word, Self::par());
-
-        // A zero syndrome means it's a valid codeword (possibly different from the
-        // transmitted codeword.)
-        if s == 0 {
-            return Some((Self::data(word), 0));
-        }
-
-        match Self::locs().get(s as usize) {
-            // More than one error/unrecoverable error.
-            Some(&0) | None => None,
-            // Valid location means the error can be corrected.
-            Some(&loc) => Some((Self::data(word ^ loc), 1)),
-        }
+    if s == 0 {
+        return Some((word, 0));
     }
+
+    locs.get(s).and_then(|&loc| if loc == T::zero() {
+        None
+    } else {
+        Some((word ^ loc, 1))
+    })
 }
 
 #[cfg(test)]
