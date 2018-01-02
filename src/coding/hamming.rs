@@ -140,48 +140,55 @@ mod test {
 
     #[test]
     fn test_standard() {
-        let w = 0b10101010101;
-        let e = standard::encode(w);
-        assert_eq!(standard::decode(e^0b000000000000000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000000000000001).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000000000000010).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000000000000100).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000000000001000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000000000010000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000000000100000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000000001000000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000000010000000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000000100000000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000001000000000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000010000000000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b000100000000000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b001000000000000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b010000000000000).unwrap().0, w);
-        assert_eq!(standard::decode(e^0b100000000000000).unwrap().0, w);
+        assert_eq!(standard::encode(0), 0);
+        assert_eq!(standard::encode(0b11111111111), 0b11111111111_1111);
 
-        for i in 0..1<<11 {
-            assert_eq!(standard::decode(standard::encode(i)).unwrap().0, i);
+        for w in 0..1<<11 {
+            assert_eq!(standard::decode(standard::encode(w)), Some((w, 0)));
+        }
+
+        let w = standard::encode(0b10101010101);
+        assert_eq!(w, 0b10101010101_0101);
+        assert_eq!(standard::decode(w), Some((0b10101010101, 0)));
+
+        for i in 0..15 {
+            assert_eq!(standard::decode(w ^ 1 << i), Some((0b10101010101, 1)));
+        }
+
+        for (i, j) in (0..15).zip(0..15) {
+            if i != j {
+                // Two-bit errors are detected as one-bit errors with an incorrect bit
+                // correction, so just check for the detection.
+                let (_, n) = standard::decode(w ^ (1 << i) ^ (1 << j)).unwrap();
+                assert_eq!(n, 1);
+            }
         }
     }
 
     #[test]
     fn test_shortened() {
-        let w = 0b110011;
-        let e = shortened::encode(w);
-        assert_eq!(shortened::decode(e ^ 0b0000000000).unwrap().0, w);
-        assert_eq!(shortened::decode(e ^ 0b0000000001).unwrap().0, w);
-        assert_eq!(shortened::decode(e ^ 0b0000000010).unwrap().0, w);
-        assert_eq!(shortened::decode(e ^ 0b0000000100).unwrap().0, w);
-        assert_eq!(shortened::decode(e ^ 0b0000001000).unwrap().0, w);
-        assert_eq!(shortened::decode(e ^ 0b0000010000).unwrap().0, w);
-        assert_eq!(shortened::decode(e ^ 0b0000100000).unwrap().0, w);
-        assert_eq!(shortened::decode(e ^ 0b0001000000).unwrap().0, w);
-        assert_eq!(shortened::decode(e ^ 0b0010000000).unwrap().0, w);
-        assert_eq!(shortened::decode(e ^ 0b0100000000).unwrap().0, w);
-        assert_eq!(shortened::decode(e ^ 0b1000000000).unwrap().0, w);
+        assert_eq!(shortened::encode(0), 0);
+        assert_eq!(shortened::encode(0b111111), 0b111111_0000);
 
-        for i in 0..1<<6 {
-            assert_eq!(shortened::decode(shortened::encode(i)).unwrap().0, i);
+        for w in 0..1<<6 {
+            assert_eq!(shortened::decode(shortened::encode(w)), Some((w, 0)));
+        }
+
+        let w = shortened::encode(0b101010);
+        assert_eq!(w, 0b101010_0110);
+        assert_eq!(shortened::decode(w), Some((0b101010, 0)));
+
+        for i in 0..10 {
+            assert_eq!(shortened::decode(w ^ 1 << i), Some((0b101010, 1)));
+        }
+
+        for (i, j) in (0..10).zip(0..10) {
+            if i != j {
+                // Two-bit errors are detected as one-bit errors with an incorrect bit
+                // correction, so just check for the detection.
+                let (_, n) = shortened::decode(w ^ (1 << i) ^ (1 << j)).unwrap();
+                assert_eq!(n, 1);
+            }
         }
     }
 }
