@@ -4,12 +4,16 @@
 //! These algorithms are sourced from *Coding Theory and Cryptography: The Essentials*,
 //! Hankerson, Hoffman, et al, 2000.
 
+use binfield_matrix::{matrix_mul, matrix_mul_systematic};
+
 /// Encoding and decoding of the (23, 12, 7) code.
 pub mod standard {
+    use super::*;
+
     /// Encode the given 12 data bits into a 23-bit codeword.
     pub fn encode(data: u16) -> u32 {
         assert!(data >> 12 == 0);
-        matrix_mul_systematic!(data, super::CORE_SHORT, u32)
+        matrix_mul_systematic(data, super::CORE_SHORT)
     }
 
     /// Try to decode the given 23-bit word to the nearest codeword, correcting up to 3
@@ -41,10 +45,12 @@ pub mod standard {
 
 /// Encoding and decoding of the (24, 12, 8) code.
 pub mod extended {
+    use super::*;
+
     /// Encode the given 12 data bits into a 24-bit codeword.
     pub fn encode(data: u16) -> u32 {
         assert!(data >> 12 == 0);
-        matrix_mul_systematic!(data, super::CORE, u32)
+        matrix_mul_systematic(data, super::CORE)
     }
 
     /// Try to decode the given  24-bit word to the nearest codeword, correcting up to 3
@@ -91,7 +97,7 @@ pub mod shortened {
 
 /// The core matrix used to create the generator and syndrome matrices. It's usually
 /// cyclic, but not in the case of P25.
-const CORE: [u16; 12] = [
+const CORE: &[u16] = &[
     0b101001001111,
     0b111101101000,
     0b011110110100,
@@ -108,7 +114,7 @@ const CORE: [u16; 12] = [
 
 /// The core matrix and its transpose are equal if it's cyclic, but that's not the case
 /// here.
-const CORE_XPOSE: [u16; 12] = [
+const CORE_XPOSE: &[u16] = &[
     0b110001110101,
     0b011000111011,
     0b111101101000,
@@ -124,7 +130,7 @@ const CORE_XPOSE: [u16; 12] = [
 ];
 
 /// The core matrix with the LSB of each row removed.
-const CORE_SHORT: [u16; 11] = [
+const CORE_SHORT: &[u16] = &[
     0b101001001111,
     0b111101101000,
     0b011110110100,
@@ -139,7 +145,7 @@ const CORE_SHORT: [u16; 11] = [
 ];
 
 /// Syndrome/parity-check matrix.
-const PAR: [u32; 12] = [
+const PAR: &[u32] = &[
     0b100000000000110001110101,
     0b010000000000011000111011,
     0b001000000000111101101000,
@@ -156,16 +162,16 @@ const PAR: [u32; 12] = [
 
 /// Try to correct errors in the given data bits using the given first-level syndrome.
 fn decode_syndrome(data: u16, s: u16) -> Option<(u16, usize)> {
-    decode_parity(s, &CORE).map(|(a, _)| {
+    decode_parity(s, CORE).map(|(a, _)| {
         (data ^ a, a.count_ones() as usize)
-    }).or(decode_parity(syndrome_12(s), &CORE_XPOSE).map(|(_, b)| {
+    }).or(decode_parity(syndrome_12(s), CORE_XPOSE).map(|(_, b)| {
         (data ^ b, b.count_ones() as usize)
     }))
 }
 
 /// Try to find an error pattern for the given syndrome using the rows from the given
 /// matrix.
-fn decode_parity(s: u16, matrix: &[u16; 12]) -> Option<(u16, u16)> {
+fn decode_parity(s: u16, matrix: &[u16]) -> Option<(u16, u16)> {
     if s.count_ones() <= 3 {
         return Some((s, 0));
     }
@@ -181,12 +187,12 @@ fn decode_parity(s: u16, matrix: &[u16; 12]) -> Option<(u16, u16)> {
 
 /// Calculate the first-level syndrome.
 fn syndrome_24(word: u32) -> u16 {
-    matrix_mul!(word, PAR, u16)
+    matrix_mul(word, PAR)
 }
 
 /// Calculate the second-level syndrome.
 fn syndrome_12(syn: u16) -> u16 {
-    matrix_mul!(syn, CORE, u16)
+    matrix_mul(syn, CORE)
 }
 
 /// Extract the data bits from the given codeword.

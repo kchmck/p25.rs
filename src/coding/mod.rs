@@ -33,9 +33,6 @@
 //! 16. *Error Control Coding*, Lin and Costello, 1983.
 
 #[macro_use]
-mod macros;
-
-#[macro_use]
 pub mod galois;
 
 pub mod bch;

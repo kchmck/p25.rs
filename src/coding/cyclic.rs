@@ -6,9 +6,11 @@
 //! that this code is shortened from a (17, 8, 5) code came from "Standard APCO25 Physical
 //! Layer of the Radio Transmission Chain", Simon, 2014.
 
+use binfield_matrix::{matrix_mul, matrix_mul_systematic};
+
 /// Encode the given 8 data bits into a 16-bit codeword.
 pub fn encode(data: u8) -> u16 {
-    matrix_mul_systematic!(data, GEN, u16)
+    matrix_mul_systematic(data, GEN)
 }
 
 /// Try to decode the given 16-bit word to the nearest codeword, correcting up to 2
@@ -22,7 +24,7 @@ pub fn decode(word: u16) -> Option<(u8, usize)> {
     // position. The word is expanded to 32 bits so it can be treated as the 17-bit word
     // the shortened code is derived from.
     let (fixed, word) = (0..17).fold((Some(0), word as u32), |(fixed, word), _| {
-        let syndrome = matrix_mul!(word, PAR, u8);
+        let syndrome = matrix_mul(word, PAR);
 
         if syndrome == 0 {
             return (fixed, rotate_17(word));
@@ -41,7 +43,7 @@ pub fn decode(word: u16) -> Option<(u8, usize)> {
 }
 
 /// Transposed generator matrix.
-const GEN: [u8; 8] = [
+const GEN: &[u8] = &[
     0b00111100,
     0b10011110,
     0b01001111,
@@ -54,7 +56,7 @@ const GEN: [u8; 8] = [
 
 /// Transposed parity-check matrix, where the rows of the original are generated from x^i
 /// mod g(x).
-const PAR: [u32; 8] = [
+const PAR: &[u32] = &[
     0b10000000100111100,
     0b01000000010011110,
     0b00100000001001111,

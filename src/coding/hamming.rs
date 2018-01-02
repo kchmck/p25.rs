@@ -4,14 +4,16 @@
 //! Both codes can correct up to 1 error. These algorithms are sourced from *Coding Theory
 //! and Cryptography: The Essentials*, Hankerson, Hoffman, et al, 2000.
 
+use binfield_matrix::{matrix_mul, matrix_mul_systematic};
+
 /// Encoding and decoding of the (15, 11, 3) code.
 pub mod standard {
-    use super::HammingDecoder;
+    use super::*;
 
     /// Encode the given 11 bits of data into a 15-bit codeword.
     pub fn encode(data: u16) -> u16 {
         assert!(data >> 11 == 0);
-        matrix_mul_systematic!(data, GEN, u16)
+        matrix_mul_systematic(data, GEN)
     }
 
     /// Try to decode the given 15-bit word to the nearest codeword, correcting up to 1
@@ -26,7 +28,7 @@ pub mod standard {
     }
 
     /// Generator patterns for 4 parity bits.
-    const GEN: [u16; 4] = [
+    const GEN: &[u16] = &[
         0b11111110000,
         0b11110001110,
         0b11001101101,
@@ -34,7 +36,7 @@ pub mod standard {
     ];
 
     /// Parity-check patterns for 4 syndromes.
-    const PAR: [u16; 4] = [
+    const PAR: &[u16] = &[
         0b111111100001000,
         0b111100011100100,
         0b110011011010010,
@@ -67,19 +69,19 @@ pub mod standard {
         type Data = u16;
 
         fn data(word: u16) -> u16 { word >> 4 }
-        fn par() -> [u16; 4] { PAR }
+        fn par() -> &'static [u16] { PAR }
         fn locs() -> [u16; 16] { LOCATIONS }
     }
 }
 
 /// Encoding and decoding of the (10, 6, 3) code.
 pub mod shortened {
-    use super::HammingDecoder;
+    use super::*;
 
     /// Encode the given 6 data bits into a 10-bit codeword.
     pub fn encode(data: u8) -> u16 {
         assert!(data >> 6 == 0);
-        matrix_mul_systematic!(data, GEN, u16)
+        matrix_mul_systematic(data, GEN)
     }
 
     /// Try to decode the given 10-bit word to the nearest codeword, correcting up to 1
@@ -93,14 +95,14 @@ pub mod shortened {
         ShortHamming::decode(word)
     }
 
-    const GEN: [u8; 4] = [
+    const GEN: &[u8] = &[
         0b111001,
         0b110101,
         0b101110,
         0b011110,
     ];
 
-    const PAR: [u16; 4] = [
+    const PAR: &[u16] = &[
         0b1110011000,
         0b1101010100,
         0b1011100010,
@@ -132,7 +134,7 @@ pub mod shortened {
         type Data = u8;
 
         fn data(word: u16) -> u8 { (word >> 4) as u8 }
-        fn par() -> [u16; 4] { PAR }
+        fn par() -> &'static [u16] { PAR }
         fn locs() -> [u16; 16] { LOCATIONS }
     }
 }
@@ -146,7 +148,7 @@ trait HammingDecoder {
     fn data(word: u16) -> Self::Data;
 
     /// Return the parity-check patterns for 4 syndromes.
-    fn par() -> [u16; 4];
+    fn par() -> &'static [u16];
 
     /// Return the syndrome-error location map.
     fn locs() -> [u16; 16];
@@ -154,7 +156,7 @@ trait HammingDecoder {
     /// Use the current decoder to decode the given word.
     fn decode(word: u16) -> Option<(Self::Data, usize)> {
         // Compute the 4-bit syndrome.
-        let s = matrix_mul!(word, Self::par(), u8);
+        let s: usize = matrix_mul(word, Self::par());
 
         // A zero syndrome means it's a valid codeword (possibly different from the
         // transmitted codeword.)

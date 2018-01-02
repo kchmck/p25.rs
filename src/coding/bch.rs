@@ -5,12 +5,14 @@
 
 use std;
 
+use binfield_matrix::matrix_mul_systematic;
+
 use coding::galois::{GaloisField, P25Field, P25Codeword, Polynomial, PolynomialCoefs};
 use coding::bmcf;
 
 /// Encode the given 16 data bits into a 64-bit codeword.
 pub fn encode(word: u16) -> u64 {
-    matrix_mul_systematic!(word, GEN, u64)
+    matrix_mul_systematic(word, GEN)
 }
 
 /// Try to decode the given 64-bit word to the nearest codeword, correcting up to 11
