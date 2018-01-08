@@ -7,6 +7,7 @@ authors = ["Mick Koch <mick@kochm.co>"]
 
 binfield_matrix = "0.1.0"
 cai_cyclic = "0.1.0"
+cai_golay = "0.1.0"
 collect_slice = "1.2.0"
 moving_avg = "0.1.0"
 num = "0.1.34"
