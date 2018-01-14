@@ -145,8 +145,6 @@ impl DataUnitReceiver {
                 let history = self.corr.history();
                 let (p, m, n) = self.symthresh.thresholds(&history);
 
-                println!("pos:{} mid:{} neg:{}", p, m, n);
-
                 Change(State::decode_nid(Decoder::new(Decider::new(p, m, n))))
             } else {
                 NoChange
