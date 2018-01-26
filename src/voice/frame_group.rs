@@ -204,7 +204,7 @@ impl Extra for LinkControlExtra {
         -> Result<&'a [Hexbit]>
     {
         reed_solomon::short::decode(buf).map(|(data, err)| {
-            s.record_rs_short(err);
+            s.rs_short.record_fixes(err);
             data
         }).ok_or(RsShortUnrecoverable)
     }
@@ -227,7 +227,7 @@ impl Extra for CryptoControlExtra {
         -> Result<&'a [Hexbit]>
     {
         reed_solomon::medium::decode(buf).map(|(data, err)| {
-            s.record_rs_med(err);
+            s.rs_med.record_fixes(err);
             data
         }).ok_or(RsMediumUnrecoverable)
     }
@@ -265,11 +265,11 @@ impl VoiceFrameReceiver {
 
         self.dibits.feed(dibit).map(|buf| VoiceFrame::new(buf).map(|vf| {
             for idx in 0..4 {
-                stats.record_golay_std(vf.errors[idx]);
+                stats.golay_std.record_fixes(vf.errors[idx]);
             }
 
             for idx in 4..7 {
-                stats.record_hamming_std(vf.errors[idx]);
+                stats.hamming_std.record_fixes(vf.errors[idx]);
             }
 
             vf
@@ -321,7 +321,7 @@ impl<E: Extra> ExtraReceiver<E> {
 
         let bits = match hamming::shortened::decode(buf) {
             Some((data, err)) => {
-                self.stats.record_hamming_short(err);
+                self.stats.hamming_short.record_fixes(err);
                 data
             },
             // Let the following RS code attempt to fix these errors.
@@ -377,7 +377,7 @@ impl DataFragmentReceiver {
 
         let bits = match cyclic::decode(buf) {
             Some((data, err)) => {
-                self.stats.record_cyclic(err);
+                self.stats.cyclic.record_fixes(err);
                 data
             },
             None => return Some(Err(CyclicUnrecoverable)),

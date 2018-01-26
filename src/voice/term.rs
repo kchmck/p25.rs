@@ -42,7 +42,7 @@ impl VoiceLCTerminatorReceiver {
 
         let data = match golay::extended::decode(*buf as u32) {
             Some((data, err)) => {
-                self.stats.record_golay_ext(err);
+                self.stats.golay_ext.record_fixes(err);
                 data
             },
             // Let the following RS code attempt to correct these errors.
@@ -59,7 +59,7 @@ impl VoiceLCTerminatorReceiver {
 
         let data = match reed_solomon::short::decode(hexbits) {
             Some((data, err)) => {
-                self.stats.record_rs_short(err);
+                self.stats.rs_short.record_fixes(err);
                 data
             },
             None => return Some(Err(RsShortUnrecoverable)),

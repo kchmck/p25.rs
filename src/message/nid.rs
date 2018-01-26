@@ -181,7 +181,7 @@ impl NidReceiver {
 
         let data = match bch::decode(buf) {
             Some((data, err)) => {
-                self.stats.record_bch(err);
+                self.stats.bch.record_fixes(err);
                 data
             },
             None => return Some(Err(P25Error::BchUnrecoverable)),

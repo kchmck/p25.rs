@@ -48,7 +48,7 @@ impl VoiceHeaderReceiver {
 
         let data = match golay::shortened::decode(buf) {
             Some((data, err)) => {
-                self.stats.record_golay_short(err);
+                self.stats.golay_short.record_fixes(err);
                 data
             },
             // Let the following RS code attempt to fix these errors.
@@ -62,7 +62,7 @@ impl VoiceHeaderReceiver {
 
         let data = match reed_solomon::long::decode(hexbits) {
             Some((data, err)) => {
-                self.stats.record_rs_long(err);
+                self.stats.rs_long.record_fixes(err);
                 data
             },
             None => return Some(Err(RsLongUnrecoverable)),
