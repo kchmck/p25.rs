@@ -25,8 +25,9 @@ pub enum P25Error {
     HammingShortUnrecoverable,
     /// Too many errors were detected when attempting a cyclic decode.
     CyclicUnrecoverable,
-    /// An ambiguous symbol or too many errors were detected when attempting convolutional decode.
-    ViterbiUnrecoverable,
+    /// An ambiguous symbol or too many errors were detected when attempting to decode the
+    /// dibit Viterbi code.
+    DibitViterbiUnrecoverable,
     /// An unknown or corrupted NID was encountered.
     UnknownNid,
 }

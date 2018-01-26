@@ -85,6 +85,10 @@ pub struct Stats {
     pub rs_med: CodeStats,
     /// Stats for the long RS code.
     pub rs_long: CodeStats,
+    /// Stats for the dibit Viterbi code.
+    pub viterbi_dibit: CodeStats,
+    /// Stats for the tribit Viterbi code.
+    pub viterbi_tribit: CodeStats,
 }
 
 impl Default for Stats {
@@ -100,6 +104,8 @@ impl Default for Stats {
             rs_short: CodeStats::new(24),
             rs_med: CodeStats::new(24),
             rs_long: CodeStats::new(36),
+            viterbi_dibit: CodeStats::new(196),
+            viterbi_tribit: CodeStats::new(196),
         }
     }
 }
@@ -120,6 +126,8 @@ impl Stats {
         self.rs_short.merge(&mut stats.rs_short);
         self.rs_med.merge(&mut stats.rs_med);
         self.rs_long.merge(&mut stats.rs_long);
+        self.viterbi_dibit.merge(&mut stats.viterbi_dibit);
+        self.viterbi_tribit.merge(&mut stats.viterbi_tribit);
     }
 
     /// Clear all stats.
@@ -142,7 +150,7 @@ impl Stats {
             RsShortUnrecoverable => self.rs_short.record_err(),
             RsMediumUnrecoverable => self.rs_med.record_err(),
             RsLongUnrecoverable => self.rs_long.record_err(),
-            ViterbiUnrecoverable => {},
+            DibitViterbiUnrecoverable => self.viterbi_dibit.record_err(),
             UnknownNid => {},
         }
     }

@@ -52,7 +52,7 @@ impl TsbkReceiver {
         };
 
         if count != dibits.len() {
-            return Some(Err(P25Error::ViterbiUnrecoverable));
+            return Some(Err(P25Error::DibitViterbiUnrecoverable));
         }
 
         let mut bytes = [0; TSBK_BYTES];
