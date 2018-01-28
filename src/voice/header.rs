@@ -23,10 +23,6 @@ pub struct VoiceHeaderReceiver {
     stats: Stats,
 }
 
-impl HasStats for VoiceHeaderReceiver {
-    fn stats(&mut self) -> &mut Stats { &mut self.stats }
-}
-
 impl VoiceHeaderReceiver {
     /// Create a new `VoiceHeaderReceiver` in the initial state.
     pub fn new() -> VoiceHeaderReceiver {
@@ -74,6 +70,10 @@ impl VoiceHeaderReceiver {
 
         Some(Ok(VoiceHeaderFields::new(bytes)))
     }
+}
+
+impl HasStats for VoiceHeaderReceiver {
+    fn stats(&mut self) -> &mut Stats { &mut self.stats }
 }
 
 /// Buffer of bytes that represents a voice header packet.
