@@ -8,13 +8,13 @@ pub struct CodeStats {
     /// Number of symbols per word.
     ///
     /// TODO: make this a const-generic or similar.
-    size: usize,
+    pub size: usize,
     /// Total number of received words.
-    words: usize,
+    pub words: usize,
     /// Number of corrected symbols.
-    fixed: usize,
+    pub fixed: usize,
     /// Number of unrecoverable words.
-    err: usize,
+    pub err: usize,
 }
 
 impl CodeStats {
