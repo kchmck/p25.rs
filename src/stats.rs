@@ -14,7 +14,7 @@ pub struct CodeStats {
     /// Number of corrected symbols.
     pub fixed: usize,
     /// Number of unrecoverable words.
-    pub err: usize,
+    pub errs: usize,
 }
 
 impl CodeStats {
@@ -24,23 +24,23 @@ impl CodeStats {
         CodeStats {
             size: size,
             words: 0,
-            err: 0,
+            errs: 0,
             fixed: 0,
         }
     }
 
     /// Record that a word was received with the given amount of corrected symbols.
-    pub fn record_fixes(&mut self, err: usize) {
-        debug_assert!(err <= self.size);
+    pub fn record_fixes(&mut self, errs: usize) {
+        debug_assert!(errs <= self.size);
 
         self.words += 1;
-        self.fixed += err;
+        self.fixed += errs;
     }
 
     /// Record that a word was received with an unrecoverable error.
     pub fn record_err(&mut self) {
         self.words += 1;
-        self.err += 1;
+        self.errs += 1;
     }
 
     /// Merge in the stats from the given object and clear the other stats.
@@ -48,7 +48,7 @@ impl CodeStats {
         debug_assert!(self.size == other.size);
 
         self.words += other.words;
-        self.err += other.err;
+        self.errs += other.errs;
         self.fixed += other.fixed;
 
         other.clear();
@@ -57,7 +57,7 @@ impl CodeStats {
     /// Clear all stats.
     fn clear(&mut self) {
         self.words = 0;
-        self.err = 0;
+        self.errs = 0;
         self.fixed = 0;
     }
 }
@@ -176,7 +176,7 @@ mod test {
         assert_eq!(a.size, 23);
         assert_eq!(a.words, 2);
         assert_eq!(a.fixed, 13);
-        assert_eq!(a.err, 1);
+        assert_eq!(a.errs, 1);
 
         b.record_fixes(11);
         b.record_fixes(19);
@@ -185,17 +185,17 @@ mod test {
         assert_eq!(b.size, 23);
         assert_eq!(b.words, 4);
         assert_eq!(b.fixed, 30);
-        assert_eq!(b.err, 2);
+        assert_eq!(b.errs, 2);
 
         a.merge(&mut b);
         assert_eq!(a.size, 23);
         assert_eq!(a.words, 6);
         assert_eq!(a.fixed, 43);
-        assert_eq!(a.err, 3);
+        assert_eq!(a.errs, 3);
         assert_eq!(b.size, 23);
         assert_eq!(b.words, 0);
         assert_eq!(b.fixed, 0);
-        assert_eq!(b.err, 0);
+        assert_eq!(b.errs, 0);
 
         let mut c = CodeStats::new(7);
         c.record_fixes(3);
@@ -204,6 +204,6 @@ mod test {
         assert_eq!(c.size, 7);
         assert_eq!(c.words, 3);
         assert_eq!(c.fixed, 5);
-        assert_eq!(c.err, 1);
+        assert_eq!(c.errs, 1);
     }
 }
