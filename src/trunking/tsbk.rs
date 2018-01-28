@@ -8,6 +8,7 @@ use coding::trellis;
 use consts::{TSBK_DIBITS, TSBK_BYTES};
 use data::{crc, interleave};
 use error::{Result, P25Error};
+use stats::{Stats, HasStats};
 use util::{slice_u16, slice_u24};
 
 use trunking::fields::{Channel, TalkGroup, ServiceOptions, RegResponse};
@@ -23,6 +24,7 @@ use trunking::fields::{Channel, TalkGroup, ServiceOptions, RegResponse};
 pub struct TsbkReceiver {
     /// Current buffered dibits.
     dibits: Buffer<DataPayloadStorage>,
+    stats: Stats,
 }
 
 impl TsbkReceiver {
@@ -30,6 +32,7 @@ impl TsbkReceiver {
     pub fn new() -> TsbkReceiver {
         TsbkReceiver {
             dibits: Buffer::new(DataPayloadStorage::new()),
+            stats: Stats::default(),
         }
     }
 
@@ -55,11 +58,18 @@ impl TsbkReceiver {
             return Some(Err(P25Error::DibitViterbiUnrecoverable));
         }
 
+        // TODO: determine number of corrected bits.
+        self.stats.viterbi_dibit.record_fixes(0);
+
         let mut bytes = [0; TSBK_BYTES];
         DibitBytes::new(dibits.iter().cloned()).collect_slice_checked(&mut bytes[..]);
 
         Some(Ok(TsbkFields::new(bytes)))
     }
+}
+
+impl HasStats for TsbkReceiver {
+    fn stats(&mut self) -> &mut Stats { &mut self.stats }
 }
 
 /// Type of a TSBK payload.

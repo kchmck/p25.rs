@@ -233,7 +233,8 @@ impl MessageReceiver {
             DecodeLCFrameGroup(ref mut fg) => self.stats.merge(fg),
             DecodeCCFrameGroup(ref mut fg) => self.stats.merge(fg),
             DecodeLCTerminator(ref mut term) => self.stats.merge(term),
-            DecodeTSBK(_) | Idle => {},
+            DecodeTSBK(ref mut tsbk) => self.stats.merge(tsbk),
+            Idle => {},
         }
 
         next
