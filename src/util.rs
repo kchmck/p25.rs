@@ -1,6 +1,6 @@
 //! Just some utilities.
 
-use num::One;
+use num_traits::One;
 use std;
 
 /// Calculate ceil(a / b).
